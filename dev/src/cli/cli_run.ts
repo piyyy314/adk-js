@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import {isCancel, intro, outro, text} from '@clack/prompts';
 import {
   BaseAgent,
   BaseArtifactService,
@@ -16,7 +17,6 @@ import {
   Session,
 } from '@google/adk';
 import * as path from 'node:path';
-import * as readline from 'node:readline';
 
 import {AgentFile, AgentFileOptions} from '../utils/agent_loader.js';
 import {loadFileData, saveToFile} from '../utils/file_utils.js';
@@ -26,20 +26,6 @@ const dirname = process.cwd();
 interface InputFile {
   state: Record<string, unknown>;
   queries: string[];
-}
-
-async function getUserInput(prompt: string): Promise<string> {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
-
-  return new Promise<string>((resolve) => {
-    rl.question(prompt, (answer) => {
-      rl.close();
-      resolve(answer);
-    });
-  });
 }
 
 interface RunFromInputFileOptions {
@@ -114,14 +100,17 @@ async function runInteractively(
   });
 
   while (true) {
-    const query = await getUserInput('[user]: ');
+    const query = await text({
+      message: 'User',
+      placeholder: 'Type your message or "exit" to quit',
+    });
+
+    if (isCancel(query) || query === 'exit') {
+      break;
+    }
 
     if (!query || !query.trim()) {
       continue;
-    }
-
-    if (query === 'exit') {
-      break;
     }
 
     for await (const event of runner.runAsync({
@@ -211,7 +200,7 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
         session,
       });
     } else {
-      console.log(`Running agent ${rootAgent.name}, type exit to exit.`);
+      intro(`Running agent ${rootAgent.name}`);
       await runInteractively({
         rootAgent,
         artifactService,
@@ -222,8 +211,16 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
     }
 
     if (options.saveSession) {
-      const sessionId =
-        options.sessionId || (await getUserInput('Session ID to save: '));
+      let sessionId = options.sessionId;
+      if (!sessionId) {
+        const sessionIdResponse = await text({
+          message: 'Session ID to save',
+        });
+        if (isCancel(sessionIdResponse)) {
+          return;
+        }
+        sessionId = sessionIdResponse;
+      }
       const sessionPath = path.join(
         options.agentPath,
         `${sessionId}.session.json`,
@@ -237,6 +234,7 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
 
       console.log('Session saved to', sessionPath);
     }
+    outro('Goodbye!');
   } catch (e) {
     console.log(e);
   }
