@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import {intro, isCancel, outro, spinner, text} from '@clack/prompts';
 import {
   BaseAgent,
   BaseArtifactService,
@@ -16,7 +17,6 @@ import {
   Session,
 } from '@google/adk';
 import * as path from 'node:path';
-import * as readline from 'node:readline';
 
 import {AgentFile, AgentFileOptions} from '../utils/agent_loader.js';
 import {loadFileData, saveToFile} from '../utils/file_utils.js';
@@ -26,20 +26,6 @@ const dirname = process.cwd();
 interface InputFile {
   state: Record<string, unknown>;
   queries: string[];
-}
-
-async function getUserInput(prompt: string): Promise<string> {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
-
-  return new Promise<string>((resolve) => {
-    rl.question(prompt, (answer) => {
-      rl.close();
-      resolve(answer);
-    });
-  });
 }
 
 interface RunFromInputFileOptions {
@@ -113,32 +99,52 @@ async function runInteractively(
     memoryService: options.memoryService,
   });
 
+  intro(`Running agent ${options.rootAgent.name}`);
+
+  const s = spinner();
+
   while (true) {
-    const query = await getUserInput('[user]: ');
+    const query = await text({
+      message: 'Enter your message (type exit to quit):',
+      placeholder: 'Hello, how can you help me?',
+    });
+
+    if (isCancel(query) || query === 'exit') {
+      break;
+    }
 
     if (!query || !query.trim()) {
       continue;
     }
 
-    if (query === 'exit') {
-      break;
-    }
+    s.start('Agent is thinking...');
 
+    let fullMessageText = '';
+    let lastAuthor = '';
     for await (const event of runner.runAsync({
       userId: options.session.userId,
       sessionId: options.session.id,
       newMessage: {role: 'user', parts: [{text: query}]},
     })) {
       if (event.content && event.content.parts) {
-        const text = event.content.parts
+        const messageText = event.content.parts
           .map((part) => part.text || '')
           .join('');
-        if (text) {
-          console.log(`[${event.author}]: ${text}`);
+        if (messageText) {
+          fullMessageText += messageText;
+          lastAuthor = event.author || 'agent';
         }
       }
     }
+
+    if (fullMessageText) {
+      s.stop(`[${lastAuthor}]: ${fullMessageText}`);
+    } else {
+      s.stop('Agent finished processing.');
+    }
   }
+
+  outro('Session ended.');
 }
 
 /**
@@ -211,7 +217,6 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
         session,
       });
     } else {
-      console.log(`Running agent ${rootAgent.name}, type exit to exit.`);
       await runInteractively({
         rootAgent,
         artifactService,
@@ -222,8 +227,16 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
     }
 
     if (options.saveSession) {
-      const sessionId =
-        options.sessionId || (await getUserInput('Session ID to save: '));
+      let sessionId = options.sessionId;
+      if (!sessionId) {
+        const result = await text({
+          message: 'Session ID to save:',
+        });
+        if (isCancel(result)) {
+          return;
+        }
+        sessionId = result;
+      }
       const sessionPath = path.join(
         options.agentPath,
         `${sessionId}.session.json`,
