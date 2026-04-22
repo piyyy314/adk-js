@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {isCancel, select, text} from '@clack/prompts';
+import {isCancel, note, outro, select, text} from '@clack/prompts';
 import {exec, execSync} from 'node:child_process';
 import * as path from 'node:path';
 import {promisify} from 'node:util';
@@ -306,11 +306,21 @@ export async function createAgent(options: AgentCreationOptions) {
 
   const files = await listFiles(agentDir);
 
-  console.log(`\nCreated the following files in ${agentDir}:`);
-  files.forEach((file) => {
-    console.log(`  - ${file}`);
-  });
-  console.log(
-    `Run 'cd ${options.agentName} && npm run web' to start the agent in a web interface`,
-  );
+  if (!options.forceYes) {
+    note(
+      files.map((file) => `  - ${file}`).join('\n'),
+      `Created the following files in ${agentDir}:`,
+    );
+    outro(
+      `Run 'cd ${options.agentName} && npm run web' to start the agent in a web interface`,
+    );
+  } else {
+    console.log(`\nCreated the following files in ${agentDir}:`);
+    files.forEach((file) => {
+      console.log(`  - ${file}`);
+    });
+    console.log(
+      `Run 'cd ${options.agentName} && npm run web' to start the agent in a web interface`,
+    );
+  }
 }
