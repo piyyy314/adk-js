@@ -15,8 +15,8 @@ import {
   Runner,
   Session,
 } from '@google/adk';
+import {intro, isCancel, log, outro, spinner, text} from '@clack/prompts';
 import * as path from 'node:path';
-import * as readline from 'node:readline';
 
 import {AgentFile, AgentFileOptions} from '../utils/agent_loader.js';
 import {loadFileData, saveToFile} from '../utils/file_utils.js';
@@ -26,20 +26,6 @@ const dirname = process.cwd();
 interface InputFile {
   state: Record<string, unknown>;
   queries: string[];
-}
-
-async function getUserInput(prompt: string): Promise<string> {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
-
-  return new Promise<string>((resolve) => {
-    rl.question(prompt, (answer) => {
-      rl.close();
-      resolve(answer);
-    });
-  });
 }
 
 interface RunFromInputFileOptions {
@@ -72,7 +58,7 @@ async function runFromInputFile(
   const runner = new Runner(options);
 
   for (const query of fileContent.queries) {
-    console.log(`[user]: ${query}`);
+    log.step(`user: ${query}`);
 
     const runOptions = {
       userId: session.userId,
@@ -86,7 +72,7 @@ async function runFromInputFile(
           .map((part) => part.text || '')
           .join('');
         if (text) {
-          console.log(`[${event.author}]: ${text}`);
+          log.info(`${event.author}: ${text}`);
         }
       }
     }
@@ -114,30 +100,33 @@ async function runInteractively(
   });
 
   while (true) {
-    const query = await getUserInput('[user]: ');
+    const query = await text({
+      message: 'user',
+      placeholder: 'Type your message (or "exit" to quit)',
+    });
 
-    if (!query || !query.trim()) {
-      continue;
-    }
+    if (isCancel(query) || query === 'exit') break;
+    if (!query?.trim()) continue;
 
-    if (query === 'exit') {
-      break;
-    }
+    const s = spinner();
+    s.start('Agent is thinking...');
+    let hasReplied = false;
 
     for await (const event of runner.runAsync({
       userId: options.session.userId,
       sessionId: options.session.id,
       newMessage: {role: 'user', parts: [{text: query}]},
     })) {
-      if (event.content && event.content.parts) {
-        const text = event.content.parts
-          .map((part) => part.text || '')
-          .join('');
-        if (text) {
-          console.log(`[${event.author}]: ${text}`);
+      const textContent = event.content?.parts?.map((p) => p.text).join('') || '';
+      if (textContent) {
+        if (!hasReplied) {
+          s.stop('Agent replied:');
+          hasReplied = true;
         }
+        log.info(`${event.author}: ${textContent}`);
       }
     }
+    if (!hasReplied) s.stop('Agent finished processing.');
   }
 }
 
@@ -157,6 +146,7 @@ export interface RunAgentOptions {
   agentFileLoadOptions?: AgentFileOptions;
 }
 export async function runAgent(options: RunAgentOptions): Promise<void> {
+  intro(`Running agent ${options.agentPath}`);
   try {
     const userId = 'test_user';
     const artifactService =
@@ -197,7 +187,7 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
           if (content && content.parts?.length) {
             const text = content.parts.map((part) => part.text || '').join('');
             if (text) {
-              console.log(`[${event.author}]: ${text}`);
+              log.info(`${event.author}: ${text}`);
             }
           }
         }
@@ -211,7 +201,6 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
         session,
       });
     } else {
-      console.log(`Running agent ${rootAgent.name}, type exit to exit.`);
       await runInteractively({
         rootAgent,
         artifactService,
@@ -223,7 +212,14 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
 
     if (options.saveSession) {
       const sessionId =
-        options.sessionId || (await getUserInput('Session ID to save: '));
+        options.sessionId ||
+        (await text({message: 'Session ID to save', initialValue: 'session_1'}));
+
+      if (isCancel(sessionId)) {
+        outro('Exiting without saving.');
+        return;
+      }
+
       const sessionPath = path.join(
         options.agentPath,
         `${sessionId}.session.json`,
@@ -234,10 +230,11 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
         sessionId: session.id,
       });
       await saveToFile(path.join(dirname, sessionPath), sessionToStore);
-
-      console.log('Session saved to', sessionPath);
+      outro(`Session saved to ${sessionPath}`);
+    } else {
+      outro('Exiting agent.');
     }
   } catch (e) {
-    console.log(e);
+    log.error(String(e));
   }
 }
