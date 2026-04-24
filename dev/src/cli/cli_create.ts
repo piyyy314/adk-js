@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {isCancel, select, text} from '@clack/prompts';
+import {intro, isCancel, outro, select, spinner, text} from '@clack/prompts';
 import {exec, execSync} from 'node:child_process';
 import * as path from 'node:path';
 import {promisify} from 'node:util';
@@ -196,6 +196,9 @@ async function generateFiles(options: AgentCreationOptions) {
 }
 
 export async function createAgent(options: AgentCreationOptions) {
+  if (!options.forceYes) {
+    intro(`Creating a new agent: ${options.agentName}`);
+  }
   const agentDir = path.join(dirname, options.agentName);
   await generateAgentFolder(agentDir, options.forceYes);
 
@@ -297,20 +300,40 @@ export async function createAgent(options: AgentCreationOptions) {
   }
 
   await generateFiles(options);
-  if (options.language === 'ts') {
-    await execPromise(`npm install typescript --save-dev`, {cwd: agentDir});
+
+  const s = spinner();
+  s.start('Installing dependencies...');
+  try {
+    if (options.language === 'ts') {
+      await execPromise(`npm install typescript --save-dev`, {cwd: agentDir});
+    }
+    await execPromise(
+      `npm install @google/adk @google/adk-devtools zod dotenv`,
+      {
+        cwd: agentDir,
+      },
+    );
+    s.stop('Dependencies installed successfully');
+  } catch (e) {
+    s.stop('Failed to install dependencies');
+    throw e;
   }
-  await execPromise(`npm install @google/adk @google/adk-devtools zod dotenv`, {
-    cwd: agentDir,
-  });
 
   const files = await listFiles(agentDir);
 
-  console.log(`\nCreated the following files in ${agentDir}:`);
-  files.forEach((file) => {
-    console.log(`  - ${file}`);
-  });
-  console.log(
-    `Run 'cd ${options.agentName} && npm run web' to start the agent in a web interface`,
-  );
+  if (options.forceYes) {
+    console.log(`\nCreated the following files in ${agentDir}:`);
+    files.forEach((file) => {
+      console.log(`  - ${file}`);
+    });
+    console.log(
+      `Run 'cd ${options.agentName} && npm run web' to start the agent in a web interface`,
+    );
+  } else {
+    outro(
+      `Agent ${options.agentName} created successfully in ${agentDir}\n\n` +
+        `Files created:\n${files.map((file) => `  - ${file}`).join('\n')}\n\n` +
+        `Next steps:\n  cd ${options.agentName}\n  npm run web`,
+    );
+  }
 }

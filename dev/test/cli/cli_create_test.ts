@@ -30,6 +30,12 @@ vi.mock('@clack/prompts', () => ({
   isCancel: vi.fn(),
   select: vi.fn(),
   text: vi.fn(),
+  intro: vi.fn(),
+  outro: vi.fn(),
+  spinner: vi.fn(() => ({
+    start: vi.fn(),
+    stop: vi.fn(),
+  })),
 }));
 
 vi.mock('node:child_process', () => ({
