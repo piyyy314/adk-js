@@ -15,8 +15,8 @@ import {
   Runner,
   Session,
 } from '@google/adk';
+import {intro, isCancel, outro, text} from '@clack/prompts';
 import * as path from 'node:path';
-import * as readline from 'node:readline';
 
 import {AgentFile, AgentFileOptions} from '../utils/agent_loader.js';
 import {loadFileData, saveToFile} from '../utils/file_utils.js';
@@ -28,17 +28,9 @@ interface InputFile {
   queries: string[];
 }
 
-async function getUserInput(prompt: string): Promise<string> {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
-
-  return new Promise<string>((resolve) => {
-    rl.question(prompt, (answer) => {
-      rl.close();
-      resolve(answer);
-    });
+async function getUserInput(message: string): Promise<string | symbol> {
+  return await text({
+    message,
   });
 }
 
@@ -116,12 +108,12 @@ async function runInteractively(
   while (true) {
     const query = await getUserInput('[user]: ');
 
-    if (!query || !query.trim()) {
-      continue;
+    if (isCancel(query) || query === 'exit') {
+      break;
     }
 
-    if (query === 'exit') {
-      break;
+    if (!query || !query.trim()) {
+      continue;
     }
 
     for await (const event of runner.runAsync({
@@ -187,6 +179,7 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
           filePath: options.inputFile,
         })) || session;
     } else if (options.savedSessionFile) {
+      intro(`Resuming agent ${rootAgent.name}`);
       const loadedSession = await loadFileData<Session>(
         options.savedSessionFile,
       );
@@ -210,8 +203,9 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
         memoryService,
         session,
       });
+      outro('Exiting agent');
     } else {
-      console.log(`Running agent ${rootAgent.name}, type exit to exit.`);
+      intro(`Running agent ${rootAgent.name}`);
       await runInteractively({
         rootAgent,
         artifactService,
@@ -219,11 +213,17 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
         memoryService,
         session,
       });
+      outro('Exiting agent');
     }
 
     if (options.saveSession) {
       const sessionId =
         options.sessionId || (await getUserInput('Session ID to save: '));
+
+      if (isCancel(sessionId)) {
+        return;
+      }
+
       const sessionPath = path.join(
         options.agentPath,
         `${sessionId}.session.json`,
