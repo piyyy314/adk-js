@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import {isCancel, text} from '@clack/prompts';
 import {
   BaseAgent,
   BaseArtifactService,
@@ -16,7 +17,6 @@ import {
   Session,
 } from '@google/adk';
 import * as path from 'node:path';
-import * as readline from 'node:readline';
 
 import {AgentFile, AgentFileOptions} from '../utils/agent_loader.js';
 import {loadFileData, saveToFile} from '../utils/file_utils.js';
@@ -28,17 +28,9 @@ interface InputFile {
   queries: string[];
 }
 
-async function getUserInput(prompt: string): Promise<string> {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
-
-  return new Promise<string>((resolve) => {
-    rl.question(prompt, (answer) => {
-      rl.close();
-      resolve(answer);
-    });
+async function getUserInput(prompt: string): Promise<string | symbol> {
+  return await text({
+    message: prompt,
   });
 }
 
@@ -116,12 +108,12 @@ async function runInteractively(
   while (true) {
     const query = await getUserInput('[user]: ');
 
-    if (!query || !query.trim()) {
-      continue;
+    if (isCancel(query) || query === 'exit') {
+      break;
     }
 
-    if (query === 'exit') {
-      break;
+    if (typeof query !== 'string' || !query.trim()) {
+      continue;
     }
 
     for await (const event of runner.runAsync({
@@ -222,8 +214,16 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
     }
 
     if (options.saveSession) {
-      const sessionId =
-        options.sessionId || (await getUserInput('Session ID to save: '));
+      let sessionId = options.sessionId;
+      if (!sessionId) {
+        const input = await getUserInput('Session ID to save: ');
+        if (isCancel(input)) {
+          console.log('Session save cancelled.');
+          return;
+        }
+        sessionId = input as string;
+      }
+
       const sessionPath = path.join(
         options.agentPath,
         `${sessionId}.session.json`,
