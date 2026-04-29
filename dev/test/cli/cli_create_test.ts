@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {isCancel, select, text} from '@clack/prompts';
+import {intro, isCancel, note, outro, select, spinner, text} from '@clack/prompts';
 import {execSync} from 'node:child_process';
 import {
   afterEach,
@@ -27,8 +27,15 @@ import {
 
 // Mock dependencies
 vi.mock('@clack/prompts', () => ({
+  intro: vi.fn(),
   isCancel: vi.fn(),
+  note: vi.fn(),
+  outro: vi.fn(),
   select: vi.fn(),
+  spinner: vi.fn(() => ({
+    start: vi.fn(),
+    stop: vi.fn(),
+  })),
   text: vi.fn(),
 }));
 
