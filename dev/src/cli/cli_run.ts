@@ -15,8 +15,8 @@ import {
   Runner,
   Session,
 } from '@google/adk';
+import {intro, isCancel, outro, spinner, text} from '@clack/prompts';
 import * as path from 'node:path';
-import * as readline from 'node:readline';
 
 import {AgentFile, AgentFileOptions} from '../utils/agent_loader.js';
 import {loadFileData, saveToFile} from '../utils/file_utils.js';
@@ -29,17 +29,16 @@ interface InputFile {
 }
 
 async function getUserInput(prompt: string): Promise<string> {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
+  const answer = await text({
+    message: prompt,
+    placeholder: 'Type your message here...',
   });
 
-  return new Promise<string>((resolve) => {
-    rl.question(prompt, (answer) => {
-      rl.close();
-      resolve(answer);
-    });
-  });
+  if (isCancel(answer)) {
+    process.exit(0);
+  }
+
+  return answer;
 }
 
 interface RunFromInputFileOptions {
@@ -80,16 +79,16 @@ async function runFromInputFile(
       newMessage: {role: 'user', parts: [{text: query}]},
     };
 
+    const s = spinner();
+    s.start('Agent is thinking...');
     for await (const event of runner.runAsync(runOptions)) {
-      if (event.content && event.content.parts) {
-        const text = event.content.parts
-          .map((part) => part.text || '')
-          .join('');
-        if (text) {
-          console.log(`[${event.author}]: ${text}`);
-        }
+      if (event.content?.parts?.length) {
+        s.stop();
+        const text = event.content.parts.map((p) => p.text || '').join('');
+        if (text) console.log(`[${event.author}]: ${text}`);
       }
     }
+    s.stop('Thinking complete');
   }
 
   return session;
@@ -124,20 +123,20 @@ async function runInteractively(
       break;
     }
 
+    const s = spinner();
+    s.start('Agent is thinking...');
     for await (const event of runner.runAsync({
       userId: options.session.userId,
       sessionId: options.session.id,
       newMessage: {role: 'user', parts: [{text: query}]},
     })) {
-      if (event.content && event.content.parts) {
-        const text = event.content.parts
-          .map((part) => part.text || '')
-          .join('');
-        if (text) {
-          console.log(`[${event.author}]: ${text}`);
-        }
+      if (event.content?.parts?.length) {
+        s.stop();
+        const text = event.content.parts.map((p) => p.text || '').join('');
+        if (text) console.log(`[${event.author}]: ${text}`);
       }
     }
+    s.stop('Thinking complete');
   }
 }
 
@@ -169,6 +168,8 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
       options.agentFileLoadOptions,
     );
     const rootAgent = await agentFile.load();
+
+    intro(`Running agent ${rootAgent.name}`);
 
     let session = await sessionService.createSession({
       appName: rootAgent.name,
@@ -211,7 +212,6 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
         session,
       });
     } else {
-      console.log(`Running agent ${rootAgent.name}, type exit to exit.`);
       await runInteractively({
         rootAgent,
         artifactService,
@@ -220,6 +220,8 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
         session,
       });
     }
+
+    outro('Exiting agent run');
 
     if (options.saveSession) {
       const sessionId =
