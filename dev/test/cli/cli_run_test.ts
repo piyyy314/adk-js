@@ -5,7 +5,7 @@
  */
 
 import {BaseAgent, BaseSessionService} from '@google/adk';
-import * as readline from 'node:readline';
+import {intro, isCancel, outro, text} from '@clack/prompts';
 import {afterEach, beforeEach, describe, expect, it, Mock, vi} from 'vitest';
 import {runAgent} from '../../src/cli/cli_run.js';
 import {AgentFile} from '../../src/utils/agent_loader.js';
@@ -22,14 +22,16 @@ vi.mock('../../src/utils/file_utils.js', () => ({
 }));
 
 vi.mock('@google/adk', () => {
+  const runAsyncMock = vi.fn().mockImplementation(async function* () {
+    yield {
+      author: 'model',
+      content: {parts: [{text: 'Response from model'}]},
+    };
+  });
+
   return {
     Runner: vi.fn().mockImplementation(() => ({
-      runAsync: vi.fn().mockImplementation(async function* () {
-        yield {
-          author: 'model',
-          content: {parts: [{text: 'Response from model'}]},
-        };
-      }),
+      runAsync: runAsyncMock,
     })),
     InMemoryArtifactService: vi.fn(),
     InMemorySessionService: vi.fn().mockImplementation(() => ({
@@ -51,18 +53,21 @@ vi.mock('@google/adk', () => {
   };
 });
 
-vi.mock('node:readline', () => ({
-  createInterface: vi.fn(),
+vi.mock('@clack/prompts', () => ({
+  intro: vi.fn(),
+  outro: vi.fn(),
+  isCancel: vi.fn(),
+  text: vi.fn(),
 }));
 
 describe('cli_run', () => {
   let mockAgentFile: AgentFile;
   let mockRootAgent: BaseAgent;
-  let mockRl: readline.Interface;
 
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
 
     mockRootAgent = {
       name: 'test-agent',
@@ -74,14 +79,8 @@ describe('cli_run', () => {
     } as unknown as AgentFile;
 
     (AgentFile as unknown as Mock).mockImplementation(() => mockAgentFile);
-
-    mockRl = {
-      question: vi.fn((query: string, cb: (answer: string) => void) => {
-        cb('exit');
-      }),
-      close: vi.fn(),
-    } as unknown as readline.Interface;
-    (readline.createInterface as Mock).mockReturnValue(mockRl);
+    (isCancel as unknown as Mock).mockReturnValue(false);
+    (text as Mock).mockResolvedValue('exit');
   });
 
   afterEach(() => {
@@ -96,8 +95,8 @@ describe('cli_run', () => {
       undefined,
     );
     expect(mockAgentFile.load).toHaveBeenCalled();
-    expect(readline.createInterface).toHaveBeenCalled();
-    expect(mockRl.question).toHaveBeenCalled();
+    expect(intro).toHaveBeenCalled();
+    expect(text).toHaveBeenCalled();
   });
 
   const createMockSessionService = () =>
@@ -169,7 +168,7 @@ describe('cli_run', () => {
     });
 
     expect(loadFileData).toHaveBeenCalledWith('session.json');
-    expect(readline.createInterface).toHaveBeenCalled();
+    expect(text).toHaveBeenCalled();
   });
 
   it('should save session when requested', async () => {
@@ -189,13 +188,9 @@ describe('cli_run', () => {
   });
 
   it('should prompt for session id if not provided when saving', async () => {
-    (mockRl.question as Mock)
-      .mockImplementationOnce((prompt: string, cb: (answer: string) => void) =>
-        cb('exit'),
-      ) // For the runInteractively loop
-      .mockImplementationOnce((prompt: string, cb: (answer: string) => void) =>
-        cb('prompted-session-id'),
-      ); // For saveSession
+    (text as Mock)
+      .mockResolvedValueOnce('exit') // For the runInteractively loop
+      .mockResolvedValueOnce('prompted-session-id'); // For saveSession
     const mockSessionService = createMockSessionService();
 
     await runAgent({

@@ -15,8 +15,8 @@ import {
   Runner,
   Session,
 } from '@google/adk';
+import {intro, isCancel, outro, text} from '@clack/prompts';
 import * as path from 'node:path';
-import * as readline from 'node:readline';
 
 import {AgentFile, AgentFileOptions} from '../utils/agent_loader.js';
 import {loadFileData, saveToFile} from '../utils/file_utils.js';
@@ -28,18 +28,12 @@ interface InputFile {
   queries: string[];
 }
 
-async function getUserInput(prompt: string): Promise<string> {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
+async function getUserInput(prompt: string): Promise<string | symbol> {
+  const answer = await text({
+    message: prompt,
   });
 
-  return new Promise<string>((resolve) => {
-    rl.question(prompt, (answer) => {
-      rl.close();
-      resolve(answer);
-    });
-  });
+  return answer;
 }
 
 interface RunFromInputFileOptions {
@@ -114,14 +108,16 @@ async function runInteractively(
   });
 
   while (true) {
-    const query = await getUserInput('[user]: ');
+    const query = await getUserInput(
+      'Enter your message (or type "exit" to quit)',
+    );
 
-    if (!query || !query.trim()) {
-      continue;
+    if (isCancel(query) || query === 'exit') {
+      break;
     }
 
-    if (query === 'exit') {
-      break;
+    if (typeof query !== 'string' || !query.trim()) {
+      continue;
     }
 
     for await (const event of runner.runAsync({
@@ -158,6 +154,7 @@ export interface RunAgentOptions {
 }
 export async function runAgent(options: RunAgentOptions): Promise<void> {
   try {
+    intro(`ADK Agent Runner: ${path.basename(options.agentPath)}`);
     const userId = 'test_user';
     const artifactService =
       options.artifactService || new InMemoryArtifactService();
@@ -211,7 +208,6 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
         session,
       });
     } else {
-      console.log(`Running agent ${rootAgent.name}, type exit to exit.`);
       await runInteractively({
         rootAgent,
         artifactService,
@@ -222,8 +218,15 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
     }
 
     if (options.saveSession) {
-      const sessionId =
-        options.sessionId || (await getUserInput('Session ID to save: '));
+      let sessionId = options.sessionId;
+      if (!sessionId) {
+        const input = await getUserInput('Session ID to save');
+        if (isCancel(input)) {
+          outro('Agent execution ended without saving session.');
+          return;
+        }
+        sessionId = input as string;
+      }
       const sessionPath = path.join(
         options.agentPath,
         `${sessionId}.session.json`,
@@ -237,7 +240,8 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
 
       console.log('Session saved to', sessionPath);
     }
+    outro('Agent execution ended.');
   } catch (e) {
-    console.log(e);
+    console.error(e);
   }
 }

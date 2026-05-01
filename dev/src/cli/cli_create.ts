@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {isCancel, select, text} from '@clack/prompts';
+import {intro, isCancel, outro, select, text} from '@clack/prompts';
 import {exec, execSync} from 'node:child_process';
 import * as path from 'node:path';
 import {promisify} from 'node:util';
@@ -196,6 +196,9 @@ async function generateFiles(options: AgentCreationOptions) {
 }
 
 export async function createAgent(options: AgentCreationOptions) {
+  if (!options.forceYes) {
+    intro(`Creating a new ADK Agent: ${options.agentName}`);
+  }
   const agentDir = path.join(dirname, options.agentName);
   await generateAgentFolder(agentDir, options.forceYes);
 
@@ -306,11 +309,21 @@ export async function createAgent(options: AgentCreationOptions) {
 
   const files = await listFiles(agentDir);
 
-  console.log(`\nCreated the following files in ${agentDir}:`);
-  files.forEach((file) => {
-    console.log(`  - ${file}`);
-  });
-  console.log(
-    `Run 'cd ${options.agentName} && npm run web' to start the agent in a web interface`,
-  );
+  if (options.forceYes) {
+    console.log(`\nCreated the following files in ${agentDir}:`);
+    files.forEach((file) => {
+      console.log(`  - ${file}`);
+    });
+    console.log(
+      `Run 'cd ${options.agentName} && npm run web' to start the agent in a web interface`,
+    );
+  } else {
+    outro(`Successfully created agent ${options.agentName} in ${agentDir}
+
+Files created:
+${files.map((file) => `  - ${file}`).join('\n')}
+
+Next steps:
+  Run 'cd ${options.agentName} && npm run web' to start the web interface`);
+  }
 }
