@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import {BaseAgent, BaseSessionService} from '@google/adk';
 import {BaseAgent, BaseSessionService, Runner} from '@google/adk';
 import {intro, isCancel, outro, text} from '@clack/prompts';
 import {afterEach, beforeEach, describe, expect, it, Mock, vi} from 'vitest';
