@@ -130,9 +130,13 @@ async function getGcpRegion(): Promise<string> {
   }
 }
 
-async function generateAgentFolder(agentDir: string, forceYes: boolean) {
+async function generateAgentFolder(
+  agentDir: string,
+  forceYes: boolean,
+): Promise<boolean> {
   if (!(await isFolderExists(agentDir))) {
-    return await createFolder(agentDir);
+    await createFolder(agentDir);
+    return true;
   }
 
   const overwriteFolderResponse: symbol | boolean = forceYes
@@ -148,16 +152,17 @@ async function generateAgentFolder(agentDir: string, forceYes: boolean) {
       });
 
   if (isCancel(overwriteFolderResponse)) {
-    process.exit(0);
+    return false;
   }
 
   if (!overwriteFolderResponse) {
     console.error(`Agent directory ${agentDir} already exists.`);
-    process.exit(0);
+    return false;
   }
 
   await removeFolder(agentDir);
   await createFolder(agentDir);
+  return true;
 }
 
 function generateEnvFile(options: AgentCreationOptions): string {
@@ -197,7 +202,10 @@ async function generateFiles(options: AgentCreationOptions) {
 
 export async function createAgent(options: AgentCreationOptions) {
   const agentDir = path.join(dirname, options.agentName);
-  await generateAgentFolder(agentDir, options.forceYes);
+  const folderReady = await generateAgentFolder(agentDir, options.forceYes);
+  if (!folderReady) {
+    return;
+  }
 
   if (!options.model) {
     const model: symbol | string = options.forceYes
@@ -216,7 +224,7 @@ export async function createAgent(options: AgentCreationOptions) {
         });
 
     if (isCancel(model)) {
-      process.exit(0);
+      return;
     }
     options.model = model;
   }
@@ -233,7 +241,7 @@ export async function createAgent(options: AgentCreationOptions) {
         });
 
     if (isCancel(language)) {
-      process.exit(0);
+      return;
     }
     options.language = language;
   }
@@ -250,24 +258,22 @@ export async function createAgent(options: AgentCreationOptions) {
         });
 
     if (isCancel(backend)) {
-      process.exit(0);
+      return;
     }
 
     if (backend === 'vertex') {
       const defaultProject = await getGcpProject();
       const defaultRegion = await getGcpRegion();
 
-      const projectResponse: string = options.forceYes
+      const projectResponse: symbol | string = options.forceYes
         ? defaultProject
-        : (
-            await text({
-              message: 'Enter the Google Cloud Project ID',
-              initialValue: defaultProject,
-            })
-          ).toString();
+        : await text({
+            message: 'Enter the Google Cloud Project ID',
+            initialValue: defaultProject,
+          });
 
       if (isCancel(projectResponse)) {
-        process.exit(0);
+        return;
       }
       options.project = projectResponse;
 
@@ -279,7 +285,7 @@ export async function createAgent(options: AgentCreationOptions) {
           });
 
       if (isCancel(regionResponse)) {
-        process.exit(0);
+        return;
       }
       options.region = regionResponse;
     } else {
@@ -290,7 +296,7 @@ export async function createAgent(options: AgentCreationOptions) {
           });
 
       if (isCancel(apiKeyResponse)) {
-        process.exit(0);
+        return;
       }
       options.apiKey = apiKeyResponse;
     }
