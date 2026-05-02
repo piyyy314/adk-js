@@ -5,6 +5,7 @@
  */
 
 import {BaseAgent, BaseSessionService} from '@google/adk';
+import {BaseAgent, BaseSessionService, Runner} from '@google/adk';
 import {intro, isCancel, outro, text} from '@clack/prompts';
 import {afterEach, beforeEach, describe, expect, it, Mock, vi} from 'vitest';
 import {runAgent} from '../../src/cli/cli_run.js';
@@ -221,6 +222,157 @@ describe('cli_run', () => {
     expect(saveToFile).toHaveBeenCalledWith(
       expect.stringContaining('prompted-session-id.session.json'),
       expect.anything(),
+    );
+  });
+
+  it('should not save session if session ID prompt is cancelled', async () => {
+    const cancelSymbol = Symbol('cancel');
+    (text as Mock)
+      .mockResolvedValueOnce('exit') // For the runInteractively loop
+      .mockResolvedValueOnce(cancelSymbol); // User cancels session ID prompt
+    // isCancel returns false for 'exit', true for the cancel symbol
+    (isCancel as unknown as Mock)
+      .mockReturnValueOnce(false) // for 'exit' in runInteractively
+      .mockReturnValueOnce(true); // for cancel symbol in saveSession
+    const mockSessionService = createMockSessionService();
+
+    await runAgent({
+      agentPath: 'agent.ts',
+      saveSession: true,
+      sessionService: mockSessionService,
+    });
+
+    expect(saveToFile).not.toHaveBeenCalled();
+  });
+
+  it('should break interactive loop immediately when input is cancelled', async () => {
+    const cancelSymbol = Symbol('cancel');
+    (text as Mock).mockResolvedValue(cancelSymbol);
+    (isCancel as unknown as Mock).mockReturnValue(true);
+    const mockSessionService = createMockSessionService();
+
+    const mockRunAsync = vi.fn().mockImplementation(async function* () {});
+    (Runner as unknown as Mock).mockImplementation(() => ({
+      runAsync: mockRunAsync,
+    }));
+
+    await runAgent({
+      agentPath: 'agent.ts',
+      sessionService: mockSessionService,
+    });
+
+    // runAsync should not have been called because cancel breaks the loop immediately
+    expect(mockRunAsync).not.toHaveBeenCalled();
+    expect(outro).toHaveBeenCalledWith('Exiting agent');
+  });
+
+  it('should continue loop on empty input without processing', async () => {
+    (text as Mock)
+      .mockResolvedValueOnce('') // Empty input - should continue
+      .mockResolvedValueOnce('   ') // Whitespace - should continue
+      .mockResolvedValueOnce('exit'); // Exit
+    (isCancel as unknown as Mock).mockReturnValue(false);
+    const mockSessionService = createMockSessionService();
+
+    const mockRunAsync = vi.fn().mockImplementation(async function* () {});
+    (Runner as unknown as Mock).mockImplementation(() => ({
+      runAsync: mockRunAsync,
+    }));
+
+    await runAgent({
+      agentPath: 'agent.ts',
+      sessionService: mockSessionService,
+    });
+
+    // runAsync should not have been called for empty/whitespace inputs
+    expect(mockRunAsync).not.toHaveBeenCalled();
+  });
+
+  it('should not call intro or outro when running from input file', async () => {
+    const inputFileContent = {
+      state: {foo: 'bar'},
+      queries: ['Hello'],
+    };
+    (loadFileData as Mock).mockResolvedValue(inputFileContent);
+    const mockSessionService = createMockSessionService();
+
+    await runAgent({
+      agentPath: 'agent.ts',
+      inputFile: 'input.json',
+      sessionService: mockSessionService,
+    });
+
+    expect(intro).not.toHaveBeenCalled();
+    expect(outro).not.toHaveBeenCalled();
+  });
+
+  it('should process user query before exiting', async () => {
+    (text as Mock)
+      .mockResolvedValueOnce('Hello agent') // First query
+      .mockResolvedValueOnce('exit'); // Then exit
+    (isCancel as unknown as Mock).mockReturnValue(false);
+    const mockSessionService = createMockSessionService();
+
+    const mockRunAsync = vi.fn().mockImplementation(async function* () {
+      yield {
+        author: 'model',
+        content: {parts: [{text: 'Response'}]},
+      };
+    });
+    (Runner as unknown as Mock).mockImplementation(() => ({
+      runAsync: mockRunAsync,
+    }));
+
+    await runAgent({
+      agentPath: 'agent.ts',
+      sessionService: mockSessionService,
+    });
+
+    // runAsync should have been called exactly once (for 'Hello agent')
+    expect(mockRunAsync).toHaveBeenCalledTimes(1);
+    expect(mockRunAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        newMessage: {role: 'user', parts: [{text: 'Hello agent'}]},
+      }),
+    );
+  });
+
+  it('should call outro after completing savedSessionFile interaction', async () => {
+    const sessionContent = {
+      id: 'old-session',
+      appName: 'test-agent',
+      userId: 'test_user',
+      events: [],
+    };
+    (loadFileData as Mock).mockResolvedValue(sessionContent);
+    const mockSessionService = createMockSessionService();
+
+    await runAgent({
+      agentPath: 'agent.ts',
+      savedSessionFile: 'session.json',
+      sessionService: mockSessionService,
+    });
+
+    expect(outro).toHaveBeenCalledWith('Exiting agent');
+    // outro should only be called once
+    expect(outro).toHaveBeenCalledTimes(1);
+  });
+
+  it('should call text with session ID message when prompting', async () => {
+    (text as Mock)
+      .mockResolvedValueOnce('exit')
+      .mockResolvedValueOnce('my-session-id');
+    (isCancel as unknown as Mock).mockReturnValue(false);
+    const mockSessionService = createMockSessionService();
+
+    await runAgent({
+      agentPath: 'agent.ts',
+      saveSession: true,
+      sessionService: mockSessionService,
+    });
+
+    expect(text).toHaveBeenCalledWith(
+      expect.objectContaining({message: 'Session ID to save: '}),
     );
   });
 });
