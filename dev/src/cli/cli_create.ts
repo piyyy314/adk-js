@@ -4,7 +4,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {isCancel, select, text} from '@clack/prompts';
+import {
+  confirm,
+  intro,
+  isCancel,
+  log,
+  note,
+  outro,
+  select,
+  spinner,
+  text,
+} from '@clack/prompts';
 import {exec, execSync} from 'node:child_process';
 import * as path from 'node:path';
 import {promisify} from 'node:util';
@@ -141,14 +151,8 @@ async function generateAgentFolder(
 
   const overwriteFolderResponse: symbol | boolean = forceYes
     ? true
-    : await select({
-        message: `Folder ${
-          agentDir
-        } already exists. Would you like to overwrite existing folder?`,
-        options: [
-          {label: 'Yes', value: true},
-          {label: 'No', value: false},
-        ],
+    : await confirm({
+        message: `Folder ${agentDir} already exists. Would you like to overwrite existing folder?`,
       });
 
   if (isCancel(overwriteFolderResponse)) {
@@ -201,6 +205,7 @@ async function generateFiles(options: AgentCreationOptions) {
 }
 
 export async function createAgent(options: AgentCreationOptions) {
+  intro('Agent Creation');
   const agentDir = path.join(dirname, options.agentName);
   const folderReady = await generateAgentFolder(agentDir, options.forceYes);
   if (!folderReady) {
@@ -302,21 +307,35 @@ export async function createAgent(options: AgentCreationOptions) {
     }
   }
 
+  log.step('Generating files...');
   await generateFiles(options);
-  if (options.language === 'ts') {
-    await execPromise(`npm install typescript --save-dev`, {cwd: agentDir});
+
+  const s = spinner();
+  s.start('Installing dependencies...');
+  try {
+    if (options.language === 'ts') {
+      await execPromise(`npm install typescript --save-dev`, {cwd: agentDir});
+    }
+    await execPromise(
+      `npm install @google/adk @google/adk-devtools zod dotenv`,
+      {
+        cwd: agentDir,
+      },
+    );
+    s.stop('Dependencies installed successfully.');
+  } catch (e) {
+    s.stop('Failed to install dependencies.', 1);
+    log.error(`Error: ${(e as Error).message}`);
   }
-  await execPromise(`npm install @google/adk @google/adk-devtools zod dotenv`, {
-    cwd: agentDir,
-  });
 
   const files = await listFiles(agentDir);
 
-  console.log(`\nCreated the following files in ${agentDir}:`);
-  files.forEach((file) => {
-    console.log(`  - ${file}`);
-  });
-  console.log(
-    `Run 'cd ${options.agentName} && npm run web' to start the agent in a web interface`,
+  note(
+    `Created the following files in ${agentDir}:\n` +
+      files.map((file) => `  - ${file}`).join('\n') +
+      `\n\nRun 'cd ${options.agentName} && npm run web' to start the agent in a web interface`,
+    'Agent Created Successfully',
   );
+
+  outro('Happy Agent Building!');
 }
