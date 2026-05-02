@@ -166,13 +166,12 @@ describe('createAgent', () => {
       );
     });
 
-    it('should exit if model selection is cancelled', async () => {
+    it('should return without creating files if model selection is cancelled', async () => {
       (select as Mock).mockResolvedValueOnce('cancel-symbol');
       (isCancel as unknown as Mock).mockReturnValue(true);
 
-      await expect(createAgent(getFreshOptions())).rejects.toThrow(
-        /process\.exit/,
-      );
+      await expect(createAgent(getFreshOptions())).resolves.toBeUndefined();
+      expect(saveToFile).not.toHaveBeenCalled();
     });
 
     it('should prompt for language if not provided', async () => {
@@ -244,13 +243,11 @@ describe('createAgent', () => {
       expect(removeFolder).toHaveBeenCalled();
     });
 
-    it('should exit if user declines overwrite', async () => {
+    it('should return without modifying files if user declines overwrite', async () => {
       (isFolderExists as Mock).mockResolvedValue(true);
       (select as Mock).mockResolvedValueOnce(false); // Overwrite = No
 
-      await expect(createAgent(getFreshOptions())).rejects.toThrow(
-        /process\.exit/,
-      );
+      await expect(createAgent(getFreshOptions())).resolves.toBeUndefined();
       expect(removeFolder).not.toHaveBeenCalled();
     });
   });
