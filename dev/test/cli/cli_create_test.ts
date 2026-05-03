@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {isCancel, select, text} from '@clack/prompts';
+import {confirm, isCancel, select, text} from '@clack/prompts';
 import {execSync} from 'node:child_process';
 import {
   afterEach,
@@ -27,8 +27,24 @@ import {
 
 // Mock dependencies
 vi.mock('@clack/prompts', () => ({
+  confirm: vi.fn(),
+  intro: vi.fn(),
   isCancel: vi.fn(),
+  log: {
+    error: vi.fn(),
+    info: vi.fn(),
+    message: vi.fn(),
+    step: vi.fn(),
+    success: vi.fn(),
+    warn: vi.fn(),
+  },
+  note: vi.fn(),
+  outro: vi.fn(),
   select: vi.fn(),
+  spinner: vi.fn(() => ({
+    start: vi.fn(),
+    stop: vi.fn(),
+  })),
   text: vi.fn(),
 }));
 
@@ -225,7 +241,7 @@ describe('createAgent', () => {
   describe('Folder Handling', () => {
     it('should ask to overwrite if folder exists', async () => {
       (isFolderExists as Mock).mockResolvedValue(true);
-      (select as Mock).mockResolvedValueOnce(true); // Overwrite = Yes
+      (confirm as unknown as Mock).mockResolvedValueOnce(true); // Overwrite = Yes
 
       // Follow up choices since we continue
       (select as Mock).mockResolvedValue('gemini-2.5-flash');
@@ -235,7 +251,7 @@ describe('createAgent', () => {
 
       await createAgent(getFreshOptions());
 
-      expect(select).toHaveBeenCalledWith(
+      expect(confirm).toHaveBeenCalledWith(
         expect.objectContaining({
           message: expect.stringContaining('already exists'),
         }),
@@ -245,7 +261,7 @@ describe('createAgent', () => {
 
     it('should return without modifying files if user declines overwrite', async () => {
       (isFolderExists as Mock).mockResolvedValue(true);
-      (select as Mock).mockResolvedValueOnce(false); // Overwrite = No
+      (confirm as unknown as Mock).mockResolvedValueOnce(false); // Overwrite = No
 
       await expect(createAgent(getFreshOptions())).resolves.toBeUndefined();
       expect(removeFolder).not.toHaveBeenCalled();
