@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import {intro, isCancel, outro, spinner, text} from '@clack/prompts';
 import {
   BaseAgent,
   BaseArtifactService,
@@ -15,7 +16,6 @@ import {
   Runner,
   Session,
 } from '@google/adk';
-import {intro, isCancel, outro, spinner, text} from '@clack/prompts';
 import * as path from 'node:path';
 
 import {AgentFile, AgentFileOptions} from '../utils/agent_loader.js';
@@ -78,20 +78,20 @@ async function runFromInputFile(
       newMessage: {role: 'user', parts: [{text: query}]},
     };
 
-    const s = spinner();
-    s.start('Thinking...');
+    const s = process.stdout.isTTY ? spinner() : null;
+    s?.start('Thinking...');
     for await (const event of runner.runAsync(runOptions)) {
       if (event.content && event.content.parts) {
         const text = event.content.parts
           .map((part) => part.text || '')
           .join('');
         if (text) {
-          s.stop();
+          s?.stop();
           console.log(`[${event.author}]: ${text}`);
         }
       }
     }
-    s.stop();
+    s?.stop();
   }
 
   return session;
@@ -136,8 +136,8 @@ async function runInteractively(
       continue;
     }
 
-    const s = spinner();
-    s.start('Thinking...');
+    const s = process.stdout.isTTY ? spinner() : null;
+    s?.start('Thinking...');
     for await (const event of runner.runAsync({
       userId: options.session.userId,
       sessionId: options.session.id,
@@ -148,12 +148,12 @@ async function runInteractively(
           .map((part) => part.text || '')
           .join('');
         if (text) {
-          s.stop();
+          s?.stop();
           console.log(`[${event.author}]: ${text}`);
         }
       }
     }
-    s.stop();
+    s?.stop();
   }
 }
 
