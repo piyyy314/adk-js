@@ -113,10 +113,13 @@ async function runInteractively(
     memoryService: options.memoryService,
   });
 
+  const isTTY = process.stdout.isTTY;
   while (true) {
     const query = await text({
       message: '[user]: ',
-      placeholder: 'Type your message here (or "exit" to quit)...',
+      placeholder: isTTY
+        ? 'Type your message here (or "exit" to quit)...'
+        : undefined,
     });
 
     if (isCancel(query) || query === 'exit') {

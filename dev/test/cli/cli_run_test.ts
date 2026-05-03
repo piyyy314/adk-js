@@ -54,6 +54,12 @@ vi.mock('@google/adk', () => {
 vi.mock('@clack/prompts', () => ({
   intro: vi.fn(),
   outro: vi.fn(),
+  log: {
+    error: vi.fn(),
+    info: vi.fn(),
+    step: vi.fn(),
+    warn: vi.fn(),
+  },
   text: vi.fn(),
   isCancel: vi.fn(),
   spinner: vi.fn(() => ({
