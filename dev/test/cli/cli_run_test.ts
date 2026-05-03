@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {BaseAgent, BaseSessionService, Runner} from '@google/adk';
 import {intro, isCancel, outro, spinner, text} from '@clack/prompts';
+import {BaseAgent, BaseSessionService, Runner} from '@google/adk';
 import {afterEach, beforeEach, describe, expect, it, Mock, vi} from 'vitest';
 import {runAgent} from '../../src/cli/cli_run.js';
 import {AgentFile} from '../../src/utils/agent_loader.js';
@@ -70,6 +70,17 @@ describe('cli_run', () => {
     vi.clearAllMocks();
     vi.spyOn(console, 'log').mockImplementation(() => {});
 
+    // Treat stdin/stdout as TTY in unit tests so that getUserInput uses
+    // @clack/prompts text() (which is mocked), not the readline fallback.
+    Object.defineProperty(process.stdin, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
+
     mockRootAgent = {
       name: 'test-agent',
     } as unknown as BaseAgent;
@@ -87,6 +98,15 @@ describe('cli_run', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    // Restore isTTY to its original value
+    Object.defineProperty(process.stdin, 'isTTY', {
+      value: undefined,
+      configurable: true,
+    });
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: undefined,
+      configurable: true,
+    });
   });
 
   it('should run interactively by default', async () => {
@@ -338,6 +358,8 @@ describe('cli_run', () => {
         newMessage: {role: 'user', parts: [{text: 'Hello agent'}]},
       }),
     );
+    // spinner should have been used for the query (stdout is mocked as TTY)
+    expect(spinner).toHaveBeenCalled();
   });
 
   it('should call outro after completing savedSessionFile interaction', async () => {

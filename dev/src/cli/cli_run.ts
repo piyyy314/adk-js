@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import {intro, isCancel, outro, spinner, text} from '@clack/prompts';
 import {
   BaseAgent,
   BaseArtifactService,
@@ -15,13 +16,30 @@ import {
   Runner,
   Session,
 } from '@google/adk';
-import {intro, isCancel, outro, spinner, text} from '@clack/prompts';
 import * as path from 'node:path';
+import * as readline from 'node:readline';
 
 import {AgentFile, AgentFileOptions} from '../utils/agent_loader.js';
 import {loadFileData, saveToFile} from '../utils/file_utils.js';
 
 const dirname = process.cwd();
+
+/**
+ * Lazily-created readline interface used when stdin is not a TTY (e.g. piped
+ * input in tests or scripts). Kept open for the lifetime of the process so
+ * that multiple sequential getUserInput calls work correctly.
+ */
+let _nonTTYRl: readline.Interface | null = null;
+
+function getNonTTYRl(): readline.Interface {
+  if (!_nonTTYRl) {
+    _nonTTYRl = readline.createInterface({
+      input: process.stdin,
+      terminal: false,
+    });
+  }
+  return _nonTTYRl;
+}
 
 interface InputFile {
   state: Record<string, unknown>;
@@ -31,10 +49,43 @@ interface InputFile {
 /**
  * Prompt the user with a single-line message and obtain their input or a cancel sentinel.
  *
+ * When stdin is a TTY the rich {@link text} prompt from `@clack/prompts` is
+ * used.  When stdin is not a TTY (e.g. piped input in tests or scripts) a
+ * plain readline interface is used instead, because `@clack/prompts` relies on
+ * raw-mode keypresses and does not handle `\n` from piped streams correctly.
+ *
  * @param message - The text to display to the user when prompting for input
- * @returns The entered string, or the prompt library's cancel sentinel (`symbol`)
+ * @returns The entered string, or a symbol sentinel that satisfies
+ *   `isCancel()` / `=== 'exit'` to signal cancellation.
  */
 async function getUserInput(message: string): Promise<string | symbol> {
+  if (!process.stdin.isTTY) {
+    return new Promise<string | symbol>((resolve) => {
+      const rl = getNonTTYRl();
+      let settled = false;
+
+      const onLine = (line: string) => {
+        if (!settled) {
+          settled = true;
+          rl.removeListener('line', onLine);
+          rl.removeListener('close', onClose);
+          resolve(line);
+        }
+      };
+
+      const onClose = () => {
+        if (!settled) {
+          settled = true;
+          rl.removeListener('line', onLine);
+          // Treat EOF as an 'exit' signal so the caller's loop can break.
+          resolve('exit');
+        }
+      };
+
+      rl.once('line', onLine);
+      rl.once('close', onClose);
+    });
+  }
   return await text({
     message,
   });
@@ -78,20 +129,20 @@ async function runFromInputFile(
       newMessage: {role: 'user', parts: [{text: query}]},
     };
 
-    const s = spinner();
-    s.start('Thinking...');
+    const s = process.stdout.isTTY ? spinner() : null;
+    s?.start('Thinking...');
     for await (const event of runner.runAsync(runOptions)) {
       if (event.content && event.content.parts) {
         const text = event.content.parts
           .map((part) => part.text || '')
           .join('');
         if (text) {
-          s.stop();
+          s?.stop();
           console.log(`[${event.author}]: ${text}`);
         }
       }
     }
-    s.stop();
+    s?.stop();
   }
 
   return session;
@@ -136,8 +187,8 @@ async function runInteractively(
       continue;
     }
 
-    const s = spinner();
-    s.start('Thinking...');
+    const s = process.stdout.isTTY ? spinner() : null;
+    s?.start('Thinking...');
     for await (const event of runner.runAsync({
       userId: options.session.userId,
       sessionId: options.session.id,
@@ -148,12 +199,12 @@ async function runInteractively(
           .map((part) => part.text || '')
           .join('');
         if (text) {
-          s.stop();
+          s?.stop();
           console.log(`[${event.author}]: ${text}`);
         }
       }
     }
-    s.stop();
+    s?.stop();
   }
 }
 
