@@ -4,9 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {BaseAgent, BaseSessionService} from '@google/adk';
 import {BaseAgent, BaseSessionService, Runner} from '@google/adk';
-import {intro, isCancel, outro, text} from '@clack/prompts';
+import {intro, isCancel, outro, spinner, text} from '@clack/prompts';
 import {afterEach, beforeEach, describe, expect, it, Mock, vi} from 'vitest';
 import {runAgent} from '../../src/cli/cli_run.js';
 import {AgentFile} from '../../src/utils/agent_loader.js';
@@ -57,6 +56,10 @@ vi.mock('@clack/prompts', () => ({
   outro: vi.fn(),
   text: vi.fn(),
   isCancel: vi.fn(),
+  spinner: vi.fn(() => ({
+    start: vi.fn(),
+    stop: vi.fn(),
+  })),
 }));
 
 describe('cli_run', () => {
