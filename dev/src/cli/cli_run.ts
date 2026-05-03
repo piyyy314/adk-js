@@ -15,7 +15,7 @@ import {
   Runner,
   Session,
 } from '@google/adk';
-import {intro, isCancel, outro, spinner, text} from '@clack/prompts';
+import {intro, isCancel, log, outro, spinner, text} from '@clack/prompts';
 import * as path from 'node:path';
 
 import {AgentFile, AgentFileOptions} from '../utils/agent_loader.js';
@@ -26,18 +26,6 @@ const dirname = process.cwd();
 interface InputFile {
   state: Record<string, unknown>;
   queries: string[];
-}
-
-/**
- * Prompt the user with a single-line message and obtain their input or a cancel sentinel.
- *
- * @param message - The text to display to the user when prompting for input
- * @returns The entered string, or the prompt library's cancel sentinel (`symbol`)
- */
-async function getUserInput(message: string): Promise<string | symbol> {
-  return await text({
-    message,
-  });
 }
 
 interface RunFromInputFileOptions {
@@ -126,7 +114,10 @@ async function runInteractively(
   });
 
   while (true) {
-    const query = await getUserInput('[user]: ');
+    const query = await text({
+      message: '[user]: ',
+      placeholder: 'Type your message here (or "exit" to quit)...',
+    });
 
     if (isCancel(query) || query === 'exit') {
       break;
@@ -234,7 +225,7 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
         memoryService,
         session,
       });
-      outro('Exiting agent');
+      outro('Happy Agent Building!');
     } else {
       intro(`Running agent ${rootAgent.name}`);
       await runInteractively({
@@ -244,12 +235,17 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
         memoryService,
         session,
       });
-      outro('Exiting agent');
+      outro('Happy Agent Building!');
     }
 
     if (options.saveSession) {
+      const defaultSessionId = new Date().toISOString().replace(/[:.]/g, '-');
       const sessionId =
-        options.sessionId || (await getUserInput('Session ID to save: '));
+        options.sessionId ||
+        (await text({
+          message: 'Session ID to save: ',
+          initialValue: defaultSessionId,
+        }));
 
       if (isCancel(sessionId)) {
         return;
@@ -269,6 +265,6 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
       console.log('Session saved to', sessionPath);
     }
   } catch (e) {
-    console.log(e);
+    log.error(e instanceof Error ? e.message : String(e));
   }
 }

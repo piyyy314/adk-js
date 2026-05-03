@@ -134,13 +134,16 @@ const COMPILE_AGENT_FILE = new Option(
 ).default(true);
 const BUNDLE_AGENT_FILE = new Option(
   '--bundle [boolean]',
-  'Optional. Whether to compile ts agent file to js before execution',
+  'Optional. Whether to bundle the agent file and its dependencies',
 ).default(true);
 const A2A_OPTION = new Option(
   '--a2a [boolean]',
   'Optional. Whether to enable A2A for web/api server. Default: false',
 ).default(false);
-const AGENT_FILE_MODULE_TYPE = new Option('--file_type <string>', 'Optional. ');
+const AGENT_FILE_MODULE_TYPE = new Option(
+  '--file_type <string>',
+  'Optional. The module type of the agent file (cjs or esm)',
+);
 AGENT_FILE_MODULE_TYPE.argChoices = [FileModuleType.CJS, FileModuleType.ESM];
 
 /**
