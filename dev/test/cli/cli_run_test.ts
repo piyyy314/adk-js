@@ -400,4 +400,35 @@ describe('cli_run', () => {
       expect.objectContaining({message: 'Session ID to save: '}),
     );
   });
+
+  it('should not use spinner when stdout is not a TTY', async () => {
+    // Override the TTY stub for this test only
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: false,
+      configurable: true,
+    });
+    (text as Mock)
+      .mockResolvedValueOnce('Hello agent')
+      .mockResolvedValueOnce('exit');
+    (isCancel as unknown as Mock).mockReturnValue(false);
+    const mockSessionService = createMockSessionService();
+
+    const mockRunAsync = vi.fn().mockImplementation(async function* () {
+      yield {
+        author: 'model',
+        content: {parts: [{text: 'Response'}]},
+      };
+    });
+    (Runner as unknown as Mock).mockImplementation(() => ({
+      runAsync: mockRunAsync,
+    }));
+
+    await runAgent({
+      agentPath: 'agent.ts',
+      sessionService: mockSessionService,
+    });
+
+    // spinner should NOT be created when stdout is not a TTY
+    expect(spinner).not.toHaveBeenCalled();
+  });
 });

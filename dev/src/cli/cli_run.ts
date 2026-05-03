@@ -62,28 +62,8 @@ async function getUserInput(message: string): Promise<string | symbol> {
   if (!process.stdin.isTTY) {
     return new Promise<string | symbol>((resolve) => {
       const rl = getNonTTYRl();
-      let settled = false;
-
-      const onLine = (line: string) => {
-        if (!settled) {
-          settled = true;
-          rl.removeListener('line', onLine);
-          rl.removeListener('close', onClose);
-          resolve(line);
-        }
-      };
-
-      const onClose = () => {
-        if (!settled) {
-          settled = true;
-          rl.removeListener('line', onLine);
-          // Treat EOF as an 'exit' signal so the caller's loop can break.
-          resolve('exit');
-        }
-      };
-
-      rl.once('line', onLine);
-      rl.once('close', onClose);
+      rl.once('line', (line) => resolve(line));
+      rl.once('close', () => resolve('exit'));
     });
   }
   return await text({
