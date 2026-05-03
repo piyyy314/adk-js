@@ -266,5 +266,63 @@ describe('createAgent', () => {
       await expect(createAgent(getFreshOptions())).resolves.toBeUndefined();
       expect(removeFolder).not.toHaveBeenCalled();
     });
+
+    it('should return without modifying files if overwrite confirm is cancelled', async () => {
+      (isFolderExists as Mock).mockResolvedValue(true);
+      const cancelSymbol = Symbol('cancel');
+      (confirm as unknown as Mock).mockResolvedValueOnce(cancelSymbol);
+      (isCancel as unknown as Mock).mockReturnValueOnce(true);
+
+      await expect(createAgent(getFreshOptions())).resolves.toBeUndefined();
+      expect(removeFolder).not.toHaveBeenCalled();
+      expect(createFolder).not.toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('spinner behavior during dependency installation', () => {
+    it('should start and stop spinner during successful npm install', async () => {
+      const mockSpinnerInstance = {start: vi.fn(), stop: vi.fn()};
+      // The spinner mock is already set up in the module mock, but we override for this test
+      const {spinner: spinnerMock} = await import('@clack/prompts');
+      (spinnerMock as Mock).mockReturnValue(mockSpinnerInstance);
+
+      await createAgent({...getFreshOptions(), forceYes: true});
+
+      expect(mockSpinnerInstance.start).toHaveBeenCalledWith(
+        'Installing dependencies...',
+      );
+      expect(mockSpinnerInstance.stop).toHaveBeenCalledWith(
+        'Dependencies installed successfully.',
+      );
+    });
+
+    it('should stop spinner with error message when npm install fails', async () => {
+      const mockSpinnerInstance = {start: vi.fn(), stop: vi.fn()};
+      const {spinner: spinnerMock} = await import('@clack/prompts');
+      (spinnerMock as Mock).mockReturnValue(mockSpinnerInstance);
+
+      const {exec: execMock} = await import('node:child_process');
+      // Make exec fail by calling callback with error
+      (execMock as unknown as Mock).mockImplementation(
+        (
+          _cmd: string,
+          _opts: unknown,
+          callback: (err: Error | null) => void,
+        ) => {
+          callback(new Error('npm install failed'));
+          return {on: vi.fn()};
+        },
+      );
+
+      await createAgent({...getFreshOptions(), forceYes: true});
+
+      expect(mockSpinnerInstance.start).toHaveBeenCalledWith(
+        'Installing dependencies...',
+      );
+      expect(mockSpinnerInstance.stop).toHaveBeenCalledWith(
+        'Failed to install dependencies.',
+        1,
+      );
+    });
   });
 });
