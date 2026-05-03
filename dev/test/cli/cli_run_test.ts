@@ -4,9 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {BaseAgent, BaseSessionService} from '@google/adk';
 import {BaseAgent, BaseSessionService, Runner} from '@google/adk';
-import {intro, isCancel, outro, text} from '@clack/prompts';
+import {intro, isCancel, outro, spinner, text} from '@clack/prompts';
 import {afterEach, beforeEach, describe, expect, it, Mock, vi} from 'vitest';
 import {runAgent} from '../../src/cli/cli_run.js';
 import {AgentFile} from '../../src/utils/agent_loader.js';
@@ -57,6 +56,10 @@ vi.mock('@clack/prompts', () => ({
   outro: vi.fn(),
   text: vi.fn(),
   isCancel: vi.fn(),
+  spinner: vi.fn(() => ({
+    start: vi.fn(),
+    stop: vi.fn(),
+  })),
 }));
 
 describe('cli_run', () => {
@@ -374,5 +377,267 @@ describe('cli_run', () => {
     expect(text).toHaveBeenCalledWith(
       expect.objectContaining({message: 'Session ID to save: '}),
     );
+  });
+
+  describe('spinner behavior in interactive mode', () => {
+    it('should create and start spinner with "Thinking..." when user submits a query', async () => {
+      const mockSpinner = {start: vi.fn(), stop: vi.fn()};
+      (spinner as Mock).mockReturnValue(mockSpinner);
+      (text as Mock)
+        .mockResolvedValueOnce('Hello agent')
+        .mockResolvedValueOnce('exit');
+      (isCancel as unknown as Mock).mockReturnValue(false);
+      const mockSessionService = createMockSessionService();
+
+      await runAgent({
+        agentPath: 'agent.ts',
+        sessionService: mockSessionService,
+      });
+
+      expect(spinner).toHaveBeenCalled();
+      expect(mockSpinner.start).toHaveBeenCalledWith('Thinking...');
+    });
+
+    it('should stop spinner when a text response is received', async () => {
+      const mockSpinner = {start: vi.fn(), stop: vi.fn()};
+      (spinner as Mock).mockReturnValue(mockSpinner);
+      (text as Mock)
+        .mockResolvedValueOnce('Hello agent')
+        .mockResolvedValueOnce('exit');
+      (isCancel as unknown as Mock).mockReturnValue(false);
+      const mockSessionService = createMockSessionService();
+
+      const mockRunAsync = vi.fn().mockImplementation(async function* () {
+        yield {
+          author: 'model',
+          content: {parts: [{text: 'Hello back'}]},
+        };
+      });
+      (Runner as unknown as Mock).mockImplementation(() => ({
+        runAsync: mockRunAsync,
+      }));
+
+      await runAgent({
+        agentPath: 'agent.ts',
+        sessionService: mockSessionService,
+      });
+
+      expect(mockSpinner.stop).toHaveBeenCalled();
+    });
+
+    it('should stop spinner after loop even when no text content events are emitted', async () => {
+      const mockSpinner = {start: vi.fn(), stop: vi.fn()};
+      (spinner as Mock).mockReturnValue(mockSpinner);
+      (text as Mock)
+        .mockResolvedValueOnce('Hello agent')
+        .mockResolvedValueOnce('exit');
+      (isCancel as unknown as Mock).mockReturnValue(false);
+      const mockSessionService = createMockSessionService();
+
+      // Events with no text content
+      const mockRunAsync = vi.fn().mockImplementation(async function* () {
+        yield {author: 'model', content: {parts: [{}]}};
+        yield {author: 'model', content: null};
+      });
+      (Runner as unknown as Mock).mockImplementation(() => ({
+        runAsync: mockRunAsync,
+      }));
+
+      await runAgent({
+        agentPath: 'agent.ts',
+        sessionService: mockSessionService,
+      });
+
+      expect(mockSpinner.start).toHaveBeenCalledWith('Thinking...');
+      expect(mockSpinner.stop).toHaveBeenCalled();
+    });
+
+    it('should create a new spinner for each user query in interactive mode', async () => {
+      const spinnerInstances: Array<{start: Mock; stop: Mock}> = [];
+      (spinner as Mock).mockImplementation(() => {
+        const instance = {start: vi.fn(), stop: vi.fn()};
+        spinnerInstances.push(instance);
+        return instance;
+      });
+      (text as Mock)
+        .mockResolvedValueOnce('First query')
+        .mockResolvedValueOnce('Second query')
+        .mockResolvedValueOnce('exit');
+      (isCancel as unknown as Mock).mockReturnValue(false);
+      const mockSessionService = createMockSessionService();
+
+      await runAgent({
+        agentPath: 'agent.ts',
+        sessionService: mockSessionService,
+      });
+
+      expect(spinner).toHaveBeenCalledTimes(2);
+      expect(spinnerInstances).toHaveLength(2);
+      for (const instance of spinnerInstances) {
+        expect(instance.start).toHaveBeenCalledWith('Thinking...');
+        expect(instance.stop).toHaveBeenCalled();
+      }
+    });
+
+    it('should not create spinner for empty or whitespace-only input', async () => {
+      const mockSpinner = {start: vi.fn(), stop: vi.fn()};
+      (spinner as Mock).mockReturnValue(mockSpinner);
+      (text as Mock)
+        .mockResolvedValueOnce('')
+        .mockResolvedValueOnce('   ')
+        .mockResolvedValueOnce('exit');
+      (isCancel as unknown as Mock).mockReturnValue(false);
+      const mockSessionService = createMockSessionService();
+
+      const mockRunAsync = vi.fn().mockImplementation(async function* () {});
+      (Runner as unknown as Mock).mockImplementation(() => ({
+        runAsync: mockRunAsync,
+      }));
+
+      await runAgent({
+        agentPath: 'agent.ts',
+        sessionService: mockSessionService,
+      });
+
+      expect(spinner).not.toHaveBeenCalled();
+      expect(mockSpinner.start).not.toHaveBeenCalled();
+    });
+
+    it('should not create spinner when input is cancelled', async () => {
+      const mockSpinner = {start: vi.fn(), stop: vi.fn()};
+      (spinner as Mock).mockReturnValue(mockSpinner);
+      const cancelSymbol = Symbol('cancel');
+      (text as Mock).mockResolvedValue(cancelSymbol);
+      (isCancel as unknown as Mock).mockReturnValue(true);
+      const mockSessionService = createMockSessionService();
+
+      await runAgent({
+        agentPath: 'agent.ts',
+        sessionService: mockSessionService,
+      });
+
+      expect(spinner).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('spinner behavior in input file mode', () => {
+    it('should create and start spinner with "Thinking..." for each query', async () => {
+      const spinnerInstances: Array<{start: Mock; stop: Mock}> = [];
+      (spinner as Mock).mockImplementation(() => {
+        const instance = {start: vi.fn(), stop: vi.fn()};
+        spinnerInstances.push(instance);
+        return instance;
+      });
+
+      const inputFileContent = {
+        state: {},
+        queries: ['Query one', 'Query two'],
+      };
+      (loadFileData as Mock).mockResolvedValue(inputFileContent);
+      const mockSessionService = createMockSessionService();
+
+      await runAgent({
+        agentPath: 'agent.ts',
+        inputFile: 'input.json',
+        sessionService: mockSessionService,
+      });
+
+      expect(spinner).toHaveBeenCalledTimes(2);
+      for (const instance of spinnerInstances) {
+        expect(instance.start).toHaveBeenCalledWith('Thinking...');
+      }
+    });
+
+    it('should stop spinner when text content is received in input file mode', async () => {
+      const mockSpinner = {start: vi.fn(), stop: vi.fn()};
+      (spinner as Mock).mockReturnValue(mockSpinner);
+
+      const inputFileContent = {
+        state: {},
+        queries: ['Hello'],
+      };
+      (loadFileData as Mock).mockResolvedValue(inputFileContent);
+      const mockSessionService = createMockSessionService();
+
+      const mockRunAsync = vi.fn().mockImplementation(async function* () {
+        yield {
+          author: 'model',
+          content: {parts: [{text: 'Response text'}]},
+        };
+      });
+      (Runner as unknown as Mock).mockImplementation(() => ({
+        runAsync: mockRunAsync,
+      }));
+
+      await runAgent({
+        agentPath: 'agent.ts',
+        inputFile: 'input.json',
+        sessionService: mockSessionService,
+      });
+
+      expect(mockSpinner.stop).toHaveBeenCalled();
+    });
+
+    it('should stop spinner after loop even with no text events in input file mode', async () => {
+      const mockSpinner = {start: vi.fn(), stop: vi.fn()};
+      (spinner as Mock).mockReturnValue(mockSpinner);
+
+      const inputFileContent = {
+        state: {},
+        queries: ['Query with no response'],
+      };
+      (loadFileData as Mock).mockResolvedValue(inputFileContent);
+      const mockSessionService = createMockSessionService();
+
+      // Runner emits events with no usable text
+      const mockRunAsync = vi.fn().mockImplementation(async function* () {
+        yield {author: 'model', content: {parts: [{text: ''}]}};
+      });
+      (Runner as unknown as Mock).mockImplementation(() => ({
+        runAsync: mockRunAsync,
+      }));
+
+      await runAgent({
+        agentPath: 'agent.ts',
+        inputFile: 'input.json',
+        sessionService: mockSessionService,
+      });
+
+      expect(mockSpinner.start).toHaveBeenCalledWith('Thinking...');
+      // stop() is called once at the end of the loop (idempotent stop)
+      expect(mockSpinner.stop).toHaveBeenCalled();
+    });
+
+    it('should stop spinner only once per query when text is received (idempotent stop)', async () => {
+      const mockSpinner = {start: vi.fn(), stop: vi.fn()};
+      (spinner as Mock).mockReturnValue(mockSpinner);
+
+      const inputFileContent = {
+        state: {},
+        queries: ['Single query'],
+      };
+      (loadFileData as Mock).mockResolvedValue(inputFileContent);
+      const mockSessionService = createMockSessionService();
+
+      // Emit two text events - stop should be called on the first, then again at end of loop
+      const mockRunAsync = vi.fn().mockImplementation(async function* () {
+        yield {author: 'model', content: {parts: [{text: 'First chunk'}]}};
+        yield {author: 'model', content: {parts: [{text: 'Second chunk'}]}};
+      });
+      (Runner as unknown as Mock).mockImplementation(() => ({
+        runAsync: mockRunAsync,
+      }));
+
+      await runAgent({
+        agentPath: 'agent.ts',
+        inputFile: 'input.json',
+        sessionService: mockSessionService,
+      });
+
+      // stop() is called on first text event AND after the loop, but spinner is idempotent
+      expect(mockSpinner.stop).toHaveBeenCalled();
+      // start() should only be called once per query
+      expect(mockSpinner.start).toHaveBeenCalledTimes(1);
+    });
   });
 });
