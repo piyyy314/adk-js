@@ -54,6 +54,12 @@ vi.mock('@google/adk', () => {
 vi.mock('@clack/prompts', () => ({
   intro: vi.fn(),
   outro: vi.fn(),
+  log: {
+    error: vi.fn(),
+    info: vi.fn(),
+    step: vi.fn(),
+    warn: vi.fn(),
+  },
   text: vi.fn(),
   isCancel: vi.fn(),
   spinner: vi.fn(() => ({
@@ -99,7 +105,7 @@ describe('cli_run', () => {
     expect(mockAgentFile.load).toHaveBeenCalled();
     expect(intro).toHaveBeenCalledWith('Running agent test-agent');
     expect(text).toHaveBeenCalled();
-    expect(outro).toHaveBeenCalledWith('Exiting agent');
+    expect(outro).toHaveBeenCalledWith('Happy Agent Building!');
   });
 
   const createMockSessionService = () =>
@@ -173,7 +179,7 @@ describe('cli_run', () => {
     expect(loadFileData).toHaveBeenCalledWith('session.json');
     expect(intro).toHaveBeenCalledWith('Resuming agent test-agent');
     expect(text).toHaveBeenCalled();
-    expect(outro).toHaveBeenCalledWith('Exiting agent');
+    expect(outro).toHaveBeenCalledWith('Happy Agent Building!');
   });
 
   it('should save session when requested', async () => {
@@ -266,7 +272,7 @@ describe('cli_run', () => {
 
     // runAsync should not have been called because cancel breaks the loop immediately
     expect(mockRunAsync).not.toHaveBeenCalled();
-    expect(outro).toHaveBeenCalledWith('Exiting agent');
+    expect(outro).toHaveBeenCalledWith('Happy Agent Building!');
   });
 
   it('should continue loop on empty input without processing', async () => {
@@ -356,7 +362,7 @@ describe('cli_run', () => {
       sessionService: mockSessionService,
     });
 
-    expect(outro).toHaveBeenCalledWith('Exiting agent');
+    expect(outro).toHaveBeenCalledWith('Happy Agent Building!');
     // outro should only be called once
     expect(outro).toHaveBeenCalledTimes(1);
   });
@@ -375,7 +381,7 @@ describe('cli_run', () => {
     });
 
     expect(text).toHaveBeenCalledWith(
-      expect.objectContaining({message: 'Session ID to save: '}),
+      expect.objectContaining({message: 'Session ID to save: ', initialValue: expect.any(String)}),
     );
   });
 
