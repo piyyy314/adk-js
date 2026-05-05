@@ -11,6 +11,7 @@ import {
   log,
   note,
   outro,
+  password,
   select,
   spinner,
   text,
@@ -296,7 +297,7 @@ export async function createAgent(options: AgentCreationOptions) {
     } else {
       const apiKeyResponse: symbol | string = options.forceYes
         ? ''
-        : await text({
+        : await password({
             message: 'Enter the Google API Key',
           });
 
