@@ -393,6 +393,7 @@ describe('cli_run', () => {
       expect.objectContaining({
         message: 'Session ID to save: ',
         initialValue: expect.any(String),
+        placeholder: 'e.g. my-session',
       }),
     );
   });
