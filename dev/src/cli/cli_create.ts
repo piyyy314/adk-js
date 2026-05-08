@@ -219,13 +219,26 @@ export async function createAgent(options: AgentCreationOptions) {
       : await select({
           message: 'Choose a model for the root agent',
           options: [
-            {label: 'gemini-2.5-flash', value: 'gemini-2.5-flash'},
-            {label: 'gemini-2.5-pro', value: 'gemini-2.5-pro'},
+            {
+              label: 'gemini-2.5-flash',
+              value: 'gemini-2.5-flash',
+              hint: 'fast, cost-effective',
+            },
+            {
+              label: 'gemini-2.5-pro',
+              value: 'gemini-2.5-pro',
+              hint: 'complex reasoning',
+            },
             {
               label: 'gemini-3-flash-preview',
               value: 'gemini-3-flash-preview',
+              hint: 'next-gen speed',
             },
-            {label: 'gemini-3-pro-preview', value: 'gemini-3-pro-preview'},
+            {
+              label: 'gemini-3-pro-preview',
+              value: 'gemini-3-pro-preview',
+              hint: 'next-gen intelligence',
+            },
           ],
         });
 
@@ -241,7 +254,7 @@ export async function createAgent(options: AgentCreationOptions) {
       : await select({
           message: 'Choose a language for the agent',
           options: [
-            {label: 'TypeScript', value: 'ts'},
+            {label: 'TypeScript', value: 'ts', hint: 'recommended'},
             {label: 'JavaScript', value: 'js'},
           ],
         });
@@ -258,8 +271,8 @@ export async function createAgent(options: AgentCreationOptions) {
       : await select({
           message: 'Choose a backend',
           options: [
-            {label: 'Google AI', value: 'googleai'},
-            {label: 'Vertex AI', value: 'vertex'},
+            {label: 'Google AI', value: 'googleai', hint: 'uses API key'},
+            {label: 'Vertex AI', value: 'vertex', hint: 'uses Cloud project'},
           ],
         });
 
