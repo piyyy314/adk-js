@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import {intro, isCancel, log, outro, spinner, text} from '@clack/prompts';
 import {
   BaseAgent,
   BaseArtifactService,
@@ -15,8 +16,8 @@ import {
   Runner,
   Session,
 } from '@google/adk';
-import {intro, isCancel, log, outro, spinner, text} from '@clack/prompts';
 import * as path from 'node:path';
+import * as readline from 'node:readline/promises';
 
 import {AgentFile, AgentFileOptions} from '../utils/agent_loader.js';
 import {loadFileData, saveToFile} from '../utils/file_utils.js';
@@ -66,20 +67,21 @@ async function runFromInputFile(
       newMessage: {role: 'user', parts: [{text: query}]},
     };
 
-    const s = spinner();
-    s.start('Thinking...');
+    const isTTY = process.stdout.isTTY;
+    const s = isTTY ? spinner() : undefined;
+    s?.start('Thinking...');
     for await (const event of runner.runAsync(runOptions)) {
       if (event.content && event.content.parts) {
         const text = event.content.parts
           .map((part) => part.text || '')
           .join('');
         if (text) {
-          s.stop();
+          s?.stop();
           console.log(`[${event.author}]: ${text}`);
         }
       }
     }
-    s.stop();
+    s?.stop();
   }
 
   return session;
@@ -114,40 +116,51 @@ async function runInteractively(
   });
 
   const isTTY = process.stdout.isTTY;
-  while (true) {
-    const query = await text({
-      message: '[user]: ',
-      placeholder: isTTY
-        ? 'Type your message here (or "exit" to quit)...'
-        : undefined,
-    });
+  const rl = !isTTY
+    ? readline.createInterface({input: process.stdin, output: process.stdout})
+    : undefined;
 
-    if (isCancel(query) || query === 'exit') {
-      break;
-    }
+  try {
+    while (true) {
+      let query: string | symbol | undefined;
+      if (isTTY) {
+        query = await text({
+          message: '[user]: ',
+          placeholder: 'Type your message here (or "exit" to quit)...',
+        });
+      } else {
+        query = await rl?.question('[user]: ');
+      }
 
-    if (!query || !query.trim()) {
-      continue;
-    }
+      if (isCancel(query) || query === 'exit' || query === undefined) {
+        break;
+      }
 
-    const s = spinner();
-    s.start('Thinking...');
-    for await (const event of runner.runAsync({
-      userId: options.session.userId,
-      sessionId: options.session.id,
-      newMessage: {role: 'user', parts: [{text: query}]},
-    })) {
-      if (event.content && event.content.parts) {
-        const text = event.content.parts
-          .map((part) => part.text || '')
-          .join('');
-        if (text) {
-          s.stop();
-          console.log(`[${event.author}]: ${text}`);
+      if (typeof query === 'string' && !query.trim()) {
+        continue;
+      }
+
+      const s = isTTY ? spinner() : undefined;
+      s?.start('Thinking...');
+      for await (const event of runner.runAsync({
+        userId: options.session.userId,
+        sessionId: options.session.id,
+        newMessage: {role: 'user', parts: [{text: query as string}]},
+      })) {
+        if (event.content && event.content.parts) {
+          const text = event.content.parts
+            .map((part) => part.text || '')
+            .join('');
+          if (text) {
+            s?.stop();
+            console.log(`[${event.author}]: ${text}`);
+          }
         }
       }
+      s?.stop();
     }
-    s.stop();
+  } finally {
+    rl?.close();
   }
 }
 
@@ -204,7 +217,9 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
           filePath: options.inputFile,
         })) || session;
     } else if (options.savedSessionFile) {
-      intro(`Resuming agent ${rootAgent.name}`);
+      if (process.stdout.isTTY) {
+        intro(`Resuming agent ${rootAgent.name}`);
+      }
       const loadedSession = await loadFileData<Session>(
         options.savedSessionFile,
       );
@@ -228,9 +243,13 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
         memoryService,
         session,
       });
-      outro('Happy Agent Building!');
+      if (process.stdout.isTTY) {
+        outro('Happy Agent Building!');
+      }
     } else {
-      intro(`Running agent ${rootAgent.name}`);
+      if (process.stdout.isTTY) {
+        intro(`Running agent ${rootAgent.name}`);
+      }
       await runInteractively({
         rootAgent,
         artifactService,
@@ -238,21 +257,37 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
         memoryService,
         session,
       });
-      outro('Happy Agent Building!');
+      if (process.stdout.isTTY) {
+        outro('Happy Agent Building!');
+      }
     }
 
     if (options.saveSession) {
       const defaultSessionId = new Date().toISOString().replace(/[:.]/g, '-');
-      const sessionId =
-        options.sessionId ||
-        (await text({
-          message: 'Session ID to save: ',
-          initialValue: defaultSessionId,
-          placeholder: 'e.g. my-session',
-        }));
+      let sessionId = options.sessionId;
 
-      if (isCancel(sessionId)) {
-        return;
+      if (!sessionId) {
+        if (process.stdout.isTTY) {
+          const result = await text({
+            message: 'Session ID to save (used as filename): ',
+            initialValue: defaultSessionId,
+            placeholder: 'e.g. my-session',
+          });
+          if (isCancel(result)) {
+            return;
+          }
+          sessionId = result;
+        } else {
+          const rl = readline.createInterface({
+            input: process.stdin,
+            output: process.stdout,
+          });
+          sessionId = await rl.question(
+            `Session ID to save (used as filename) [${defaultSessionId}]: `,
+          );
+          sessionId = sessionId.trim() || defaultSessionId;
+          rl.close();
+        }
       }
 
       const sessionPath = path.join(

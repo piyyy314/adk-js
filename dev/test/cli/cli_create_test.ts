@@ -113,6 +113,20 @@ describe('createAgent', () => {
       );
     });
 
+    it('should use pnpm for installation and scripts', async () => {
+      await createAgent({...getFreshOptions(), forceYes: true});
+
+      expect(saveToFile).toHaveBeenCalledWith(
+        expect.stringContaining('package.json'),
+        expect.stringContaining('pnpm dlx'),
+      );
+      // We check that npx is NOT used in the template
+      expect(saveToFile).not.toHaveBeenCalledWith(
+        expect.stringContaining('package.json'),
+        expect.stringContaining('npx'),
+      );
+    });
+
     it('should use provided model and language', async () => {
       await createAgent({
         ...getFreshOptions(),
@@ -202,7 +216,9 @@ describe('createAgent', () => {
       expect(select).toHaveBeenCalledWith(
         expect.objectContaining({
           message: 'Choose a language for the agent',
-          options: expect.arrayContaining([{label: 'JavaScript', value: 'js'}]),
+          options: expect.arrayContaining([
+            expect.objectContaining({label: 'JavaScript', value: 'js'}),
+          ]),
         }),
       );
       expect(saveToFile).toHaveBeenCalledWith(
@@ -281,7 +297,7 @@ describe('createAgent', () => {
   });
 
   describe('spinner behavior during dependency installation', () => {
-    it('should start and stop spinner during successful npm install', async () => {
+    it('should start and stop spinner during successful pnpm install', async () => {
       const mockSpinnerInstance = {start: vi.fn(), stop: vi.fn()};
       // The spinner mock is already set up in the module mock, but we override for this test
       const {spinner: spinnerMock} = await import('@clack/prompts');
@@ -297,7 +313,7 @@ describe('createAgent', () => {
       );
     });
 
-    it('should stop spinner with error message when npm install fails', async () => {
+    it('should stop spinner with error message when pnpm install fails', async () => {
       const mockSpinnerInstance = {start: vi.fn(), stop: vi.fn()};
       const {spinner: spinnerMock} = await import('@clack/prompts');
       (spinnerMock as Mock).mockReturnValue(mockSpinnerInstance);
@@ -310,7 +326,7 @@ describe('createAgent', () => {
           _opts: unknown,
           callback: (err: Error | null) => void,
         ) => {
-          callback(new Error('npm install failed'));
+          callback(new Error('pnpm install failed'));
           return {on: vi.fn()};
         },
       );
