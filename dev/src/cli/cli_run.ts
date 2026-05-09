@@ -249,6 +249,7 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
           message: 'Session ID to save: ',
           initialValue: defaultSessionId,
           placeholder: 'e.g. my-session',
+          hint: 'This will be used as the filename for the saved session data',
         }));
 
       if (isCancel(sessionId)) {
