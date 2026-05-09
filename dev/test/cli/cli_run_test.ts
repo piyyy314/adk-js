@@ -75,6 +75,10 @@ describe('cli_run', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(console, 'log').mockImplementation(() => {});
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
 
     mockRootAgent = {
       name: 'test-agent',
