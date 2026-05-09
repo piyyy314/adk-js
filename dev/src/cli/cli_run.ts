@@ -246,10 +246,9 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
       const sessionId =
         options.sessionId ||
         (await text({
-          message: 'Session ID to save: ',
+          message: 'Session ID to save (used as filename): ',
           initialValue: defaultSessionId,
           placeholder: 'e.g. my-session',
-          hint: 'This will be used as the filename for the saved session data',
         }));
 
       if (isCancel(sessionId)) {

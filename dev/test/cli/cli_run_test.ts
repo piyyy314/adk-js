@@ -391,7 +391,7 @@ describe('cli_run', () => {
 
     expect(text).toHaveBeenCalledWith(
       expect.objectContaining({
-        message: 'Session ID to save: ',
+        message: 'Session ID to save (used as filename): ',
         initialValue: expect.any(String),
         placeholder: 'e.g. my-session',
       }),
