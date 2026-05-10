@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import {intro, isCancel, log, outro, spinner, text} from '@clack/prompts';
 import {
   BaseAgent,
   BaseArtifactService,
@@ -15,7 +16,6 @@ import {
   Runner,
   Session,
 } from '@google/adk';
-import {intro, isCancel, log, outro, spinner, text} from '@clack/prompts';
 import * as path from 'node:path';
 import * as readline from 'node:readline/promises';
 

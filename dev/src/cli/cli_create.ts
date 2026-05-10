@@ -338,12 +338,9 @@ export async function createAgent(options: AgentCreationOptions) {
     if (options.language === 'ts') {
       await execPromise(`pnpm add typescript --save-dev`, {cwd: agentDir});
     }
-    await execPromise(
-      `pnpm add @google/adk @google/adk-devtools zod dotenv`,
-      {
-        cwd: agentDir,
-      },
-    );
+    await execPromise(`pnpm add @google/adk @google/adk-devtools zod dotenv`, {
+      cwd: agentDir,
+    });
     s.stop('Dependencies installed successfully.');
   } catch (e) {
     s.stop('Failed to install dependencies.', 1);
