@@ -62,8 +62,8 @@ const PACKAGE_JSON = (agentName: string, language: string) =>
   "description": "",
   "main": "agent.${language}",
   "scripts": {
-    "web": "npx @google/adk-devtools web",
-    "cli": "npx @google/adk-devtools run agent.${language}"
+    "web": "pnpm dlx @google/adk-devtools web",
+    "cli": "pnpm dlx @google/adk-devtools run agent.${language}"
   },
   "keywords": [],
   "author": "",
@@ -206,7 +206,9 @@ async function generateFiles(options: AgentCreationOptions) {
 }
 
 export async function createAgent(options: AgentCreationOptions) {
-  intro('Agent Creation');
+  if (!options.forceYes) {
+    intro('Agent Creation');
+  }
   const agentDir = path.join(dirname, options.agentName);
   const folderReady = await generateAgentFolder(agentDir, options.forceYes);
   if (!folderReady) {
@@ -219,13 +221,26 @@ export async function createAgent(options: AgentCreationOptions) {
       : await select({
           message: 'Choose a model for the root agent',
           options: [
-            {label: 'gemini-2.5-flash', value: 'gemini-2.5-flash'},
-            {label: 'gemini-2.5-pro', value: 'gemini-2.5-pro'},
+            {
+              label: 'gemini-2.5-flash',
+              value: 'gemini-2.5-flash',
+              hint: 'Fast and cost-effective',
+            },
+            {
+              label: 'gemini-2.5-pro',
+              value: 'gemini-2.5-pro',
+              hint: 'Most capable stable model',
+            },
             {
               label: 'gemini-3-flash-preview',
               value: 'gemini-3-flash-preview',
+              hint: 'Next generation, fast',
             },
-            {label: 'gemini-3-pro-preview', value: 'gemini-3-pro-preview'},
+            {
+              label: 'gemini-3-pro-preview',
+              value: 'gemini-3-pro-preview',
+              hint: 'Next generation, most capable',
+            },
           ],
         });
 
@@ -241,7 +256,11 @@ export async function createAgent(options: AgentCreationOptions) {
       : await select({
           message: 'Choose a language for the agent',
           options: [
-            {label: 'TypeScript', value: 'ts'},
+            {
+              label: 'TypeScript',
+              value: 'ts',
+              hint: 'Recommended for better developer experience',
+            },
             {label: 'JavaScript', value: 'js'},
           ],
         });
@@ -317,10 +336,10 @@ export async function createAgent(options: AgentCreationOptions) {
   s.start('Installing dependencies...');
   try {
     if (options.language === 'ts') {
-      await execPromise(`npm install typescript --save-dev`, {cwd: agentDir});
+      await execPromise(`pnpm add typescript --save-dev`, {cwd: agentDir});
     }
     await execPromise(
-      `npm install @google/adk @google/adk-devtools zod dotenv`,
+      `pnpm add @google/adk @google/adk-devtools zod dotenv`,
       {
         cwd: agentDir,
       },
@@ -333,12 +352,14 @@ export async function createAgent(options: AgentCreationOptions) {
 
   const files = await listFiles(agentDir);
 
-  note(
-    `Created the following files in ${agentDir}:\n` +
-      files.map((file) => `  - ${file}`).join('\n') +
-      `\n\nRun 'cd ${options.agentName} && npm run web' to start the agent in a web interface`,
-    'Agent Created Successfully',
-  );
+  if (!options.forceYes) {
+    note(
+      `Created the following files in ${agentDir}:\n` +
+        files.map((file) => `  - ${file}`).join('\n') +
+        `\n\nRun 'cd ${options.agentName} && pnpm run web' to start the agent in a web interface`,
+      'Agent Created Successfully',
+    );
 
-  outro('Happy Agent Building!');
+    outro('Happy Agent Building!');
+  }
 }
