@@ -71,10 +71,16 @@ vi.mock('@clack/prompts', () => ({
 describe('cli_run', () => {
   let mockAgentFile: AgentFile;
   let mockRootAgent: BaseAgent;
+  const originalIsTTY = process.stdout.isTTY;
 
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
 
     mockRootAgent = {
       name: 'test-agent',
@@ -102,6 +108,10 @@ describe('cli_run', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: originalIsTTY,
+      configurable: true,
+    });
   });
 
   it('should run interactively by default', async () => {

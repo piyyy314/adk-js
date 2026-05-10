@@ -17,6 +17,7 @@ import {
 } from '@google/adk';
 import {intro, isCancel, log, outro, spinner, text} from '@clack/prompts';
 import * as path from 'node:path';
+import * as readline from 'node:readline/promises';
 
 import {AgentFile, AgentFileOptions} from '../utils/agent_loader.js';
 import {loadFileData, saveToFile} from '../utils/file_utils.js';
@@ -114,13 +115,24 @@ async function runInteractively(
   });
 
   const isTTY = process.stdout.isTTY;
+  const rl = isTTY
+    ? undefined
+    : readline.createInterface({
+        input: process.stdin,
+        output: process.stdout,
+      });
+
   while (true) {
-    const query = await text({
-      message: '[user]: ',
-      placeholder: isTTY
-        ? 'Type your message here (or "exit" to quit)...'
-        : undefined,
-    });
+    let query: string | symbol;
+    if (isTTY) {
+      query = await text({
+        message: '[user]: ',
+        placeholder: 'Type your message here (or "exit" to quit)...',
+      });
+    } else {
+      process.stdout.write('[user]: ');
+      query = await rl!.question('');
+    }
 
     if (isCancel(query) || query === 'exit') {
       break;
@@ -131,7 +143,9 @@ async function runInteractively(
     }
 
     const s = spinner();
-    s.start('Thinking...');
+    if (isTTY) {
+      s.start('Thinking...');
+    }
     for await (const event of runner.runAsync({
       userId: options.session.userId,
       sessionId: options.session.id,
@@ -142,12 +156,20 @@ async function runInteractively(
           .map((part) => part.text || '')
           .join('');
         if (text) {
-          s.stop();
+          if (isTTY) {
+            s.stop();
+          }
           console.log(`[${event.author}]: ${text}`);
         }
       }
     }
-    s.stop();
+    if (isTTY) {
+      s.stop();
+    }
+  }
+
+  if (rl) {
+    rl.close();
   }
 }
 
@@ -204,7 +226,9 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
           filePath: options.inputFile,
         })) || session;
     } else if (options.savedSessionFile) {
-      intro(`Resuming agent ${rootAgent.name}`);
+      if (process.stdout.isTTY) {
+        intro(`Resuming agent ${rootAgent.name}`);
+      }
       const loadedSession = await loadFileData<Session>(
         options.savedSessionFile,
       );
@@ -228,9 +252,13 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
         memoryService,
         session,
       });
-      outro('Happy Agent Building!');
+      if (process.stdout.isTTY) {
+        outro('Happy Agent Building!');
+      }
     } else {
-      intro(`Running agent ${rootAgent.name}`);
+      if (process.stdout.isTTY) {
+        intro(`Running agent ${rootAgent.name}`);
+      }
       await runInteractively({
         rootAgent,
         artifactService,
@@ -238,7 +266,9 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
         memoryService,
         session,
       });
-      outro('Happy Agent Building!');
+      if (process.stdout.isTTY) {
+        outro('Happy Agent Building!');
+      }
     }
 
     if (options.saveSession) {
