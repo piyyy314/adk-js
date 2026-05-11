@@ -62,8 +62,8 @@ const PACKAGE_JSON = (agentName: string, language: string) =>
   "description": "",
   "main": "agent.${language}",
   "scripts": {
-    "web": "npx @google/adk-devtools web",
-    "cli": "npx @google/adk-devtools run agent.${language}"
+    "web": "pnpm dlx @google/adk-devtools web",
+    "cli": "pnpm dlx @google/adk-devtools run agent.${language}"
   },
   "keywords": [],
   "author": "",
@@ -219,13 +219,26 @@ export async function createAgent(options: AgentCreationOptions) {
       : await select({
           message: 'Choose a model for the root agent',
           options: [
-            {label: 'gemini-2.5-flash', value: 'gemini-2.5-flash'},
-            {label: 'gemini-2.5-pro', value: 'gemini-2.5-pro'},
+            {
+              label: 'gemini-2.5-flash',
+              value: 'gemini-2.5-flash',
+              hint: 'Fast and cost-efficient',
+            },
+            {
+              label: 'gemini-2.5-pro',
+              value: 'gemini-2.5-pro',
+              hint: 'Best for complex reasoning',
+            },
             {
               label: 'gemini-3-flash-preview',
               value: 'gemini-3-flash-preview',
+              hint: 'Next-gen speed (Preview)',
             },
-            {label: 'gemini-3-pro-preview', value: 'gemini-3-pro-preview'},
+            {
+              label: 'gemini-3-pro-preview',
+              value: 'gemini-3-pro-preview',
+              hint: 'Next-gen intelligence (Preview)',
+            },
           ],
         });
 
@@ -317,10 +330,10 @@ export async function createAgent(options: AgentCreationOptions) {
   s.start('Installing dependencies...');
   try {
     if (options.language === 'ts') {
-      await execPromise(`npm install typescript --save-dev`, {cwd: agentDir});
+      await execPromise(`pnpm install typescript --save-dev`, {cwd: agentDir});
     }
     await execPromise(
-      `npm install @google/adk @google/adk-devtools zod dotenv`,
+      `pnpm install @google/adk @google/adk-devtools zod dotenv`,
       {
         cwd: agentDir,
       },
@@ -336,7 +349,7 @@ export async function createAgent(options: AgentCreationOptions) {
   note(
     `Created the following files in ${agentDir}:\n` +
       files.map((file) => `  - ${file}`).join('\n') +
-      `\n\nRun 'cd ${options.agentName} && npm run web' to start the agent in a web interface`,
+      `\n\nRun 'cd ${options.agentName} && pnpm run web' to start the agent in a web interface`,
     'Agent Created Successfully',
   );
 

@@ -11,3 +11,7 @@
 ## 2025-05-22 - Reducing CLI Friction with Defaults and Placeholders
 **Learning:** Providing a timestamped string as an 'initialValue' for identifiers (like Session IDs) and using 'placeholder' to show example inputs significantly reduces the cognitive load and typing effort for users in interactive CLI sessions.
 **Action:** Always provide sensible defaults and descriptive placeholders in CLI prompts to guide users and streamline repetitive tasks.
+
+## 2026-05-11 - Empowering User Decisions with Model Selection Hints
+**Learning:** Adding short, descriptive `hint` properties to selection options in CLI prompts (e.g., "Fast and cost-efficient" for flash models) helps users make informed decisions without needing to consult external documentation, reducing cognitive friction during the setup process.
+**Action:** Use the `hint` property in `@clack/prompts` selection options to provide immediate context for complex choices.
