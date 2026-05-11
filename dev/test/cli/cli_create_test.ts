@@ -175,6 +175,12 @@ describe('createAgent', () => {
       expect(select).toHaveBeenCalledWith(
         expect.objectContaining({
           message: 'Choose a model for the root agent',
+          options: expect.arrayContaining([
+            expect.objectContaining({
+              label: 'gemini-2.5-flash',
+              hint: 'Fast and cost-efficient',
+            }),
+          ]),
         }),
       );
       expect(saveToFile).toHaveBeenCalledWith(
@@ -281,7 +287,7 @@ describe('createAgent', () => {
   });
 
   describe('spinner behavior during dependency installation', () => {
-    it('should start and stop spinner during successful npm install', async () => {
+    it('should start and stop spinner during successful pnpm install', async () => {
       const mockSpinnerInstance = {start: vi.fn(), stop: vi.fn()};
       // The spinner mock is already set up in the module mock, but we override for this test
       const {spinner: spinnerMock} = await import('@clack/prompts');
@@ -297,7 +303,7 @@ describe('createAgent', () => {
       );
     });
 
-    it('should stop spinner with error message when npm install fails', async () => {
+    it('should stop spinner with error message when pnpm install fails', async () => {
       const mockSpinnerInstance = {start: vi.fn(), stop: vi.fn()};
       const {spinner: spinnerMock} = await import('@clack/prompts');
       (spinnerMock as Mock).mockReturnValue(mockSpinnerInstance);
@@ -310,7 +316,7 @@ describe('createAgent', () => {
           _opts: unknown,
           callback: (err: Error | null) => void,
         ) => {
-          callback(new Error('npm install failed'));
+          callback(new Error('pnpm install failed'));
           return {on: vi.fn()};
         },
       );
