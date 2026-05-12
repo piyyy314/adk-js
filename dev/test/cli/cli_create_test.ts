@@ -202,7 +202,9 @@ describe('createAgent', () => {
       expect(select).toHaveBeenCalledWith(
         expect.objectContaining({
           message: 'Choose a language for the agent',
-          options: expect.arrayContaining([{label: 'JavaScript', value: 'js'}]),
+          options: expect.arrayContaining([
+            expect.objectContaining({label: 'JavaScript', value: 'js'}),
+          ]),
         }),
       );
       expect(saveToFile).toHaveBeenCalledWith(

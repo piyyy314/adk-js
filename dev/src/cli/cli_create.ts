@@ -219,13 +219,26 @@ export async function createAgent(options: AgentCreationOptions) {
       : await select({
           message: 'Choose a model for the root agent',
           options: [
-            {label: 'gemini-2.5-flash', value: 'gemini-2.5-flash'},
-            {label: 'gemini-2.5-pro', value: 'gemini-2.5-pro'},
+            {
+              label: 'gemini-2.5-flash',
+              value: 'gemini-2.5-flash',
+              hint: 'Fast and cost-effective',
+            },
+            {
+              label: 'gemini-2.5-pro',
+              value: 'gemini-2.5-pro',
+              hint: 'High performance for complex tasks',
+            },
             {
               label: 'gemini-3-flash-preview',
               value: 'gemini-3-flash-preview',
+              hint: 'Next-gen speed (preview)',
             },
-            {label: 'gemini-3-pro-preview', value: 'gemini-3-pro-preview'},
+            {
+              label: 'gemini-3-pro-preview',
+              value: 'gemini-3-pro-preview',
+              hint: 'Next-gen intelligence (preview)',
+            },
           ],
         });
 
@@ -241,8 +254,12 @@ export async function createAgent(options: AgentCreationOptions) {
       : await select({
           message: 'Choose a language for the agent',
           options: [
-            {label: 'TypeScript', value: 'ts'},
-            {label: 'JavaScript', value: 'js'},
+            {label: 'TypeScript', value: 'ts', hint: 'Type-safe development'},
+            {
+              label: 'JavaScript',
+              value: 'js',
+              hint: 'Standard Node.js development',
+            },
           ],
         });
 
@@ -258,8 +275,16 @@ export async function createAgent(options: AgentCreationOptions) {
       : await select({
           message: 'Choose a backend',
           options: [
-            {label: 'Google AI', value: 'googleai'},
-            {label: 'Vertex AI', value: 'vertex'},
+            {
+              label: 'Google AI',
+              value: 'googleai',
+              hint: 'Simple API key access',
+            },
+            {
+              label: 'Vertex AI',
+              value: 'vertex',
+              hint: 'Enterprise-grade Google Cloud',
+            },
           ],
         });
 
