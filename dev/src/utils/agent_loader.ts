@@ -79,6 +79,10 @@ const DEFAULT_AGENT_FILE_OPTIONS: AgentFileOptions = {
   bundle: true,
 };
 
+const RETRYABLE_CLEANUP_ERROR_CODES = ['EBUSY', 'EPERM', 'ENOTEMPTY'];
+const CLEANUP_RETRY_ATTEMPTS = 10;
+const CLEANUP_RETRY_DELAY_MS = 50;
+
 /**
  * Returns an esbuild plugin that replaces `__dirname`, `__filename`, and `import.meta.url`
  * with the original directory path, file path, and file URL in the agent file.
@@ -261,10 +265,42 @@ export class AgentFile {
 
     if (this.cleanupFilePath) {
       this.disposed = true;
-      await fsPromises.unlink(this.cleanupFilePath);
+      await retryCleanupOperation(async () =>
+        fsPromises.rm(this.cleanupFilePath!, {force: true}),
+      );
       if (this.cleanupDirPath) {
-        await removeFolder(this.cleanupDirPath);
+        await retryCleanupOperation(async () =>
+          removeFolder(this.cleanupDirPath!),
+        );
       }
+    }
+  }
+}
+
+function isRetryableCleanupError(error: unknown): boolean {
+  const errorCode = (error as {code?: string})?.code;
+  return !!errorCode && RETRYABLE_CLEANUP_ERROR_CODES.includes(errorCode);
+}
+
+async function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function retryCleanupOperation(
+  operation: () => Promise<void>,
+): Promise<void> {
+  for (let attempt = 0; attempt <= CLEANUP_RETRY_ATTEMPTS; attempt++) {
+    try {
+      await operation();
+      return;
+    } catch (error) {
+      if (
+        attempt === CLEANUP_RETRY_ATTEMPTS ||
+        !isRetryableCleanupError(error)
+      ) {
+        throw error;
+      }
+      await sleep(CLEANUP_RETRY_DELAY_MS * (attempt + 1));
     }
   }
 }

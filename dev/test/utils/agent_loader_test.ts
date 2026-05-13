@@ -134,7 +134,12 @@ describe('AgentLoader', () => {
       },
     );
     (fileUtils.removeFolder as Mock).mockImplementation((folderPath) =>
-      fs.rm(folderPath as string, {recursive: true, force: true}),
+      fs.rm(folderPath as string, {
+        recursive: true,
+        force: true,
+        maxRetries: 10,
+        retryDelay: 50,
+      }),
     );
     (fileUtils.tryToFindFileRecursively as Mock).mockImplementation(
       async (_sourceFolder, fileName) => path.join(tempAgentsDir, fileName),
@@ -143,8 +148,18 @@ describe('AgentLoader', () => {
   });
 
   afterEach(async () => {
-    await fs.rm(tempAgentsDir, {recursive: true, force: true});
-    await fs.rm(tempLoaderDir, {recursive: true, force: true});
+    await fs.rm(tempAgentsDir, {
+      recursive: true,
+      force: true,
+      maxRetries: 10,
+      retryDelay: 50,
+    });
+    await fs.rm(tempLoaderDir, {
+      recursive: true,
+      force: true,
+      maxRetries: 10,
+      retryDelay: 50,
+    });
     vi.clearAllMocks();
   });
 
@@ -255,6 +270,35 @@ describe('AgentLoader', () => {
       expect(() => agentFile.getFilePath()).toThrow(
         'Agent is disposed and can not be used',
       );
+    });
+
+    it('retries cleanup folder removal when transient filesystem errors occur', async () => {
+      const agentPath = path.join(tempAgentsDir, 'agent1.js');
+      await fs.writeFile(agentPath, agent1JsContent);
+
+      const compiledAgentPath = compiledPath('agent1.cjs');
+      (esbuild.build as Mock).mockImplementation(async () => {
+        await fs.writeFile(compiledAgentPath, agent1JsContent);
+        return Promise.resolve();
+      });
+
+      (fileUtils.removeFolder as Mock)
+        .mockRejectedValueOnce(
+          Object.assign(new Error('busy'), {code: 'EBUSY'}),
+        )
+        .mockImplementation((folderPath) =>
+          fs.rm(folderPath as string, {
+            recursive: true,
+            force: true,
+            maxRetries: 10,
+            retryDelay: 50,
+          }),
+        );
+
+      const agentFile = new AgentFile(agentPath);
+      await agentFile.load();
+      await expect(agentFile.dispose()).resolves.toBeUndefined();
+      expect(fileUtils.removeFolder).toHaveBeenCalledTimes(2);
     });
 
     it('returns cleanup file path if compiled', async () => {
