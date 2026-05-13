@@ -114,8 +114,10 @@ async function runInteractively(
     memoryService: options.memoryService,
   });
 
-  if (process.stdin.isTTY) {
-    while (true) {
+  while (true) {
+    let query: string;
+
+    if (process.stdin.isTTY === true) {
       const input = await text({
         message: '[user]: ',
         placeholder: 'Type your message here (or "exit" to quit)...',
@@ -123,56 +125,45 @@ async function runInteractively(
       if (isCancel(input) || input === 'exit') {
         break;
       }
-      const query = input as string;
-      if (!query || !query.trim()) {
-        continue;
-      }
-
-      const s = process.stdout.isTTY ? spinner() : null;
-      s?.start('Thinking...');
-      for await (const event of runner.runAsync({
-        userId: options.session.userId,
-        sessionId: options.session.id,
-        newMessage: {role: 'user', parts: [{text: query}]},
-      })) {
-        if (event.content && event.content.parts) {
-          const text = event.content.parts
-            .map((part) => part.text || '')
-            .join('');
-          if (text) {
-            s?.stop();
-            console.log(`[${event.author}]: ${text}`);
-          }
-        }
-      }
-      s?.stop();
-    }
-  } else {
-    const rl = createInterface({input: process.stdin, terminal: false});
-    for await (const line of rl) {
-      if (line === 'exit') {
+      query = input as string;
+    } else {
+      // Non-interactive mode (piped stdin): read a line directly via readline.
+      const line = await new Promise<string | null>((resolve) => {
+        const rl = createInterface({input: process.stdin, terminal: false});
+        rl.once('line', (l) => {
+          rl.close();
+          resolve(l);
+        });
+        rl.once('close', () => resolve(null));
+      });
+      if (line === null || line === 'exit') {
         break;
       }
-      if (!line || !line.trim()) {
-        continue;
-      }
+      query = line;
+    }
 
-      // No spinner in non-TTY mode to avoid messy output in CI/scripts
-      for await (const event of runner.runAsync({
-        userId: options.session.userId,
-        sessionId: options.session.id,
-        newMessage: {role: 'user', parts: [{text: line}]},
-      })) {
-        if (event.content && event.content.parts) {
-          const text = event.content.parts
-            .map((part) => part.text || '')
-            .join('');
-          if (text) {
-            console.log(`[${event.author}]: ${text}`);
-          }
+    if (!query || !query.trim()) {
+      continue;
+    }
+
+    const s = process.stdout.isTTY ? spinner() : null;
+    s?.start('Thinking...');
+    for await (const event of runner.runAsync({
+      userId: options.session.userId,
+      sessionId: options.session.id,
+      newMessage: {role: 'user', parts: [{text: query}]},
+    })) {
+      if (event.content && event.content.parts) {
+        const text = event.content.parts
+          .map((part) => part.text || '')
+          .join('');
+        if (text) {
+          s?.stop();
+          console.log(`[${event.author}]: ${text}`);
         }
       }
     }
+    s?.stop();
   }
 }
 
