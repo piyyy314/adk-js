@@ -11,6 +11,7 @@ import {
   log,
   note,
   outro,
+  password,
   select,
   spinner,
   text,
@@ -160,7 +161,7 @@ async function generateAgentFolder(
   }
 
   if (!overwriteFolderResponse) {
-    console.error(`Agent directory ${agentDir} already exists.`);
+    log.error(`Agent directory ${agentDir} already exists.`);
     return false;
   }
 
@@ -275,6 +276,7 @@ export async function createAgent(options: AgentCreationOptions) {
         : await text({
             message: 'Enter the Google Cloud Project ID',
             initialValue: defaultProject,
+            placeholder: 'my-project-id',
           });
 
       if (isCancel(projectResponse)) {
@@ -287,6 +289,7 @@ export async function createAgent(options: AgentCreationOptions) {
         : await text({
             message: 'Enter the Google Cloud Region',
             initialValue: defaultRegion,
+            placeholder: 'us-central1',
           });
 
       if (isCancel(regionResponse)) {
@@ -296,7 +299,7 @@ export async function createAgent(options: AgentCreationOptions) {
     } else {
       const apiKeyResponse: symbol | string = options.forceYes
         ? ''
-        : await text({
+        : await password({
             message: 'Enter the Google API Key',
           });
 

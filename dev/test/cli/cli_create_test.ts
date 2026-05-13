@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {confirm, isCancel, select, text} from '@clack/prompts';
+import {confirm, isCancel, password, select, text} from '@clack/prompts';
 import {execSync} from 'node:child_process';
 import {
   afterEach,
@@ -30,6 +30,7 @@ vi.mock('@clack/prompts', () => ({
   confirm: vi.fn(),
   intro: vi.fn(),
   isCancel: vi.fn(),
+  password: vi.fn(),
   log: {
     error: vi.fn(),
     info: vi.fn(),
@@ -167,7 +168,7 @@ describe('createAgent', () => {
       (select as Mock).mockResolvedValueOnce('gemini-2.5-pro'); // Model
       (select as Mock).mockResolvedValueOnce('ts'); // Language
       (select as Mock).mockResolvedValueOnce('googleai'); // Backend
-      (text as Mock).mockResolvedValueOnce('test-key'); // API Key
+      (password as Mock).mockResolvedValueOnce('test-key'); // API Key
 
       await createAgent(getFreshOptions());
 
@@ -194,7 +195,7 @@ describe('createAgent', () => {
       (select as Mock).mockResolvedValueOnce('gemini-2.5-flash');
       (select as Mock).mockResolvedValueOnce('js');
       (select as Mock).mockResolvedValueOnce('googleai');
-      (text as Mock).mockResolvedValueOnce('test-key');
+      (password as Mock).mockResolvedValueOnce('test-key');
 
       await createAgent(getFreshOptions());
 
@@ -247,7 +248,7 @@ describe('createAgent', () => {
       (select as Mock).mockResolvedValue('gemini-2.5-flash');
       (select as Mock).mockResolvedValue('ts');
       (select as Mock).mockResolvedValue('googleai');
-      (text as Mock).mockResolvedValue('key');
+      (password as Mock).mockResolvedValue('key');
 
       await createAgent(getFreshOptions());
 

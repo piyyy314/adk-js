@@ -264,6 +264,7 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
         (await text({
           message: 'Session ID to save: ',
           initialValue: defaultSessionId,
+          placeholder: 'e.g. my-session',
         }));
 
       if (isCancel(sessionId)) {
@@ -281,7 +282,7 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
       });
       await saveToFile(path.join(dirname, sessionPath), sessionToStore);
 
-      console.log('Session saved to', sessionPath);
+      log.info(`Session saved to ${sessionPath}`);
     }
   } catch (e) {
     log.error(e instanceof Error ? e.message : String(e));
