@@ -115,7 +115,12 @@ describe('Build setup', () => {
           console.error(`stderr:\n${(error as {stderr: string}).stderr}`);
           throw error;
         }
-        expect(buildResult.stderr).toBe('');
+        expect(
+          buildResult.stderr.replace(
+            /npm warn Unknown env config.*\n/g,
+            '',
+          ),
+        ).toBe('');
         expect(buildResult.stdout).toContain('\nBuild complete');
       }
     });

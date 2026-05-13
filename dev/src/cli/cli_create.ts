@@ -4,18 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-  confirm,
-  intro,
-  isCancel,
-  log,
-  note,
-  outro,
-  password,
-  select,
-  spinner,
-  text,
-} from '@clack/prompts';
+import {isCancel} from '@clack/prompts';
 import {exec, execSync} from 'node:child_process';
 import * as path from 'node:path';
 import {promisify} from 'node:util';
@@ -26,6 +15,18 @@ import {
   removeFolder,
   saveToFile,
 } from '../utils/file_utils.js';
+import {
+  createSpinner,
+  promptConfirm,
+  promptError,
+  promptIntro,
+  promptNote,
+  promptOutro,
+  promptPassword,
+  promptSelect,
+  promptStep,
+  promptText,
+} from '../utils/cli_utils.js';
 
 const execPromise = promisify(exec);
 const dirname = process.cwd();
@@ -152,7 +153,7 @@ async function generateAgentFolder(
 
   const overwriteFolderResponse: symbol | boolean = forceYes
     ? true
-    : await confirm({
+    : await promptConfirm({
         message: `Folder ${agentDir} already exists. Would you like to overwrite existing folder?`,
       });
 
@@ -161,7 +162,7 @@ async function generateAgentFolder(
   }
 
   if (!overwriteFolderResponse) {
-    log.error(`Agent directory ${agentDir} already exists.`);
+    promptError(`Agent directory ${agentDir} already exists.`);
     return false;
   }
 
@@ -206,7 +207,7 @@ async function generateFiles(options: AgentCreationOptions) {
 }
 
 export async function createAgent(options: AgentCreationOptions) {
-  intro('Agent Creation');
+  promptIntro('Agent Creation');
   const agentDir = path.join(dirname, options.agentName);
   const folderReady = await generateAgentFolder(agentDir, options.forceYes);
   if (!folderReady) {
@@ -214,32 +215,33 @@ export async function createAgent(options: AgentCreationOptions) {
   }
 
   if (!options.model) {
+    const modelOptions = [
+      {
+        label: 'gemini-2.5-flash',
+        value: 'gemini-2.5-flash',
+        hint: 'Fast and cost-effective',
+      },
+      {
+        label: 'gemini-2.5-pro',
+        value: 'gemini-2.5-pro',
+        hint: 'High performance for complex tasks',
+      },
+      {
+        label: 'gemini-3-flash-preview',
+        value: 'gemini-3-flash-preview',
+        hint: 'Next-gen speed (preview)',
+      },
+      {
+        label: 'gemini-3-pro-preview',
+        value: 'gemini-3-pro-preview',
+        hint: 'Next-gen intelligence (preview)',
+      },
+    ];
     const model: symbol | string = options.forceYes
       ? 'gemini-2.5-flash'
-      : await select({
+      : await promptSelect({
           message: 'Choose a model for the root agent',
-          options: [
-            {
-              label: 'gemini-2.5-flash',
-              value: 'gemini-2.5-flash',
-              hint: 'Fast and cost-effective',
-            },
-            {
-              label: 'gemini-2.5-pro',
-              value: 'gemini-2.5-pro',
-              hint: 'High performance for complex tasks',
-            },
-            {
-              label: 'gemini-3-flash-preview',
-              value: 'gemini-3-flash-preview',
-              hint: 'Next-gen speed (preview)',
-            },
-            {
-              label: 'gemini-3-pro-preview',
-              value: 'gemini-3-pro-preview',
-              hint: 'Next-gen intelligence (preview)',
-            },
-          ],
+          options: modelOptions,
         });
 
     if (isCancel(model)) {
@@ -249,18 +251,19 @@ export async function createAgent(options: AgentCreationOptions) {
   }
 
   if (options.language !== 'js' && options.language !== 'ts') {
+    const langOptions = [
+      {label: 'TypeScript', value: 'ts', hint: 'Type-safe development'},
+      {
+        label: 'JavaScript',
+        value: 'js',
+        hint: 'Standard Node.js development',
+      },
+    ];
     const language = options.forceYes
       ? 'ts'
-      : await select({
+      : await promptSelect({
           message: 'Choose a language for the agent',
-          options: [
-            {label: 'TypeScript', value: 'ts', hint: 'Type-safe development'},
-            {
-              label: 'JavaScript',
-              value: 'js',
-              hint: 'Standard Node.js development',
-            },
-          ],
+          options: langOptions,
         });
 
     if (isCancel(language)) {
@@ -270,22 +273,23 @@ export async function createAgent(options: AgentCreationOptions) {
   }
 
   if (!options.apiKey && !options.project) {
+    const backendOptions = [
+      {
+        label: 'Google AI',
+        value: 'googleai',
+        hint: 'Simple API key access',
+      },
+      {
+        label: 'Vertex AI',
+        value: 'vertex',
+        hint: 'Enterprise-grade Google Cloud',
+      },
+    ];
     const backend: symbol | string = options.forceYes
       ? 'googleai'
-      : await select({
+      : await promptSelect({
           message: 'Choose a backend',
-          options: [
-            {
-              label: 'Google AI',
-              value: 'googleai',
-              hint: 'Simple API key access',
-            },
-            {
-              label: 'Vertex AI',
-              value: 'vertex',
-              hint: 'Enterprise-grade Google Cloud',
-            },
-          ],
+          options: backendOptions,
         });
 
     if (isCancel(backend)) {
@@ -298,7 +302,7 @@ export async function createAgent(options: AgentCreationOptions) {
 
       const projectResponse: symbol | string = options.forceYes
         ? defaultProject
-        : await text({
+        : await promptText({
             message: 'Enter the Google Cloud Project ID',
             initialValue: defaultProject,
             placeholder: 'my-project-id',
@@ -311,7 +315,7 @@ export async function createAgent(options: AgentCreationOptions) {
 
       const regionResponse: symbol | string = options.forceYes
         ? defaultRegion
-        : await text({
+        : await promptText({
             message: 'Enter the Google Cloud Region',
             initialValue: defaultRegion,
             placeholder: 'us-central1',
@@ -324,7 +328,7 @@ export async function createAgent(options: AgentCreationOptions) {
     } else {
       const apiKeyResponse: symbol | string = options.forceYes
         ? ''
-        : await password({
+        : await promptPassword({
             message: 'Enter the Google API Key',
           });
 
@@ -335,10 +339,10 @@ export async function createAgent(options: AgentCreationOptions) {
     }
   }
 
-  log.step('Generating files...');
+  promptStep('Generating files...');
   await generateFiles(options);
 
-  const s = spinner();
+  const s = createSpinner();
   s.start('Installing dependencies...');
   try {
     if (options.language === 'ts') {
@@ -353,17 +357,17 @@ export async function createAgent(options: AgentCreationOptions) {
     s.stop('Dependencies installed successfully.');
   } catch (e) {
     s.stop('Failed to install dependencies.', 1);
-    log.error(`Error: ${(e as Error).message}`);
+    promptError((e as Error).message);
   }
 
   const files = await listFiles(agentDir);
 
-  note(
+  promptNote(
     `Created the following files in ${agentDir}:\n` +
       files.map((file) => `  - ${file}`).join('\n') +
       `\n\nRun 'cd ${options.agentName} && npm run web' to start the agent in a web interface`,
     'Agent Created Successfully',
   );
 
-  outro('Happy Agent Building!');
+  promptOutro('Happy Agent Building!');
 }
