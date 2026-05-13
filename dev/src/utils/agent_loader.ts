@@ -300,7 +300,7 @@ async function retryCleanupOperation(
       ) {
         throw error;
       }
-      await sleep(CLEANUP_RETRY_DELAY_MS * (attempt + 1));
+      await sleep(CLEANUP_RETRY_DELAY_MS);
     }
   }
 }

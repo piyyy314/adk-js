@@ -282,10 +282,10 @@ describe('AgentLoader', () => {
         return Promise.resolve();
       });
 
+      const busyError = new Error('busy') as Error & {code?: string};
+      busyError.code = 'EBUSY';
       (fileUtils.removeFolder as Mock)
-        .mockRejectedValueOnce(
-          Object.assign(new Error('busy'), {code: 'EBUSY'}),
-        )
+        .mockRejectedValueOnce(busyError)
         .mockImplementation((folderPath) =>
           fs.rm(folderPath as string, {
             recursive: true,
