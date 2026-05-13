@@ -101,7 +101,8 @@ export async function promptSelect<T>(options: {
   options: Array<{label: string; value: T; hint?: string}>;
 }): Promise<T | symbol> {
   if (isTTY()) {
-    return select(options);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return select(options as any);
   }
 
   const rl = readline.createInterface({
