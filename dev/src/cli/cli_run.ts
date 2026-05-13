@@ -15,10 +15,16 @@ import {
   Runner,
   Session,
 } from '@google/adk';
-import {intro, isCancel, log, outro, spinner, text} from '@clack/prompts';
+import {isCancel, log} from '@clack/prompts';
 import * as path from 'node:path';
 
 import {AgentFile, AgentFileOptions} from '../utils/agent_loader.js';
+import {
+  createSpinner,
+  promptIntro,
+  promptOutro,
+  promptText,
+} from '../utils/cli_utils.js';
 import {loadFileData, saveToFile} from '../utils/file_utils.js';
 
 const dirname = process.cwd();
@@ -66,20 +72,26 @@ async function runFromInputFile(
       newMessage: {role: 'user', parts: [{text: query}]},
     };
 
-    const s = spinner();
+    const s = createSpinner();
     s.start('Thinking...');
+    let firstChunkReceived = false;
     for await (const event of runner.runAsync(runOptions)) {
       if (event.content && event.content.parts) {
         const text = event.content.parts
           .map((part) => part.text || '')
           .join('');
         if (text) {
-          s.stop();
+          if (!firstChunkReceived) {
+            s.stop();
+            firstChunkReceived = true;
+          }
           console.log(`[${event.author}]: ${text}`);
         }
       }
     }
-    s.stop();
+    if (!firstChunkReceived) {
+      s.stop();
+    }
   }
 
   return session;
@@ -113,13 +125,10 @@ async function runInteractively(
     memoryService: options.memoryService,
   });
 
-  const isTTY = process.stdout.isTTY;
   while (true) {
-    const query = await text({
+    const query = await promptText({
       message: '[user]: ',
-      placeholder: isTTY
-        ? 'Type your message here (or "exit" to quit)...'
-        : undefined,
+      placeholder: 'Type your message here (or "exit" to quit)...',
     });
 
     if (isCancel(query) || query === 'exit') {
@@ -130,8 +139,9 @@ async function runInteractively(
       continue;
     }
 
-    const s = spinner();
+    const s = createSpinner();
     s.start('Thinking...');
+    let firstChunkReceived = false;
     for await (const event of runner.runAsync({
       userId: options.session.userId,
       sessionId: options.session.id,
@@ -142,12 +152,17 @@ async function runInteractively(
           .map((part) => part.text || '')
           .join('');
         if (text) {
-          s.stop();
+          if (!firstChunkReceived) {
+            s.stop();
+            firstChunkReceived = true;
+          }
           console.log(`[${event.author}]: ${text}`);
         }
       }
     }
-    s.stop();
+    if (!firstChunkReceived) {
+      s.stop();
+    }
   }
 }
 
@@ -204,7 +219,7 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
           filePath: options.inputFile,
         })) || session;
     } else if (options.savedSessionFile) {
-      intro(`Resuming agent ${rootAgent.name}`);
+      promptIntro(`Resuming agent ${rootAgent.name}`);
       const loadedSession = await loadFileData<Session>(
         options.savedSessionFile,
       );
@@ -228,9 +243,9 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
         memoryService,
         session,
       });
-      outro('Happy Agent Building!');
+      promptOutro('Happy Agent Building!');
     } else {
-      intro(`Running agent ${rootAgent.name}`);
+      promptIntro(`Running agent ${rootAgent.name}`);
       await runInteractively({
         rootAgent,
         artifactService,
@@ -238,14 +253,14 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
         memoryService,
         session,
       });
-      outro('Happy Agent Building!');
+      promptOutro('Happy Agent Building!');
     }
 
     if (options.saveSession) {
       const defaultSessionId = new Date().toISOString().replace(/[:.]/g, '-');
       const sessionId =
         options.sessionId ||
-        (await text({
+        (await promptText({
           message: 'Session ID to save: ',
           initialValue: defaultSessionId,
           placeholder: 'e.g. my-session',

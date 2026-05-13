@@ -89,6 +89,11 @@ describe('createAgent', () => {
     vi.clearAllMocks();
     (isCancel as unknown as Mock).mockReturnValue(false);
     (listFiles as Mock).mockResolvedValue(['file1', 'file2']);
+
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
   });
 
   afterEach(() => {
@@ -202,7 +207,9 @@ describe('createAgent', () => {
       expect(select).toHaveBeenCalledWith(
         expect.objectContaining({
           message: 'Choose a language for the agent',
-          options: expect.arrayContaining([{label: 'JavaScript', value: 'js'}]),
+          options: expect.arrayContaining([
+            expect.objectContaining({label: 'JavaScript', value: 'js'}),
+          ]),
         }),
       );
       expect(saveToFile).toHaveBeenCalledWith(

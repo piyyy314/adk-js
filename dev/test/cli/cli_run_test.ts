@@ -98,6 +98,11 @@ describe('cli_run', () => {
 
     (text as Mock).mockResolvedValue('exit');
     (isCancel as unknown as Mock).mockReturnValue(false);
+
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
   });
 
   afterEach(() => {
