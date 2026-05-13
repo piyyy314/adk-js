@@ -289,13 +289,13 @@ async function sleep(ms: number): Promise<void> {
 async function retryCleanupOperation(
   operation: () => Promise<void>,
 ): Promise<void> {
-  for (let attempt = 0; attempt <= CLEANUP_RETRY_ATTEMPTS; attempt++) {
+  for (let attempt = 0; attempt < CLEANUP_RETRY_ATTEMPTS; attempt++) {
     try {
       await operation();
       return;
     } catch (error) {
       if (
-        attempt === CLEANUP_RETRY_ATTEMPTS ||
+        attempt === CLEANUP_RETRY_ATTEMPTS - 1 ||
         !isRetryableCleanupError(error)
       ) {
         throw error;

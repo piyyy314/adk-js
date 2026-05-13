@@ -299,6 +299,9 @@ describe('AgentLoader', () => {
       await agentFile.load();
       await expect(agentFile.dispose()).resolves.toBeUndefined();
       expect(fileUtils.removeFolder).toHaveBeenCalledTimes(2);
+      expect(() => agentFile.getFilePath()).toThrow(
+        'Agent is disposed and can not be used',
+      );
     });
 
     it('returns cleanup file path if compiled', async () => {
