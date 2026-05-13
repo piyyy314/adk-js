@@ -206,7 +206,7 @@ async function generateFiles(options: AgentCreationOptions) {
 }
 
 export async function createAgent(options: AgentCreationOptions) {
-  intro('Agent Creation');
+  if (!options.forceYes) intro('Agent Creation');
   const agentDir = path.join(dirname, options.agentName);
   const folderReady = await generateAgentFolder(agentDir, options.forceYes);
   if (!folderReady) {
@@ -339,11 +339,11 @@ export async function createAgent(options: AgentCreationOptions) {
     }
   }
 
-  log.step('Generating files...');
+  if (!options.forceYes) log.step('Generating files...');
   await generateFiles(options);
 
-  const s = spinner();
-  s.start('Installing dependencies...');
+  const s = !options.forceYes ? spinner() : null;
+  s?.start('Installing dependencies...');
   try {
     if (options.language === 'ts') {
       await execPromise(`npm install typescript --save-dev`, {cwd: agentDir});
@@ -354,20 +354,22 @@ export async function createAgent(options: AgentCreationOptions) {
         cwd: agentDir,
       },
     );
-    s.stop('Dependencies installed successfully.');
+    s?.stop('Dependencies installed successfully.');
   } catch (e) {
-    s.stop('Failed to install dependencies.', 1);
-    log.error(`Error: ${(e as Error).message}`);
+    s?.stop('Failed to install dependencies.', 1);
+    if (!options.forceYes) log.error(`Error: ${(e as Error).message}`);
   }
 
   const files = await listFiles(agentDir);
 
-  note(
-    `Created the following files in ${agentDir}:\n` +
-      files.map((file) => `  - ${file}`).join('\n') +
-      `\n\nRun 'cd ${options.agentName} && npm run web' to start the agent in a web interface`,
-    'Agent Created Successfully',
-  );
+  if (!options.forceYes) {
+    note(
+      `Created the following files in ${agentDir}:\n` +
+        files.map((file) => `  - ${file}`).join('\n') +
+        `\n\nRun 'cd ${options.agentName} && npm run web' to start the agent in a web interface`,
+      'Agent Created Successfully',
+    );
 
-  outro('Happy Agent Building!');
+    outro('Happy Agent Building!');
+  }
 }

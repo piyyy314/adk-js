@@ -97,8 +97,14 @@ describe('createAgent', () => {
 
   describe('Non-interactive Mode (forceYes: true)', () => {
     it('should create agent with default values when minimal args provided', async () => {
+      const {intro, note, outro, spinner, log} = await import('@clack/prompts');
       await createAgent({...getFreshOptions(), forceYes: true});
 
+      expect(intro).not.toHaveBeenCalled();
+      expect(note).not.toHaveBeenCalled();
+      expect(outro).not.toHaveBeenCalled();
+      expect(spinner).not.toHaveBeenCalled();
+      expect(log.step).not.toHaveBeenCalled();
       expect(isFolderExists).toHaveBeenCalled();
       expect(createFolder).toHaveBeenCalled();
 
@@ -283,13 +289,12 @@ describe('createAgent', () => {
   });
 
   describe('spinner behavior during dependency installation', () => {
-    it('should start and stop spinner during successful npm install', async () => {
+    it('should start and stop spinner during successful npm install when not forceYes', async () => {
       const mockSpinnerInstance = {start: vi.fn(), stop: vi.fn()};
-      // The spinner mock is already set up in the module mock, but we override for this test
       const {spinner: spinnerMock} = await import('@clack/prompts');
       (spinnerMock as Mock).mockReturnValue(mockSpinnerInstance);
 
-      await createAgent({...getFreshOptions(), forceYes: true});
+      await createAgent({...getFreshOptions(), forceYes: false});
 
       expect(mockSpinnerInstance.start).toHaveBeenCalledWith(
         'Installing dependencies...',
@@ -299,7 +304,18 @@ describe('createAgent', () => {
       );
     });
 
-    it('should stop spinner with error message when npm install fails', async () => {
+    it('should NOT start spinner during npm install when forceYes is true', async () => {
+      const mockSpinnerInstance = {start: vi.fn(), stop: vi.fn()};
+      const {spinner: spinnerMock, intro} = await import('@clack/prompts');
+      (spinnerMock as Mock).mockReturnValue(mockSpinnerInstance);
+
+      await createAgent({...getFreshOptions(), forceYes: true});
+
+      expect(spinnerMock).not.toHaveBeenCalled();
+      expect(intro).not.toHaveBeenCalled();
+    });
+
+    it('should stop spinner with error message when npm install fails and not forceYes', async () => {
       const mockSpinnerInstance = {start: vi.fn(), stop: vi.fn()};
       const {spinner: spinnerMock} = await import('@clack/prompts');
       (spinnerMock as Mock).mockReturnValue(mockSpinnerInstance);
@@ -317,7 +333,7 @@ describe('createAgent', () => {
         },
       );
 
-      await createAgent({...getFreshOptions(), forceYes: true});
+      await createAgent({...getFreshOptions(), forceYes: false});
 
       expect(mockSpinnerInstance.start).toHaveBeenCalledWith(
         'Installing dependencies...',

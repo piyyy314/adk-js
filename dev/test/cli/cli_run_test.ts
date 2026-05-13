@@ -77,6 +77,10 @@ describe('cli_run', () => {
     vi.spyOn(console, 'log').mockImplementation(() => {});
     // Force TTY path so unit tests use the mocked `text()` from @clack/prompts.
     (process.stdin as unknown as {isTTY: boolean}).isTTY = true;
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
 
     mockRootAgent = {
       name: 'test-agent',
@@ -404,7 +408,8 @@ describe('cli_run', () => {
   });
 
   describe('spinner behavior in interactive mode', () => {
-    it('should create and start spinner with "Thinking..." when user submits a query', async () => {
+    it('should create and start spinner with "Thinking..." when user submits a query and stdout is TTY', async () => {
+      // isTTY is set to true in beforeEach
       const mockSpinner = {start: vi.fn(), stop: vi.fn()};
       (spinner as Mock).mockReturnValue(mockSpinner);
       (text as Mock)
@@ -542,10 +547,37 @@ describe('cli_run', () => {
 
       expect(spinner).not.toHaveBeenCalled();
     });
+
+    it('should not create spinner when stdout is not TTY', async () => {
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: false,
+        configurable: true,
+      });
+      const mockSpinner = {start: vi.fn(), stop: vi.fn()};
+      (spinner as Mock).mockReturnValue(mockSpinner);
+      (text as Mock)
+        .mockResolvedValueOnce('Hello agent')
+        .mockResolvedValueOnce('exit');
+      (isCancel as unknown as Mock).mockReturnValue(false);
+      const mockSessionService = createMockSessionService();
+
+      await runAgent({
+        agentPath: 'agent.ts',
+        sessionService: mockSessionService,
+      });
+
+      expect(spinner).not.toHaveBeenCalled();
+
+      // Reset isTTY for other tests
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: true,
+        configurable: true,
+      });
+    });
   });
 
   describe('spinner behavior in input file mode', () => {
-    it('should create and start spinner with "Thinking..." for each query', async () => {
+    it('should create and start spinner with "Thinking..." for each query when stdout is TTY', async () => {
       const spinnerInstances: Array<{start: Mock; stop: Mock}> = [];
       (spinner as Mock).mockImplementation(() => {
         const instance = {start: vi.fn(), stop: vi.fn()};
