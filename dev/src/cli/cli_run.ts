@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import {intro, isCancel, log, outro, spinner, text} from '@clack/prompts';
 import {
   BaseAgent,
   BaseArtifactService,
@@ -15,8 +16,8 @@ import {
   Runner,
   Session,
 } from '@google/adk';
-import {intro, isCancel, log, outro, spinner, text} from '@clack/prompts';
 import * as path from 'node:path';
+import {createInterface} from 'node:readline';
 
 import {AgentFile, AgentFileOptions} from '../utils/agent_loader.js';
 import {loadFileData, saveToFile} from '../utils/file_utils.js';
@@ -113,17 +114,32 @@ async function runInteractively(
     memoryService: options.memoryService,
   });
 
-  const isTTY = process.stdout.isTTY;
   while (true) {
-    const query = await text({
-      message: '[user]: ',
-      placeholder: isTTY
-        ? 'Type your message here (or "exit" to quit)...'
-        : undefined,
-    });
+    let query: string;
 
-    if (isCancel(query) || query === 'exit') {
-      break;
+    if (process.stdin.isTTY === true) {
+      const input = await text({
+        message: '[user]: ',
+        placeholder: 'Type your message here (or "exit" to quit)...',
+      });
+      if (isCancel(input) || input === 'exit') {
+        break;
+      }
+      query = input as string;
+    } else {
+      // Non-interactive mode (piped stdin): read a line directly via readline.
+      const line = await new Promise<string | null>((resolve) => {
+        const rl = createInterface({input: process.stdin, terminal: false});
+        rl.once('line', (l) => {
+          rl.close();
+          resolve(l);
+        });
+        rl.once('close', () => resolve(null));
+      });
+      if (line === null || line === 'exit') {
+        break;
+      }
+      query = line;
     }
 
     if (!query || !query.trim()) {

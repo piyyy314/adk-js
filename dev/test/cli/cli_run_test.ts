@@ -75,6 +75,8 @@ describe('cli_run', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(console, 'log').mockImplementation(() => {});
+    // Force TTY path so unit tests use the mocked `text()` from @clack/prompts.
+    (process.stdin as unknown as {isTTY: boolean}).isTTY = true;
 
     mockRootAgent = {
       name: 'test-agent',
@@ -87,6 +89,7 @@ describe('cli_run', () => {
 
     (AgentFile as unknown as Mock).mockImplementation(() => mockAgentFile);
 
+    // Restore Runner mock implementation that vi.restoreAllMocks() may have cleared.
     (Runner as unknown as Mock).mockImplementation(() => ({
       runAsync: vi.fn().mockImplementation(async function* () {
         yield {
@@ -101,6 +104,8 @@ describe('cli_run', () => {
   });
 
   afterEach(() => {
+    (process.stdin as unknown as {isTTY: boolean | undefined}).isTTY =
+      undefined;
     vi.restoreAllMocks();
   });
 
