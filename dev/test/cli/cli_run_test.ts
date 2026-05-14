@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {BaseAgent, BaseSessionService, Runner} from '@google/adk';
 import {intro, isCancel, outro, spinner, text} from '@clack/prompts';
+import {BaseAgent, BaseSessionService, Runner} from '@google/adk';
 import {afterEach, beforeEach, describe, expect, it, Mock, vi} from 'vitest';
 import {runAgent} from '../../src/cli/cli_run.js';
 import {AgentFile} from '../../src/utils/agent_loader.js';
@@ -75,6 +75,8 @@ describe('cli_run', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(console, 'log').mockImplementation(() => {});
+    // Force TTY path so unit tests use the mocked `text()` from @clack/prompts.
+    (process.stdin as unknown as {isTTY: boolean}).isTTY = true;
 
     mockRootAgent = {
       name: 'test-agent',
@@ -87,11 +89,23 @@ describe('cli_run', () => {
 
     (AgentFile as unknown as Mock).mockImplementation(() => mockAgentFile);
 
+    // Restore Runner mock implementation that vi.restoreAllMocks() may have cleared.
+    (Runner as unknown as Mock).mockImplementation(() => ({
+      runAsync: vi.fn().mockImplementation(async function* () {
+        yield {
+          author: 'model',
+          content: {parts: [{text: 'Response from model'}]},
+        };
+      }),
+    }));
+
     (text as Mock).mockResolvedValue('exit');
     (isCancel as unknown as Mock).mockReturnValue(false);
   });
 
   afterEach(() => {
+    (process.stdin as unknown as {isTTY: boolean | undefined}).isTTY =
+      undefined;
     vi.restoreAllMocks();
   });
 
@@ -381,7 +395,11 @@ describe('cli_run', () => {
     });
 
     expect(text).toHaveBeenCalledWith(
-      expect.objectContaining({message: 'Session ID to save: ', initialValue: expect.any(String)}),
+      expect.objectContaining({
+        message: 'Session ID to save: ',
+        initialValue: expect.any(String),
+        placeholder: 'e.g. my-session',
+      }),
     );
   });
 
