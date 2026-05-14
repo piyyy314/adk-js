@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+import {log, spinner} from '@clack/prompts';
 import {exec, spawn, SpawnOptions} from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
@@ -316,24 +317,19 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
       ? path.parse(options.agentPath).name
       : path.basename(options.agentPath);
 
-  console.info('Starting deployment to Cloud Run...');
+  const s = process.stdout.isTTY ? spinner() : null;
+  s?.start('Preparing deployment files...');
 
   if (await isFolderExists(options.tempFolder)) {
-    console.info('Cleaning up existing temporary files...');
     await fs.rm(options.tempFolder, {recursive: true, force: true});
   }
 
   try {
-    console.info('Copying agent source files...');
     await copyAgentFiles(
       agentLoader,
       path.join(options.tempFolder, 'agents', appName),
     );
-
-    console.info('Creating package.json...');
     await createPackageJson(agentDir, options.tempFolder);
-
-    console.info('Creating Dockerfile...');
     await createDockerFile(options.tempFolder, {
       appName,
       project: options.project,
@@ -346,18 +342,25 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
       a2a: options.a2a,
     });
 
-    console.info('Deploying to Cloud Run...');
+    s?.stop('Deployment files prepared.');
+
+    if (process.stdout.isTTY) {
+      log.info('Deploying to Cloud Run...');
+    } else {
+      console.info('Deploying to Cloud Run...');
+    }
     await spawnAsync('gcloud', gcloudCommands, {stdio: 'inherit'});
   } catch (e: unknown) {
-    console.error(
-      '\x1b[31mFailed to deploy to Cloud Run:',
-      (e as Error).message,
-      '\x1b[0m',
-    );
+    s?.stop('Failed to prepare deployment files.', 1);
+    if (process.stdout.isTTY) {
+      log.error(`Failed to deploy: ${(e as Error).message}`);
+    } else {
+      console.error(
+        `\x1b[31mFailed to deploy to Cloud Run: ${(e as Error).message}\x1b[0m`,
+      );
+    }
   } finally {
-    console.info('Cleaning up temporary files...');
     await fs.rm(options.tempFolder, {recursive: true, force: true});
     await agentLoader.disposeAll();
-    console.info('Temporary files cleaned up.');
   }
 }

@@ -105,6 +105,14 @@ describe('createDockerFileContent', () => {
 });
 
 describe('deployToCloudRun', () => {
+  // Use Object.defineProperty to mock isTTY
+  const setTTY = (value: boolean) => {
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value,
+      configurable: true,
+    });
+  };
+
   const defaultOptions = {
     agentPath: 'path/to/agent',
     serviceName: 'test-service',
@@ -121,6 +129,7 @@ describe('deployToCloudRun', () => {
     vi.clearAllMocks();
     vi.spyOn(console, 'info').mockImplementation(() => {});
     vi.spyOn(console, 'error').mockImplementation(() => {});
+    setTTY(false);
 
     // Default mock behavior
     (isFile as Mock).mockResolvedValue(false);
@@ -254,9 +263,9 @@ describe('deployToCloudRun', () => {
     await deployToCloudRun(defaultOptions);
 
     expect(consoleErrorSpy).toHaveBeenCalledWith(
-      expect.stringContaining('\x1b[31mFailed to deploy to Cloud Run:'),
-      expect.stringContaining('No dependencies found in package.json'),
-      expect.stringContaining('\x1b[0m'),
+      expect.stringMatching(
+        /\x1b\[31mFailed to deploy to Cloud Run: No dependencies found in package\.json.*?\x1b\[0m/,
+      ),
     );
   });
 
@@ -271,11 +280,9 @@ describe('deployToCloudRun', () => {
     await deployToCloudRun(defaultOptions);
 
     expect(consoleErrorSpy).toHaveBeenCalledWith(
-      expect.stringContaining('\x1b[31mFailed to deploy to Cloud Run:'),
-      expect.stringContaining(
-        'Package "@google/adk" is required but not found',
+      expect.stringMatching(
+        /\x1b\[31mFailed to deploy to Cloud Run: Package "@google\/adk" is required but not found.*?\x1b\[0m/,
       ),
-      expect.stringContaining('\x1b[0m'),
     );
   });
 
@@ -292,9 +299,9 @@ describe('deployToCloudRun', () => {
     await deployToCloudRun(defaultOptions);
 
     expect(consoleErrorSpy).toHaveBeenCalledWith(
-      expect.stringContaining('\x1b[31mFailed to deploy to Cloud Run:'),
-      expect.stringContaining('Command failed with exit code 1'),
-      expect.stringContaining('\x1b[0m'),
+      expect.stringMatching(
+        /\x1b\[31mFailed to deploy to Cloud Run: Command failed with exit code 1\x1b\[0m/,
+      ),
     );
   });
 });
