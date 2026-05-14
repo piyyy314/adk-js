@@ -188,6 +188,13 @@ function generateEnvFile(options: AgentCreationOptions): string {
   return lines.join('\n');
 }
 
+/**
+ * Writes scaffold files for a new agent into the target agent directory.
+ *
+ * Generates the agent source file, .env, and package.json inside the directory named by `options.agentName`; also writes `tsconfig.json` when `options.language` is `'ts'`.
+ *
+ * @param options - Configuration used to populate templates and determine file names and contents
+ */
 async function generateFiles(options: AgentCreationOptions) {
   const agentDir = path.join(dirname, options.agentName);
 
@@ -205,6 +212,16 @@ async function generateFiles(options: AgentCreationOptions) {
   }
 }
 
+/**
+ * Scaffolds a new agent project directory, writes initial files, and installs dependencies.
+ *
+ * Prompts the user for any missing configuration (model, language, backend credentials)
+ * unless `options.forceYes` is true, then uses sensible defaults. Creates or overwrites
+ * the target folder, generates source and config files (including optional TypeScript
+ * config), and runs `npm install` for required packages inside the created project.
+ *
+ * @param options - Configuration and overrides for agent creation (agentName, forceYes, model, apiKey, project, region, language)
+ */
 export async function createAgent(options: AgentCreationOptions) {
   if (!options.forceYes) intro('Agent Creation');
   const agentDir = path.join(dirname, options.agentName);

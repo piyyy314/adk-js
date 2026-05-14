@@ -38,6 +38,16 @@ interface RunFromInputFileOptions {
   memoryService?: BaseMemoryService;
   filePath: string;
 }
+/**
+ * Runs an agent using queries read from a JSON input file and returns the created session.
+ *
+ * Loads the input file, injects a `_time` timestamp into the file state, creates a session
+ * initialized with that state, then sequentially feeds each query to the agent and prints
+ * user and agent messages to stdout. A "Thinking..." spinner is shown only when stdout is a TTY.
+ *
+ * @param options - Configuration for running from the input file, including `filePath`, services, `appName`, `userId`, and the agent to run
+ * @returns The created `Session` when the input file was loaded and a session created; `undefined` if the input file could not be loaded
+ */
 async function runFromInputFile(
   options: RunFromInputFileOptions,
 ): Promise<Session | undefined> {
