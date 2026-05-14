@@ -67,20 +67,20 @@ async function runFromInputFile(
       newMessage: {role: 'user', parts: [{text: query}]},
     };
 
-    const s = spinner();
-    s.start('Thinking...');
+    const s = process.stdout.isTTY ? spinner() : null;
+    s?.start('Thinking...');
     for await (const event of runner.runAsync(runOptions)) {
       if (event.content && event.content.parts) {
         const text = event.content.parts
           .map((part) => part.text || '')
           .join('');
         if (text) {
-          s.stop();
+          s?.stop();
           console.log(`[${event.author}]: ${text}`);
         }
       }
     }
-    s.stop();
+    s?.stop();
   }
 
   return session;
@@ -146,8 +146,8 @@ async function runInteractively(
       continue;
     }
 
-    const s = spinner();
-    s.start('Thinking...');
+    const s = process.stdout.isTTY ? spinner() : null;
+    s?.start('Thinking...');
     for await (const event of runner.runAsync({
       userId: options.session.userId,
       sessionId: options.session.id,
@@ -158,12 +158,12 @@ async function runInteractively(
           .map((part) => part.text || '')
           .join('');
         if (text) {
-          s.stop();
+          s?.stop();
           console.log(`[${event.author}]: ${text}`);
         }
       }
     }
-    s.stop();
+    s?.stop();
   }
 }
 
@@ -220,7 +220,7 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
           filePath: options.inputFile,
         })) || session;
     } else if (options.savedSessionFile) {
-      intro(`Resuming agent ${rootAgent.name}`);
+      if (process.stdout.isTTY) intro(`Resuming agent ${rootAgent.name}`);
       const loadedSession = await loadFileData<Session>(
         options.savedSessionFile,
       );
@@ -244,9 +244,9 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
         memoryService,
         session,
       });
-      outro('Happy Agent Building!');
+      if (process.stdout.isTTY) outro('Happy Agent Building!');
     } else {
-      intro(`Running agent ${rootAgent.name}`);
+      if (process.stdout.isTTY) intro(`Running agent ${rootAgent.name}`);
       await runInteractively({
         rootAgent,
         artifactService,
@@ -254,7 +254,7 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
         memoryService,
         session,
       });
-      outro('Happy Agent Building!');
+      if (process.stdout.isTTY) outro('Happy Agent Building!');
     }
 
     if (options.saveSession) {

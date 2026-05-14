@@ -206,7 +206,7 @@ async function generateFiles(options: AgentCreationOptions) {
 }
 
 export async function createAgent(options: AgentCreationOptions) {
-  intro('Agent Creation');
+  if (!options.forceYes) intro('Agent Creation');
   const agentDir = path.join(dirname, options.agentName);
   const folderReady = await generateAgentFolder(agentDir, options.forceYes);
   if (!folderReady) {
@@ -219,13 +219,26 @@ export async function createAgent(options: AgentCreationOptions) {
       : await select({
           message: 'Choose a model for the root agent',
           options: [
-            {label: 'gemini-2.5-flash', value: 'gemini-2.5-flash'},
-            {label: 'gemini-2.5-pro', value: 'gemini-2.5-pro'},
+            {
+              label: 'gemini-2.5-flash',
+              value: 'gemini-2.5-flash',
+              hint: 'optimized for speed and efficiency',
+            },
+            {
+              label: 'gemini-2.5-pro',
+              value: 'gemini-2.5-pro',
+              hint: 'complex reasoning and large context',
+            },
             {
               label: 'gemini-3-flash-preview',
               value: 'gemini-3-flash-preview',
+              hint: 'next-gen speed and efficiency (preview)',
             },
-            {label: 'gemini-3-pro-preview', value: 'gemini-3-pro-preview'},
+            {
+              label: 'gemini-3-pro-preview',
+              value: 'gemini-3-pro-preview',
+              hint: 'next-gen complex reasoning (preview)',
+            },
           ],
         });
 
@@ -241,8 +254,16 @@ export async function createAgent(options: AgentCreationOptions) {
       : await select({
           message: 'Choose a language for the agent',
           options: [
-            {label: 'TypeScript', value: 'ts'},
-            {label: 'JavaScript', value: 'js'},
+            {
+              label: 'TypeScript',
+              value: 'ts',
+              hint: 'strongly typed, recommended',
+            },
+            {
+              label: 'JavaScript',
+              value: 'js',
+              hint: 'flexible, no compilation',
+            },
           ],
         });
 
@@ -258,8 +279,16 @@ export async function createAgent(options: AgentCreationOptions) {
       : await select({
           message: 'Choose a backend',
           options: [
-            {label: 'Google AI', value: 'googleai'},
-            {label: 'Vertex AI', value: 'vertex'},
+            {
+              label: 'Google AI',
+              value: 'googleai',
+              hint: 'requires API key (easiest to start)',
+            },
+            {
+              label: 'Vertex AI',
+              value: 'vertex',
+              hint: 'requires GCP project (enterprise-grade)',
+            },
           ],
         });
 
@@ -310,11 +339,11 @@ export async function createAgent(options: AgentCreationOptions) {
     }
   }
 
-  log.step('Generating files...');
+  if (!options.forceYes) log.step('Generating files...');
   await generateFiles(options);
 
-  const s = spinner();
-  s.start('Installing dependencies...');
+  const s = !options.forceYes ? spinner() : null;
+  s?.start('Installing dependencies...');
   try {
     if (options.language === 'ts') {
       await execPromise(`npm install typescript --save-dev`, {cwd: agentDir});
@@ -325,20 +354,22 @@ export async function createAgent(options: AgentCreationOptions) {
         cwd: agentDir,
       },
     );
-    s.stop('Dependencies installed successfully.');
+    s?.stop('Dependencies installed successfully.');
   } catch (e) {
-    s.stop('Failed to install dependencies.', 1);
-    log.error(`Error: ${(e as Error).message}`);
+    s?.stop('Failed to install dependencies.', 1);
+    if (!options.forceYes) log.error(`Error: ${(e as Error).message}`);
   }
 
   const files = await listFiles(agentDir);
 
-  note(
-    `Created the following files in ${agentDir}:\n` +
-      files.map((file) => `  - ${file}`).join('\n') +
-      `\n\nRun 'cd ${options.agentName} && npm run web' to start the agent in a web interface`,
-    'Agent Created Successfully',
-  );
+  if (!options.forceYes) {
+    note(
+      `Created the following files in ${agentDir}:\n` +
+        files.map((file) => `  - ${file}`).join('\n') +
+        `\n\nRun 'cd ${options.agentName} && npm run web' to start the agent in a web interface`,
+      'Agent Created Successfully',
+    );
 
-  outro('Happy Agent Building!');
+    outro('Happy Agent Building!');
+  }
 }
