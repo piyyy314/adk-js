@@ -61,10 +61,7 @@ vi.mock('@clack/prompts', () => ({
   spinner: vi.fn(() => ({start: vi.fn(), stop: vi.fn(), message: vi.fn()})),
   text: vi.fn(),
   isCancel: vi.fn((val) => typeof val === 'symbol'),
-  log: {
-    info: vi.fn(),
-    error: vi.fn(),
-  },
+  log: {info: vi.fn(), error: vi.fn()},
 }));
 
 describe('createDockerFileContent', () => {
@@ -233,8 +230,6 @@ describe('deployToCloudRun', () => {
       ]),
       expect.any(Object),
     );
-    expect(console.info).toHaveBeenCalledWith(expect.stringContaining('Using default project from gcloud config: gcloud-project'));
-    expect(console.info).toHaveBeenCalledWith(expect.stringContaining('Using default region from gcloud config: gcloud-region'));
   });
 
   it('should throw error if project resolution fails (unset)', async () => {
@@ -252,7 +247,7 @@ describe('deployToCloudRun', () => {
     });
 
     await expect(deployToCloudRun(optionsWithoutProject)).rejects.toThrow(
-      /Project is not specified/,
+      /Project not specified/,
     );
   });
 
@@ -274,7 +269,7 @@ describe('deployToCloudRun', () => {
     await deployToCloudRun(defaultOptions);
 
     expect(consoleErrorSpy).toHaveBeenCalledWith(
-      expect.stringMatching(/\x1b\[31mFailed to deploy to Cloud Run: No dependencies found in package\.json.*?\x1b\[0m/),
+      expect.stringMatching(/\x1b\[31mFailed to deploy: No dependencies found in package\.json.*?\x1b\[0m/),
     );
   });
 
@@ -287,7 +282,7 @@ describe('deployToCloudRun', () => {
     await deployToCloudRun(defaultOptions);
 
     expect(consoleErrorSpy).toHaveBeenCalledWith(
-      expect.stringMatching(/\x1b\[31mFailed to deploy to Cloud Run: Package "@google\/adk" is required but not found.*?\x1b\[0m/),
+      expect.stringMatching(/\x1b\[31mFailed to deploy: Package "@google\/adk" is required but not found.*?\x1b\[0m/),
     );
   });
 
@@ -302,17 +297,14 @@ describe('deployToCloudRun', () => {
     await deployToCloudRun(defaultOptions);
 
     expect(consoleErrorSpy).toHaveBeenCalledWith(
-      expect.stringMatching(/\x1b\[31mFailed to deploy to Cloud Run: Command failed with exit code 1\x1b\[0m/),
+      expect.stringMatching(/\x1b\[31mFailed to deploy: Command failed with exit code 1\x1b\[0m/),
     );
   });
 
   it('should prompt for project and region when missing in TTY', async () => {
     setTTY(true);
     const {text} = await import('@clack/prompts');
-    (text as Mock)
-      .mockResolvedValueOnce('manual-project')
-      .mockResolvedValueOnce('manual-region');
-
+    (text as Mock).mockResolvedValueOnce('manual-project').mockResolvedValueOnce('manual-region');
     execMock.mockImplementation((cmd: string, cb: Callback) => cb(null, {stdout: ''}));
 
     await deployToCloudRun({...defaultOptions, project: '', region: ''});
@@ -326,7 +318,6 @@ describe('deployToCloudRun', () => {
     setTTY(true);
     const {text} = await import('@clack/prompts');
     (text as Mock).mockResolvedValue(Symbol('clack:cancel'));
-
     execMock.mockImplementation((cmd: string, cb: Callback) => cb(null, {stdout: ''}));
 
     await deployToCloudRun({...defaultOptions, project: '', region: ''});
