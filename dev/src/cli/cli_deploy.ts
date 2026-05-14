@@ -3,7 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
-import {log, spinner} from '@clack/prompts';
+import {intro, isCancel, log, outro, spinner, text} from '@clack/prompts';
 import {exec, spawn, SpawnOptions} from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
@@ -269,66 +269,51 @@ async function createDockerFile(
 }
 
 export async function deployToCloudRun(options: DeployToCloudRunOptions) {
-  const project =
-    options.project || (await resolveDefaultFromGcloudConfig('project'));
+  if (process.stdout.isTTY) intro('Deploying to Cloud Run');
+  const isTTY = process.stdout.isTTY;
+
+  let project = options.project || (await resolveDefaultFromGcloudConfig('project'));
+  if ((!project || project === '(unset)') && isTTY) {
+    const res = await text({message: 'Enter GCP Project ID', placeholder: 'my-project-id'});
+    if (isCancel(res)) return;
+    project = res;
+  }
   if (!project || project === '(unset)') {
-    throw new Error(
-      'Project is not specified and default value for "project" is not set in gcloud config. Please specify region with --project option or set default value running "gcloud config set project YOUR_PROJECT".',
-    );
+    throw new Error('Project is not specified and default value for "project" is not set.');
   }
   if (!options.project) {
-    options.project = project;
-    console.info(
-      '--project option is not provided, using default project from gcloud config:',
-      project,
-    );
+    const msg = `Using default project from gcloud config: ${project}`;
+    if (isTTY) log.info(msg);
+    else console.info(msg);
   }
+  options.project = project;
 
-  const region =
-    options.region || (await resolveDefaultFromGcloudConfig('run/region'));
-  if (!region) {
-    throw new Error(
-      'Region is not specified and default value for "run/region" is not set in gcloud config. Please specify region with --region option or set default value running "gcloud config set run/region YOUR_REGION".',
-    );
+  let region = options.region || (await resolveDefaultFromGcloudConfig('run/region'));
+  if (!region && isTTY) {
+    const res = await text({message: 'Enter GCP Region', placeholder: 'us-central1'});
+    if (isCancel(res)) return;
+    region = res;
   }
+  if (!region) throw new Error('Region is not specified and default value for "run/region" is not set.');
   if (!options.region) {
-    options.region = region;
-    console.info(
-      '--region option is not provided, using default region from gcloud config:',
-      region,
-    );
+    const msg = `Using default region from gcloud config: ${region}`;
+    if (isTTY) log.info(msg);
+    else console.info(msg);
   }
+  options.region = region;
 
   const gcloudCommands = prepareGCloudArguments(options);
-
-  // Request to bundle any js or ts file into a single cjs file to be able to
-  // copy file with all it's dependencies correctly.
-  const agentLoader = new AgentLoader(
-    options.agentPath,
-    options.agentFileLoadOptions,
-  );
-
+  const agentLoader = new AgentLoader(options.agentPath, options.agentFileLoadOptions);
   const isFileProvided = await isFile(options.agentPath);
-  const agentDir = isFileProvided
-    ? path.dirname(options.agentPath)
-    : options.agentPath;
-  const appName =
-    options.appName || isFileProvided
-      ? path.parse(options.agentPath).name
-      : path.basename(options.agentPath);
+  const agentDir = isFileProvided ? path.dirname(options.agentPath) : options.agentPath;
+  const appName = options.appName || (isFileProvided ? path.parse(options.agentPath).name : path.basename(options.agentPath));
 
-  const s = process.stdout.isTTY ? spinner() : null;
+  const s = isTTY ? spinner() : null;
   s?.start('Preparing deployment files...');
-
-  if (await isFolderExists(options.tempFolder)) {
-    await fs.rm(options.tempFolder, {recursive: true, force: true});
-  }
+  if (await isFolderExists(options.tempFolder)) await fs.rm(options.tempFolder, {recursive: true, force: true});
 
   try {
-    await copyAgentFiles(
-      agentLoader,
-      path.join(options.tempFolder, 'agents', appName),
-    );
+    await copyAgentFiles(agentLoader, path.join(options.tempFolder, 'agents', appName));
     await createPackageJson(agentDir, options.tempFolder);
     await createDockerFile(options.tempFolder, {
       appName,
@@ -341,24 +326,16 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
       otelToCloud: options.otelToCloud,
       a2a: options.a2a,
     });
-
     s?.stop('Deployment files prepared.');
-
-    if (process.stdout.isTTY) {
-      log.info('Deploying to Cloud Run...');
-    } else {
-      console.info('Deploying to Cloud Run...');
-    }
+    if (isTTY) log.info('Deploying to Cloud Run...');
+    else console.info('Deploying to Cloud Run...');
     await spawnAsync('gcloud', gcloudCommands, {stdio: 'inherit'});
+    if (isTTY) outro('Happy Agent Building!');
   } catch (e: unknown) {
     s?.stop('Failed to prepare deployment files.', 1);
-    if (process.stdout.isTTY) {
-      log.error(`Failed to deploy: ${(e as Error).message}`);
-    } else {
-      console.error(
-        `\x1b[31mFailed to deploy to Cloud Run: ${(e as Error).message}\x1b[0m`,
-      );
-    }
+    const msg = (e as Error).message;
+    if (isTTY) log.error(`Failed to deploy: ${msg}`);
+    else console.error(`\x1b[31mFailed to deploy to Cloud Run: ${msg}\x1b[0m`);
   } finally {
     await fs.rm(options.tempFolder, {recursive: true, force: true});
     await agentLoader.disposeAll();
