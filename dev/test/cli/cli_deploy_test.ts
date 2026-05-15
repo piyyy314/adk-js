@@ -56,12 +56,9 @@ vi.mock('../../src/utils/file_utils.js', () => ({
 }));
 
 vi.mock('@clack/prompts', () => ({
-  intro: vi.fn(),
-  outro: vi.fn(),
-  spinner: vi.fn(() => ({start: vi.fn(), stop: vi.fn(), message: vi.fn()})),
-  text: vi.fn(),
   isCancel: vi.fn((val) => typeof val === 'symbol'),
-  log: {info: vi.fn(), error: vi.fn()},
+  spinner: vi.fn(() => ({start: vi.fn(), stop: vi.fn()})),
+  text: vi.fn(),
 }));
 
 describe('createDockerFileContent', () => {
@@ -247,7 +244,7 @@ describe('deployToCloudRun', () => {
     });
 
     await expect(deployToCloudRun(optionsWithoutProject)).rejects.toThrow(
-      /Project not specified/,
+      /Project is not specified/,
     );
   });
 
@@ -269,7 +266,7 @@ describe('deployToCloudRun', () => {
     await deployToCloudRun(defaultOptions);
 
     expect(consoleErrorSpy).toHaveBeenCalledWith(
-      expect.stringMatching(/\x1b\[31mFailed to deploy: No dependencies found in package\.json.*?\x1b\[0m/),
+      expect.stringMatching(/\x1b\[31mFailed to deploy to Cloud Run: No dependencies found in package\.json.*?\x1b\[0m/),
     );
   });
 
@@ -282,7 +279,7 @@ describe('deployToCloudRun', () => {
     await deployToCloudRun(defaultOptions);
 
     expect(consoleErrorSpy).toHaveBeenCalledWith(
-      expect.stringMatching(/\x1b\[31mFailed to deploy: Package "@google\/adk" is required but not found.*?\x1b\[0m/),
+      expect.stringMatching(/\x1b\[31mFailed to deploy to Cloud Run: Package "@google\/adk" is required but not found.*?\x1b\[0m/),
     );
   });
 
@@ -297,7 +294,7 @@ describe('deployToCloudRun', () => {
     await deployToCloudRun(defaultOptions);
 
     expect(consoleErrorSpy).toHaveBeenCalledWith(
-      expect.stringMatching(/\x1b\[31mFailed to deploy: Command failed with exit code 1\x1b\[0m/),
+      expect.stringMatching(/\x1b\[31mFailed to deploy to Cloud Run: Command failed with exit code 1\x1b\[0m/),
     );
   });
 
