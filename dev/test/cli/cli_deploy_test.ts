@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import {isCancel} from '@clack/prompts';
 import * as fs from 'node:fs/promises';
 import {afterEach, beforeEach, describe, expect, it, Mock, vi} from 'vitest';
 import {
@@ -52,6 +53,12 @@ vi.mock('../../src/utils/file_utils.js', () => ({
   loadFileData: vi.fn(),
   saveToFile: vi.fn(),
   tryToFindFileRecursively: vi.fn(),
+}));
+
+vi.mock('@clack/prompts', () => ({
+  isCancel: vi.fn((val) => typeof val === 'symbol'),
+  spinner: vi.fn(() => ({start: vi.fn(), stop: vi.fn()})),
+  text: vi.fn(),
 }));
 
 describe('createDockerFileContent', () => {
@@ -105,6 +112,10 @@ describe('createDockerFileContent', () => {
 });
 
 describe('deployToCloudRun', () => {
+  const setTTY = (val: boolean) => {
+    Object.defineProperty(process.stdout, 'isTTY', {value: val, configurable: true});
+  };
+
   const defaultOptions = {
     agentPath: 'path/to/agent',
     serviceName: 'test-service',
@@ -121,6 +132,7 @@ describe('deployToCloudRun', () => {
     vi.clearAllMocks();
     vi.spyOn(console, 'info').mockImplementation(() => {});
     vi.spyOn(console, 'error').mockImplementation(() => {});
+    setTTY(false);
 
     // Default mock behavior
     (isFile as Mock).mockResolvedValue(false);
@@ -254,28 +266,20 @@ describe('deployToCloudRun', () => {
     await deployToCloudRun(defaultOptions);
 
     expect(consoleErrorSpy).toHaveBeenCalledWith(
-      expect.stringContaining('\x1b[31mFailed to deploy to Cloud Run:'),
-      expect.stringContaining('No dependencies found in package.json'),
-      expect.stringContaining('\x1b[0m'),
+      expect.stringMatching(/\x1b\[31mFailed to deploy to Cloud Run: No dependencies found in package\.json.*?\x1b\[0m/),
     );
   });
 
   it('should throw error if required npm packages are missing in package.json', async () => {
     const consoleErrorSpy = vi.spyOn(console, 'error');
     (loadFileData as Mock).mockResolvedValue({
-      dependencies: {
-        'some-other-package': '1.0.0',
-      },
+      dependencies: {'some-other-package': '1.0.0'},
     });
 
     await deployToCloudRun(defaultOptions);
 
     expect(consoleErrorSpy).toHaveBeenCalledWith(
-      expect.stringContaining('\x1b[31mFailed to deploy to Cloud Run:'),
-      expect.stringContaining(
-        'Package "@google/adk" is required but not found',
-      ),
-      expect.stringContaining('\x1b[0m'),
+      expect.stringMatching(/\x1b\[31mFailed to deploy to Cloud Run: Package "@google\/adk" is required but not found.*?\x1b\[0m/),
     );
   });
 
@@ -283,18 +287,38 @@ describe('deployToCloudRun', () => {
     const consoleErrorSpy = vi.spyOn(console, 'error');
     spawnMock.mockReturnValue({
       on: vi.fn((event: string, cb: (code: number) => void) => {
-        if (event === 'close') {
-          process.nextTick(() => cb(1));
-        }
+        if (event === 'close') process.nextTick(() => cb(1));
       }),
     });
 
     await deployToCloudRun(defaultOptions);
 
     expect(consoleErrorSpy).toHaveBeenCalledWith(
-      expect.stringContaining('\x1b[31mFailed to deploy to Cloud Run:'),
-      expect.stringContaining('Command failed with exit code 1'),
-      expect.stringContaining('\x1b[0m'),
+      expect.stringMatching(/\x1b\[31mFailed to deploy to Cloud Run: Command failed with exit code 1\x1b\[0m/),
     );
+  });
+
+  it('should prompt for project and region when missing in TTY', async () => {
+    setTTY(true);
+    const {text} = await import('@clack/prompts');
+    (text as Mock).mockResolvedValueOnce('manual-project').mockResolvedValueOnce('manual-region');
+    execMock.mockImplementation((cmd: string, cb: Callback) => cb(null, {stdout: ''}));
+
+    await deployToCloudRun({...defaultOptions, project: '', region: ''});
+
+    expect(text).toHaveBeenCalledWith(expect.objectContaining({message: 'Enter GCP Project ID'}));
+    expect(text).toHaveBeenCalledWith(expect.objectContaining({message: 'Enter GCP Region'}));
+    expect(spawnMock).toHaveBeenCalledWith('gcloud', expect.arrayContaining(['--project', 'manual-project', '--region', 'manual-region']), expect.any(Object));
+  });
+
+  it('should cancel deployment if user cancels prompt', async () => {
+    setTTY(true);
+    const {text} = await import('@clack/prompts');
+    (text as Mock).mockResolvedValue(Symbol('clack:cancel'));
+    execMock.mockImplementation((cmd: string, cb: Callback) => cb(null, {stdout: ''}));
+
+    await deployToCloudRun({...defaultOptions, project: '', region: ''});
+
+    expect(spawnMock).not.toHaveBeenCalled();
   });
 });
