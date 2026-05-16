@@ -206,7 +206,7 @@ async function generateFiles(options: AgentCreationOptions) {
 }
 
 export async function createAgent(options: AgentCreationOptions) {
-  if (!options.forceYes) intro('Agent Creation');
+  if (!options.forceYes && process.stdout.isTTY) intro('Agent Creation');
   const agentDir = path.join(dirname, options.agentName);
   const folderReady = await generateAgentFolder(agentDir, options.forceYes);
   if (!folderReady) {
@@ -370,6 +370,6 @@ export async function createAgent(options: AgentCreationOptions) {
       'Agent Created Successfully',
     );
 
-    outro('Happy Agent Building!');
+    if (process.stdout.isTTY) outro('Happy Agent Building!');
   }
 }
