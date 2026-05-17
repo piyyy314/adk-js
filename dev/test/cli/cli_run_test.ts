@@ -121,7 +121,7 @@ describe('cli_run', () => {
       undefined,
     );
     expect(mockAgentFile.load).toHaveBeenCalled();
-    expect(intro).toHaveBeenCalledWith('Running agent test-agent');
+    expect(intro).toHaveBeenCalledWith('Running agent: test-agent');
     expect(text).toHaveBeenCalled();
     expect(outro).toHaveBeenCalledWith('Happy Agent Building!');
   });
@@ -195,7 +195,7 @@ describe('cli_run', () => {
     });
 
     expect(loadFileData).toHaveBeenCalledWith('session.json');
-    expect(intro).toHaveBeenCalledWith('Resuming agent test-agent');
+    expect(intro).toHaveBeenCalledWith('Resuming session: test-agent');
     expect(text).toHaveBeenCalled();
     expect(outro).toHaveBeenCalledWith('Happy Agent Building!');
   });
@@ -400,7 +400,7 @@ describe('cli_run', () => {
 
     expect(text).toHaveBeenCalledWith(
       expect.objectContaining({
-        message: 'Session ID to save: ',
+        message: 'Session ID to save',
         initialValue: expect.any(String),
         placeholder: 'e.g. my-session',
       }),
