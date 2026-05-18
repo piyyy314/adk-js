@@ -69,18 +69,24 @@ async function runFromInputFile(
 
     const s = process.stdout.isTTY ? spinner() : null;
     s?.start('Thinking...');
+    let isSpinnerStopped = false;
     for await (const event of runner.runAsync(runOptions)) {
       if (event.content && event.content.parts) {
         const text = event.content.parts
           .map((part) => part.text || '')
           .join('');
         if (text) {
-          s?.stop();
+          if (!isSpinnerStopped) {
+            s?.stop();
+            isSpinnerStopped = true;
+          }
           console.log(`[${event.author}]: ${text}`);
         }
       }
     }
-    s?.stop();
+    if (!isSpinnerStopped) {
+      s?.stop();
+    }
   }
 
   return session;
@@ -148,6 +154,7 @@ async function runInteractively(
 
     const s = process.stdout.isTTY ? spinner() : null;
     s?.start('Thinking...');
+    let isSpinnerStopped = false;
     for await (const event of runner.runAsync({
       userId: options.session.userId,
       sessionId: options.session.id,
@@ -158,12 +165,17 @@ async function runInteractively(
           .map((part) => part.text || '')
           .join('');
         if (text) {
-          s?.stop();
+          if (!isSpinnerStopped) {
+            s?.stop();
+            isSpinnerStopped = true;
+          }
           console.log(`[${event.author}]: ${text}`);
         }
       }
     }
-    s?.stop();
+    if (!isSpinnerStopped) {
+      s?.stop();
+    }
   }
 }
 
@@ -208,6 +220,14 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
       userId,
     });
 
+    if (!options.inputFile && process.stdout.isTTY) {
+      intro(
+        options.savedSessionFile
+          ? `Resuming agent ${rootAgent.name}`
+          : `Running agent ${rootAgent.name}`,
+      );
+    }
+
     if (options.inputFile) {
       session =
         (await runFromInputFile({
@@ -220,7 +240,6 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
           filePath: options.inputFile,
         })) || session;
     } else if (options.savedSessionFile) {
-      if (process.stdout.isTTY) intro(`Resuming agent ${rootAgent.name}`);
       const loadedSession = await loadFileData<Session>(
         options.savedSessionFile,
       );
@@ -244,9 +263,7 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
         memoryService,
         session,
       });
-      if (process.stdout.isTTY) outro('Happy Agent Building!');
     } else {
-      if (process.stdout.isTTY) intro(`Running agent ${rootAgent.name}`);
       await runInteractively({
         rootAgent,
         artifactService,
@@ -254,18 +271,21 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
         memoryService,
         session,
       });
-      if (process.stdout.isTTY) outro('Happy Agent Building!');
     }
 
     if (options.saveSession) {
       const defaultSessionId = new Date().toISOString().replace(/[:.]/g, '-');
-      const sessionId =
-        options.sessionId ||
-        (await text({
+      let sessionId = options.sessionId;
+
+      if (!sessionId) {
+        sessionId = (await text({
           message: 'Session ID to save: ',
           initialValue: defaultSessionId,
           placeholder: 'e.g. my-session',
-        }));
+        })) as string;
+      } else {
+        log.info(`Using provided session ID: ${sessionId}`);
+      }
 
       if (isCancel(sessionId)) {
         return;
@@ -283,6 +303,10 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
       await saveToFile(path.join(dirname, sessionPath), sessionToStore);
 
       log.info(`Session saved to ${sessionPath}`);
+    }
+
+    if (!options.inputFile && process.stdout.isTTY) {
+      outro('Happy Agent Building!');
     }
   } catch (e) {
     log.error(e instanceof Error ? e.message : String(e));
