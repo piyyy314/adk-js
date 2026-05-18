@@ -120,39 +120,37 @@ async function runInteractively(
     memoryService: options.memoryService,
   });
 
-  while (true) {
-    let query: string;
+  const isTTY = process.stdin.isTTY === true;
+  const rl = !isTTY
+    ? createInterface({input: process.stdin, terminal: false})
+    : null;
 
-    if (process.stdin.isTTY === true) {
-      const input = await text({
-        message: '[user]: ',
-        placeholder: 'Type your message here (or "exit" to quit)...',
-      });
-      if (isCancel(input) || input === 'exit') {
+  try {
+    const inputSource = isTTY
+      ? (async function* () {
+          while (true) {
+            const input = await text({
+              message: '[user]: ',
+              placeholder: 'Type your message here (or "exit" to quit)...',
+            });
+            if (isCancel(input) || input === 'exit') {
+              return;
+            }
+            yield input as string;
+          }
+        })()
+      : rl!;
+
+    for await (const query of inputSource) {
+      if (!query || !query.trim()) {
+        continue;
+      }
+
+      if (!isTTY && query === 'exit') {
         break;
       }
-      query = input as string;
-    } else {
-      // Non-interactive mode (piped stdin): read a line directly via readline.
-      const line = await new Promise<string | null>((resolve) => {
-        const rl = createInterface({input: process.stdin, terminal: false});
-        rl.once('line', (l) => {
-          rl.close();
-          resolve(l);
-        });
-        rl.once('close', () => resolve(null));
-      });
-      if (line === null || line === 'exit') {
-        break;
-      }
-      query = line;
-    }
 
-    if (!query || !query.trim()) {
-      continue;
-    }
-
-    const s = process.stdout.isTTY ? spinner() : null;
+      const s = process.stdout.isTTY ? spinner() : null;
     s?.start('Thinking...');
     let isSpinnerStopped = false;
     for await (const event of runner.runAsync({
@@ -173,9 +171,12 @@ async function runInteractively(
         }
       }
     }
-    if (!isSpinnerStopped) {
-      s?.stop();
+      if (!isSpinnerStopped) {
+        s?.stop();
+      }
     }
+  } finally {
+    rl?.close();
   }
 }
 
@@ -278,12 +279,16 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
       let sessionId = options.sessionId;
 
       if (!sessionId) {
-        sessionId = (await text({
-          message: 'Session ID to save: ',
-          initialValue: defaultSessionId,
-          placeholder: 'e.g. my-session',
-        })) as string;
-      } else {
+        if (process.stdout.isTTY) {
+          sessionId = (await text({
+            message: 'Session ID to save: ',
+            initialValue: defaultSessionId,
+            placeholder: 'e.g. my-session',
+          })) as string;
+        } else {
+          sessionId = defaultSessionId;
+        }
+      } else if (process.stdout.isTTY) {
         log.info(`Using provided session ID: ${sessionId}`);
       }
 
