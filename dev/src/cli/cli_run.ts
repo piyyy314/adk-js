@@ -151,26 +151,26 @@ async function runInteractively(
       }
 
       const s = process.stdout.isTTY ? spinner() : null;
-    s?.start('Thinking...');
-    let isSpinnerStopped = false;
-    for await (const event of runner.runAsync({
-      userId: options.session.userId,
-      sessionId: options.session.id,
-      newMessage: {role: 'user', parts: [{text: query}]},
-    })) {
-      if (event.content && event.content.parts) {
-        const text = event.content.parts
-          .map((part) => part.text || '')
-          .join('');
-        if (text) {
-          if (!isSpinnerStopped) {
-            s?.stop();
-            isSpinnerStopped = true;
+      s?.start('Thinking...');
+      let isSpinnerStopped = false;
+      for await (const event of runner.runAsync({
+        userId: options.session.userId,
+        sessionId: options.session.id,
+        newMessage: {role: 'user', parts: [{text: query}]},
+      })) {
+        if (event.content && event.content.parts) {
+          const text = event.content.parts
+            .map((part) => part.text || '')
+            .join('');
+          if (text) {
+            if (!isSpinnerStopped) {
+              s?.stop();
+              isSpinnerStopped = true;
+            }
+            console.log(`[${event.author}]: ${text}`);
           }
-          console.log(`[${event.author}]: ${text}`);
         }
       }
-    }
       if (!isSpinnerStopped) {
         s?.stop();
       }
