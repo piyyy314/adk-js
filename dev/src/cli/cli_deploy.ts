@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+import {log} from '@clack/prompts';
 import {exec, spawn, SpawnOptions} from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
@@ -272,14 +273,13 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
     options.project || (await resolveDefaultFromGcloudConfig('project'));
   if (!project || project === '(unset)') {
     throw new Error(
-      'Project is not specified and default value for "project" is not set in gcloud config. Please specify region with --project option or set default value running "gcloud config set project YOUR_PROJECT".',
+      'Project is not specified and default value for "project" is not set in gcloud config. Please specify project with --project option or set default value running "gcloud config set project YOUR_PROJECT".',
     );
   }
   if (!options.project) {
     options.project = project;
-    console.info(
-      '--project option is not provided, using default project from gcloud config:',
-      project,
+    log.info(
+      `--project option is not provided, using default project from gcloud config: ${project}`,
     );
   }
 
@@ -292,9 +292,8 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
   }
   if (!options.region) {
     options.region = region;
-    console.info(
-      '--region option is not provided, using default region from gcloud config:',
-      region,
+    log.info(
+      `--region option is not provided, using default region from gcloud config: ${region}`,
     );
   }
 
