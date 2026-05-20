@@ -119,7 +119,7 @@ async function runInteractively(
 
     if (process.stdin.isTTY === true) {
       const input = await text({
-        message: '[user]: ',
+        message: 'Message',
         placeholder: 'Type your message here (or "exit" to quit)...',
       });
       if (isCancel(input) || input === 'exit') {
@@ -208,6 +208,11 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
       userId,
     });
 
+    if (process.stdout.isTTY && !options.inputFile) {
+      const mode = options.savedSessionFile ? 'Resuming session' : 'Running agent';
+      intro(`${mode}: ${rootAgent.name}`);
+    }
+
     if (options.inputFile) {
       session =
         (await runFromInputFile({
@@ -219,19 +224,22 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
           memoryService,
           filePath: options.inputFile,
         })) || session;
-    } else if (options.savedSessionFile) {
-      if (process.stdout.isTTY) intro(`Resuming agent ${rootAgent.name}`);
-      const loadedSession = await loadFileData<Session>(
-        options.savedSessionFile,
-      );
-      if (loadedSession) {
-        for (const event of loadedSession.events) {
-          await sessionService.appendEvent({session, event});
-          const content = event.content;
-          if (content && content.parts?.length) {
-            const text = content.parts.map((part) => part.text || '').join('');
-            if (text) {
-              console.log(`[${event.author}]: ${text}`);
+    } else {
+      if (options.savedSessionFile) {
+        const loadedSession = await loadFileData<Session>(
+          options.savedSessionFile,
+        );
+        if (loadedSession) {
+          for (const event of loadedSession.events) {
+            await sessionService.appendEvent({session, event});
+            const content = event.content;
+            if (content && content.parts?.length) {
+              const text = content.parts
+                .map((part) => part.text || '')
+                .join('');
+              if (text) {
+                console.log(`[${event.author}]: ${text}`);
+              }
             }
           }
         }
@@ -244,17 +252,6 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
         memoryService,
         session,
       });
-      if (process.stdout.isTTY) outro('Happy Agent Building!');
-    } else {
-      if (process.stdout.isTTY) intro(`Running agent ${rootAgent.name}`);
-      await runInteractively({
-        rootAgent,
-        artifactService,
-        sessionService,
-        memoryService,
-        session,
-      });
-      if (process.stdout.isTTY) outro('Happy Agent Building!');
     }
 
     if (options.saveSession) {
@@ -262,12 +259,20 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
       const sessionId =
         options.sessionId ||
         (await text({
-          message: 'Session ID to save: ',
+          message: 'Session ID to save',
           initialValue: defaultSessionId,
           placeholder: 'e.g. my-session',
+          validate: (value) => {
+            if (!value) return 'Session ID is required';
+            if (/[^-a-zA-Z0-9_]/.test(value)) {
+              return 'Session ID contains invalid characters';
+            }
+            return;
+          },
         }));
 
       if (isCancel(sessionId)) {
+        if (process.stdout.isTTY && !options.inputFile) outro('Operation cancelled');
         return;
       }
 
@@ -284,6 +289,8 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
 
       log.info(`Session saved to ${sessionPath}`);
     }
+
+    if (process.stdout.isTTY && !options.inputFile) outro('Happy Agent Building!');
   } catch (e) {
     log.error(e instanceof Error ? e.message : String(e));
   }
