@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
+import {intro, log, outro, spinner} from '@clack/prompts';
 import {exec, spawn, SpawnOptions} from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
@@ -177,7 +178,7 @@ async function createPackageJson(sourceFolder: string, targetFolder: string) {
       dependencies: packageJson.dependencies,
     }),
   ]);
-  console.info('Creating package.json complete', targetPackageJsonPath);
+  log.info(`Creating package.json complete: ${targetPackageJsonPath}`);
 }
 
 export function createDockerFileContent(
@@ -264,10 +265,14 @@ async function createDockerFile(
   const dockerFilePath = path.join(targetFolder, 'Dockerfile');
   await saveToFile(dockerFilePath, createDockerFileContent(options));
 
-  console.info('Creating Dockerfile complete:', dockerFilePath);
+  log.info(`Creating Dockerfile complete: ${dockerFilePath}`);
 }
 
 export async function deployToCloudRun(options: DeployToCloudRunOptions) {
+  if (process.stdout.isTTY) {
+    intro('Cloud Run Deployment');
+  }
+
   const project =
     options.project || (await resolveDefaultFromGcloudConfig('project'));
   if (!project || project === '(unset)') {
@@ -277,9 +282,8 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
   }
   if (!options.project) {
     options.project = project;
-    console.info(
-      '--project option is not provided, using default project from gcloud config:',
-      project,
+    log.info(
+      `--project option is not provided, using default project from gcloud config: ${project}`,
     );
   }
 
@@ -292,9 +296,8 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
   }
   if (!options.region) {
     options.region = region;
-    console.info(
-      '--region option is not provided, using default region from gcloud config:',
-      region,
+    log.info(
+      `--region option is not provided, using default region from gcloud config: ${region}`,
     );
   }
 
@@ -316,24 +319,24 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
       ? path.parse(options.agentPath).name
       : path.basename(options.agentPath);
 
-  console.info('Starting deployment to Cloud Run...');
+  log.info('Starting deployment to Cloud Run...');
 
   if (await isFolderExists(options.tempFolder)) {
-    console.info('Cleaning up existing temporary files...');
+    log.step('Cleaning up existing temporary files...');
     await fs.rm(options.tempFolder, {recursive: true, force: true});
   }
 
   try {
-    console.info('Copying agent source files...');
+    log.step('Copying agent source files...');
     await copyAgentFiles(
       agentLoader,
       path.join(options.tempFolder, 'agents', appName),
     );
 
-    console.info('Creating package.json...');
+    log.step('Creating package.json...');
     await createPackageJson(agentDir, options.tempFolder);
 
-    console.info('Creating Dockerfile...');
+    log.step('Creating Dockerfile...');
     await createDockerFile(options.tempFolder, {
       appName,
       project: options.project,
@@ -346,18 +349,18 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
       a2a: options.a2a,
     });
 
-    console.info('Deploying to Cloud Run...');
+    log.step('Deploying to Cloud Run...');
     await spawnAsync('gcloud', gcloudCommands, {stdio: 'inherit'});
   } catch (e: unknown) {
-    console.error(
-      '\x1b[31mFailed to deploy to Cloud Run:',
-      (e as Error).message,
-      '\x1b[0m',
-    );
+    log.error(`Failed to deploy to Cloud Run: ${(e as Error).message}`);
   } finally {
-    console.info('Cleaning up temporary files...');
+    log.step('Cleaning up temporary files...');
     await fs.rm(options.tempFolder, {recursive: true, force: true});
     await agentLoader.disposeAll();
-    console.info('Temporary files cleaned up.');
+    log.info('Temporary files cleaned up.');
+  }
+
+  if (process.stdout.isTTY) {
+    outro('Happy Agent Building!');
   }
 }
