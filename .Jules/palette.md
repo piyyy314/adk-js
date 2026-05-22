@@ -29,3 +29,8 @@
 
 **Learning:** Placing `outro` before conditional final interactions (like session saving) creates a "zombie interaction" feel. Also, providing immediate validation feedback for session identifiers prevents runtime errors and file-system pollution.
 **Action:** Always place `outro` at the absolute end of the command lifecycle and use `validate` in `@clack/prompts` to ensure identifiers conform to expected patterns (e.g., filename-safe).
+
+## 2026-05-22 - Modernizing CLI Deployment with @clack/prompts
+
+**Learning:** Modernizing legacy CLI commands (using `console.info`/`console.error`) with `@clack/prompts` (intro, outro, log.step) creates a cohesive and professional developer experience across the entire toolkit. It also provides an opportunity to audit and fix misleading error messages.
+**Action:** Use `log.step` for sequential process updates and ensure `intro`/`outro` only run in TTY environments for a polished, yet non-intrusive UI.
