@@ -3,7 +3,6 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
-import {intro, log, outro} from '@clack/prompts';
 import {exec, spawn, SpawnOptions} from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
@@ -178,7 +177,7 @@ async function createPackageJson(sourceFolder: string, targetFolder: string) {
       dependencies: packageJson.dependencies,
     }),
   ]);
-  log.step(`Creating package.json complete: ${targetPackageJsonPath}`);
+  console.info('Creating package.json complete', targetPackageJsonPath);
 }
 
 export function createDockerFileContent(
@@ -265,22 +264,22 @@ async function createDockerFile(
   const dockerFilePath = path.join(targetFolder, 'Dockerfile');
   await saveToFile(dockerFilePath, createDockerFileContent(options));
 
-  log.step(`Creating Dockerfile complete: ${dockerFilePath}`);
+  console.info('Creating Dockerfile complete:', dockerFilePath);
 }
 
 export async function deployToCloudRun(options: DeployToCloudRunOptions) {
-  if (process.stdout.isTTY) intro('Cloud Run Deployment');
   const project =
     options.project || (await resolveDefaultFromGcloudConfig('project'));
   if (!project || project === '(unset)') {
     throw new Error(
-      'Project is not specified and default value for "project" is not set in gcloud config. Please specify project with --project option or set default value running "gcloud config set project YOUR_PROJECT".',
+      'Project is not specified and default value for "project" is not set in gcloud config. Please specify region with --project option or set default value running "gcloud config set project YOUR_PROJECT".',
     );
   }
   if (!options.project) {
     options.project = project;
-    log.info(
-      `--project option is not provided, using default project from gcloud config: ${project}`,
+    console.info(
+      '--project option is not provided, using default project from gcloud config:',
+      project,
     );
   }
 
@@ -293,8 +292,9 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
   }
   if (!options.region) {
     options.region = region;
-    log.info(
-      `--region option is not provided, using default region from gcloud config: ${region}`,
+    console.info(
+      '--region option is not provided, using default region from gcloud config:',
+      region,
     );
   }
 
@@ -316,24 +316,24 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
       ? path.parse(options.agentPath).name
       : path.basename(options.agentPath);
 
-  log.step('Starting deployment to Cloud Run...');
+  console.info('Starting deployment to Cloud Run...');
 
   if (await isFolderExists(options.tempFolder)) {
-    log.step('Cleaning up existing temporary files...');
+    console.info('Cleaning up existing temporary files...');
     await fs.rm(options.tempFolder, {recursive: true, force: true});
   }
 
   try {
-    log.step('Copying agent source files...');
+    console.info('Copying agent source files...');
     await copyAgentFiles(
       agentLoader,
       path.join(options.tempFolder, 'agents', appName),
     );
 
-    log.step('Creating package.json...');
+    console.info('Creating package.json...');
     await createPackageJson(agentDir, options.tempFolder);
 
-    log.step('Creating Dockerfile...');
+    console.info('Creating Dockerfile...');
     await createDockerFile(options.tempFolder, {
       appName,
       project: options.project,
@@ -346,16 +346,18 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
       a2a: options.a2a,
     });
 
-    log.step('Deploying to Cloud Run...');
+    console.info('Deploying to Cloud Run...');
     await spawnAsync('gcloud', gcloudCommands, {stdio: 'inherit'});
-
-    if (process.stdout.isTTY) outro('Happy Agent Building!');
   } catch (e: unknown) {
-    log.error(e instanceof Error ? e.message : String(e));
+    console.error(
+      '\x1b[31mFailed to deploy to Cloud Run:',
+      (e as Error).message,
+      '\x1b[0m',
+    );
   } finally {
-    log.step('Cleaning up temporary files...');
+    console.info('Cleaning up temporary files...');
     await fs.rm(options.tempFolder, {recursive: true, force: true});
     await agentLoader.disposeAll();
-    log.step('Temporary files cleaned up.');
+    console.info('Temporary files cleaned up.');
   }
 }
