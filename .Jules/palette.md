@@ -29,3 +29,8 @@
 
 **Learning:** Placing `outro` before conditional final interactions (like session saving) creates a "zombie interaction" feel. Also, providing immediate validation feedback for session identifiers prevents runtime errors and file-system pollution.
 **Action:** Always place `outro` at the absolute end of the command lifecycle and use `validate` in `@clack/prompts` to ensure identifiers conform to expected patterns (e.g., filename-safe).
+
+## 2025-06-01 - Standardizing Multi-Stage CLI Deployment Feedback
+
+**Learning:** Using `log.step` from `@clack/prompts` is highly effective for indicating progress through complex, multi-stage CLI operations like Cloud Run deployment. It maintains visual consistency with other ADK CLI commands and provides better feedback than raw `console.info`.
+**Action:** Use `log.step` for intermediate progress messages in long-running CLI workflows, ensuring `intro` and `outro` only run in TTY environments.
