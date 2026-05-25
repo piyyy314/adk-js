@@ -29,3 +29,8 @@
 
 **Learning:** Placing `outro` before conditional final interactions (like session saving) creates a "zombie interaction" feel. Also, providing immediate validation feedback for session identifiers prevents runtime errors and file-system pollution.
 **Action:** Always place `outro` at the absolute end of the command lifecycle and use `validate` in `@clack/prompts` to ensure identifiers conform to expected patterns (e.g., filename-safe).
+
+## 2026-05-25 - Polishing @clack/prompts Spinner and Lifecycle
+
+**Learning:** Logging success messages from utility functions while a spinner is active in the caller can cause UI flickering and messy output. Additionally, placing `outro` before cleanup logic in `finally` blocks results in cleanup messages appearing after the final sign-off.
+**Action:** Suppress internal logs in utility functions called within spinner blocks, and use a `success` flag to ensure `outro` is the absolute final output after all cleanup is complete.
