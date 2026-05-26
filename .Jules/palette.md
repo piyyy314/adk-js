@@ -29,3 +29,8 @@
 
 **Learning:** Placing `outro` before conditional final interactions (like session saving) creates a "zombie interaction" feel. Also, providing immediate validation feedback for session identifiers prevents runtime errors and file-system pollution.
 **Action:** Always place `outro` at the absolute end of the command lifecycle and use `validate` in `@clack/prompts` to ensure identifiers conform to expected patterns (e.g., filename-safe).
+
+## 2025-06-12 - Standardizing CLI Logging and TTY Awareness
+
+**Learning:** Replacing raw `console.info` and manual ANSI-colored `console.error` with structured logging from `@clack/prompts` (like `log.step` and `log.info`) creates a more professional and consistent CLI experience. However, rich UI elements like `intro` and `outro` must be guarded with `process.stdout.isTTY` checks to avoid polluting logs in non-interactive environments.
+**Action:** Transition CLI tools to use `@clack/prompts` for all user-facing output and always use TTY guards for framing elements.
