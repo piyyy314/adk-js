@@ -29,3 +29,8 @@
 
 **Learning:** Placing `outro` before conditional final interactions (like session saving) creates a "zombie interaction" feel. Also, providing immediate validation feedback for session identifiers prevents runtime errors and file-system pollution.
 **Action:** Always place `outro` at the absolute end of the command lifecycle and use `validate` in `@clack/prompts` to ensure identifiers conform to expected patterns (e.g., filename-safe).
+
+## 2025-06-01 - Precision in CLI Error Hints
+
+**Learning:** Inconsistent or misleading error messages (e.g., instructing a user to fix a 'region' when the missing parameter is 'project') create significant user frustration and diminish trust in the tool.
+**Action:** When auditing CLI UX, verify that error hints and suggested commands exactly match the parameters being validated.
