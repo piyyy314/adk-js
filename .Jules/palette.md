@@ -29,3 +29,8 @@
 
 **Learning:** Placing `outro` before conditional final interactions (like session saving) creates a "zombie interaction" feel. Also, providing immediate validation feedback for session identifiers prevents runtime errors and file-system pollution.
 **Action:** Always place `outro` at the absolute end of the command lifecycle and use `validate` in `@clack/prompts` to ensure identifiers conform to expected patterns (e.g., filename-safe).
+
+## 2025-06-01 - Standardizing CLI Deployment UX
+
+**Learning:** When a CLI command executes a long-running child process that inherits `stdio` (like `gcloud run deploy`), using an active `@clack/prompts` spinner is counter-productive as the external output corrupts the spinner's line. Instead, using `log.step` to mark progress points maintains a clean, professional flow while keeping the user informed of the current stage.
+**Action:** Prefer `log.step` over active spinners when the operation involves raw external process output to ensure a stable and readable terminal UI.
