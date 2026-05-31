@@ -319,10 +319,8 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
   }
 
   const s = process.stdout.isTTY ? spinner() : null;
-  let spinnerActive = false;
   try {
     s?.start('Preparing deployment files...');
-    spinnerActive = true;
     await copyAgentFiles(
       agentLoader,
       path.join(options.tempFolder, 'agents', appName),
@@ -342,14 +340,11 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
       a2a: options.a2a,
     });
     s?.stop('Deployment files prepared.');
-    spinnerActive = false;
 
     log.step('Deploying to Cloud Run...');
     await spawnAsync('gcloud', gcloudCommands, {stdio: 'inherit'});
   } catch (e: unknown) {
-    if (spinnerActive) {
-      s?.stop('Failed to prepare deployment files.', 1);
-    }
+    s?.stop('Failed to prepare deployment files.', 1);
     log.error(`Failed to deploy to Cloud Run: ${(e as Error).message}`);
   } finally {
     if (await isFolderExists(options.tempFolder)) {

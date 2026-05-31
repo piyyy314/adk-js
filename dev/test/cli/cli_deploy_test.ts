@@ -186,6 +186,7 @@ describe('deployToCloudRun', () => {
   });
 
   it('should deploy successfully with explicit options', async () => {
+    (isFolderExists as Mock).mockResolvedValue(true);
     await deployToCloudRun(defaultOptions);
 
     expect(spawnMock).toHaveBeenCalledWith(
