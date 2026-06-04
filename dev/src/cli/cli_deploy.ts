@@ -269,6 +269,8 @@ async function createDockerFile(
 }
 
 export async function deployToCloudRun(options: DeployToCloudRunOptions) {
+  if (process.stdout.isTTY) intro('Cloud Run Deployment');
+
   const project =
     options.project || (await resolveDefaultFromGcloudConfig('project'));
   if (!project || project === '(unset)') {
@@ -297,8 +299,6 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
     );
   }
 
-  if (process.stdout.isTTY) intro('Cloud Run Deployment');
-
   const gcloudCommands = prepareGCloudArguments(options);
 
   // Request to bundle any js or ts file into a single cjs file to be able to
@@ -324,7 +324,6 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
     await fs.rm(options.tempFolder, {recursive: true, force: true});
   }
 
-  let success = false;
   try {
     log.step('Copying agent source files...');
     await copyAgentFiles(
@@ -350,7 +349,8 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
 
     log.step('Deploying to Cloud Run...');
     await spawnAsync('gcloud', gcloudCommands, {stdio: 'inherit'});
-    success = true;
+
+    if (process.stdout.isTTY) outro('Happy Agent Building!');
   } catch (e: unknown) {
     log.error(`Failed to deploy to Cloud Run: ${(e as Error).message}`);
   } finally {
@@ -358,9 +358,5 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
     await fs.rm(options.tempFolder, {recursive: true, force: true});
     await agentLoader.disposeAll();
     log.step('Temporary files cleaned up.');
-
-    if (success && process.stdout.isTTY) {
-      outro('Happy Agent Building!');
-    }
   }
 }

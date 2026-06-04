@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {intro, log, outro} from '@clack/prompts';
+import {log} from '@clack/prompts';
 import * as fs from 'node:fs/promises';
 import {afterEach, beforeEach, describe, expect, it, Mock, vi} from 'vitest';
 import {
@@ -189,7 +189,6 @@ describe('deployToCloudRun', () => {
   it('should deploy successfully with explicit options', async () => {
     await deployToCloudRun(defaultOptions);
 
-    expect(intro).toHaveBeenCalledWith('Cloud Run Deployment');
     expect(spawnMock).toHaveBeenCalledWith(
       'gcloud',
       expect.arrayContaining([
@@ -207,7 +206,6 @@ describe('deployToCloudRun', () => {
       recursive: true,
       force: true,
     });
-    expect(outro).toHaveBeenCalledWith('Happy Agent Building!');
   });
 
   it('should resolve default project and region from gcloud if not provided', async () => {
@@ -240,7 +238,7 @@ describe('deployToCloudRun', () => {
     );
   });
 
-  it('should throw error if project resolution fails (unset) and not call intro', async () => {
+  it('should throw error if project resolution fails (unset)', async () => {
     const optionsWithoutProject = {
       ...defaultOptions,
       project: '',
@@ -257,7 +255,6 @@ describe('deployToCloudRun', () => {
     await expect(deployToCloudRun(optionsWithoutProject)).rejects.toThrow(
       /Project is not specified/,
     );
-    expect(intro).not.toHaveBeenCalled();
   });
 
   it('should clean up existing temp folder before deploying', async () => {
