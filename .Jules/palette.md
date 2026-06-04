@@ -29,3 +29,8 @@
 
 **Learning:** Placing `outro` before conditional final interactions (like session saving) creates a "zombie interaction" feel. Also, providing immediate validation feedback for session identifiers prevents runtime errors and file-system pollution.
 **Action:** Always place `outro` at the absolute end of the command lifecycle and use `validate` in `@clack/prompts` to ensure identifiers conform to expected patterns (e.g., filename-safe).
+
+## 2026-06-04 - Preventing Hanging Visual Blocks in CLI
+
+**Learning:** Calling `intro()` from `@clack/prompts` before validating mandatory environment variables can leave the terminal in a "hanging" state (unterminated vertical lines) if validation fails.
+**Action:** Defer calling `intro()` until after critical configuration (like GCP project/region) is verified to ensure a clean exit on error.

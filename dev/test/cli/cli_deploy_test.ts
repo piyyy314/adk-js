@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import {intro, log, outro} from '@clack/prompts';
 import * as fs from 'node:fs/promises';
 import {afterEach, beforeEach, describe, expect, it, Mock, vi} from 'vitest';
 import {
@@ -52,6 +53,21 @@ vi.mock('../../src/utils/file_utils.js', () => ({
   loadFileData: vi.fn(),
   saveToFile: vi.fn(),
   tryToFindFileRecursively: vi.fn(),
+}));
+
+vi.mock('@clack/prompts', () => ({
+  intro: vi.fn(),
+  outro: vi.fn(),
+  log: {
+    error: vi.fn(),
+    info: vi.fn(),
+    step: vi.fn(),
+    warn: vi.fn(),
+  },
+  spinner: vi.fn(() => ({
+    start: vi.fn(),
+    stop: vi.fn(),
+  })),
 }));
 
 describe('createDockerFileContent', () => {
@@ -122,6 +138,11 @@ describe('deployToCloudRun', () => {
     vi.spyOn(console, 'info').mockImplementation(() => {});
     vi.spyOn(console, 'error').mockImplementation(() => {});
 
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
+
     // Default mock behavior
     (isFile as Mock).mockResolvedValue(false);
     (isFolderExists as Mock).mockResolvedValue(false);
@@ -168,6 +189,7 @@ describe('deployToCloudRun', () => {
   it('should deploy successfully with explicit options', async () => {
     await deployToCloudRun(defaultOptions);
 
+    expect(intro).toHaveBeenCalledWith('Cloud Run Deployment');
     expect(spawnMock).toHaveBeenCalledWith(
       'gcloud',
       expect.arrayContaining([
@@ -185,6 +207,7 @@ describe('deployToCloudRun', () => {
       recursive: true,
       force: true,
     });
+    expect(outro).toHaveBeenCalledWith('Happy Agent Building!');
   });
 
   it('should resolve default project and region from gcloud if not provided', async () => {
@@ -217,7 +240,7 @@ describe('deployToCloudRun', () => {
     );
   });
 
-  it('should throw error if project resolution fails (unset)', async () => {
+  it('should throw error if project resolution fails (unset) and not call intro', async () => {
     const optionsWithoutProject = {
       ...defaultOptions,
       project: '',
@@ -234,6 +257,7 @@ describe('deployToCloudRun', () => {
     await expect(deployToCloudRun(optionsWithoutProject)).rejects.toThrow(
       /Project is not specified/,
     );
+    expect(intro).not.toHaveBeenCalled();
   });
 
   it('should clean up existing temp folder before deploying', async () => {
@@ -248,20 +272,19 @@ describe('deployToCloudRun', () => {
   });
 
   it('should throw error if package.json has no dependencies', async () => {
-    const consoleErrorSpy = vi.spyOn(console, 'error');
     (loadFileData as Mock).mockResolvedValue({});
 
     await deployToCloudRun(defaultOptions);
 
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      expect.stringContaining('\x1b[31mFailed to deploy to Cloud Run:'),
+    expect(log.error).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to deploy to Cloud Run:'),
+    );
+    expect(log.error).toHaveBeenCalledWith(
       expect.stringContaining('No dependencies found in package.json'),
-      expect.stringContaining('\x1b[0m'),
     );
   });
 
   it('should throw error if required npm packages are missing in package.json', async () => {
-    const consoleErrorSpy = vi.spyOn(console, 'error');
     (loadFileData as Mock).mockResolvedValue({
       dependencies: {
         'some-other-package': '1.0.0',
@@ -270,17 +293,15 @@ describe('deployToCloudRun', () => {
 
     await deployToCloudRun(defaultOptions);
 
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      expect.stringContaining('\x1b[31mFailed to deploy to Cloud Run:'),
-      expect.stringContaining(
-        'Package "@google/adk" is required but not found',
-      ),
-      expect.stringContaining('\x1b[0m'),
+    expect(log.error).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to deploy to Cloud Run:'),
+    );
+    expect(log.error).toHaveBeenCalledWith(
+      expect.stringContaining('Package "@google/adk" is required but not found'),
     );
   });
 
   it('should handle spawn failures', async () => {
-    const consoleErrorSpy = vi.spyOn(console, 'error');
     spawnMock.mockReturnValue({
       on: vi.fn((event: string, cb: (code: number) => void) => {
         if (event === 'close') {
@@ -291,10 +312,11 @@ describe('deployToCloudRun', () => {
 
     await deployToCloudRun(defaultOptions);
 
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      expect.stringContaining('\x1b[31mFailed to deploy to Cloud Run:'),
+    expect(log.error).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to deploy to Cloud Run:'),
+    );
+    expect(log.error).toHaveBeenCalledWith(
       expect.stringContaining('Command failed with exit code 1'),
-      expect.stringContaining('\x1b[0m'),
     );
   });
 });
