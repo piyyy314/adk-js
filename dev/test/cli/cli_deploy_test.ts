@@ -24,6 +24,28 @@ type Callback = (error: Error | null, result?: unknown) => void;
 const execMock = vi.fn();
 const spawnMock = vi.fn();
 
+const logInfoMock = vi.fn();
+const logErrorMock = vi.fn();
+const logStepMock = vi.fn();
+const introMock = vi.fn();
+const outroMock = vi.fn();
+const spinnerMock = {
+  start: vi.fn(),
+  stop: vi.fn(),
+};
+
+vi.mock('@clack/prompts', () => ({
+  log: {
+    info: (...args: unknown[]) => logInfoMock(...args),
+    error: (...args: unknown[]) => logErrorMock(...args),
+    step: (...args: unknown[]) => logStepMock(...args),
+  },
+  intro: (...args: unknown[]) => introMock(...args),
+  outro: (...args: unknown[]) => outroMock(...args),
+  spinner: () => spinnerMock,
+  isCancel: (val: unknown) => typeof val === 'symbol',
+}));
+
 vi.mock('node:child_process', () => ({
   exec: (cmd: string, callback: Callback) => execMock(cmd, callback),
   spawn: (cmd: string, args: string[], opts: unknown) =>
@@ -119,8 +141,6 @@ describe('deployToCloudRun', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.spyOn(console, 'info').mockImplementation(() => {});
-    vi.spyOn(console, 'error').mockImplementation(() => {});
 
     // Default mock behavior
     (isFile as Mock).mockResolvedValue(false);
@@ -166,6 +186,7 @@ describe('deployToCloudRun', () => {
   });
 
   it('should deploy successfully with explicit options', async () => {
+    (isFolderExists as Mock).mockResolvedValue(true);
     await deployToCloudRun(defaultOptions);
 
     expect(spawnMock).toHaveBeenCalledWith(
@@ -248,20 +269,19 @@ describe('deployToCloudRun', () => {
   });
 
   it('should throw error if package.json has no dependencies', async () => {
-    const consoleErrorSpy = vi.spyOn(console, 'error');
     (loadFileData as Mock).mockResolvedValue({});
 
     await deployToCloudRun(defaultOptions);
 
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      expect.stringContaining('\x1b[31mFailed to deploy to Cloud Run:'),
+    expect(logErrorMock).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to deploy to Cloud Run:'),
+    );
+    expect(logErrorMock).toHaveBeenCalledWith(
       expect.stringContaining('No dependencies found in package.json'),
-      expect.stringContaining('\x1b[0m'),
     );
   });
 
   it('should throw error if required npm packages are missing in package.json', async () => {
-    const consoleErrorSpy = vi.spyOn(console, 'error');
     (loadFileData as Mock).mockResolvedValue({
       dependencies: {
         'some-other-package': '1.0.0',
@@ -270,17 +290,17 @@ describe('deployToCloudRun', () => {
 
     await deployToCloudRun(defaultOptions);
 
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      expect.stringContaining('\x1b[31mFailed to deploy to Cloud Run:'),
+    expect(logErrorMock).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to deploy to Cloud Run:'),
+    );
+    expect(logErrorMock).toHaveBeenCalledWith(
       expect.stringContaining(
         'Package "@google/adk" is required but not found',
       ),
-      expect.stringContaining('\x1b[0m'),
     );
   });
 
   it('should handle spawn failures', async () => {
-    const consoleErrorSpy = vi.spyOn(console, 'error');
     spawnMock.mockReturnValue({
       on: vi.fn((event: string, cb: (code: number) => void) => {
         if (event === 'close') {
@@ -291,10 +311,11 @@ describe('deployToCloudRun', () => {
 
     await deployToCloudRun(defaultOptions);
 
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      expect.stringContaining('\x1b[31mFailed to deploy to Cloud Run:'),
+    expect(logErrorMock).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to deploy to Cloud Run:'),
+    );
+    expect(logErrorMock).toHaveBeenCalledWith(
       expect.stringContaining('Command failed with exit code 1'),
-      expect.stringContaining('\x1b[0m'),
     );
   });
 });
