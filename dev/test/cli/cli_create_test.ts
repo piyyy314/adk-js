@@ -170,6 +170,61 @@ describe('createAgent', () => {
   });
 
   describe('Interactive Mode', () => {
+    it('should show guidance and validate API Key', async () => {
+      const {log, password} = await import('@clack/prompts');
+      (select as Mock).mockResolvedValueOnce('gemini-2.5-flash'); // Model
+      (select as Mock).mockResolvedValueOnce('ts'); // Language
+      (select as Mock).mockResolvedValueOnce('googleai'); // Backend
+      (password as Mock).mockResolvedValueOnce('test-key'); // API Key
+
+      await createAgent(getFreshOptions());
+
+      expect(log.info).toHaveBeenCalledWith(
+        expect.stringContaining('https://aistudio.google.com/'),
+      );
+      expect(password).toHaveBeenCalledWith(
+        expect.objectContaining({
+          validate: expect.any(Function),
+        }),
+      );
+
+      const validate = (password as Mock).mock.calls[0][0].validate;
+      expect(validate('')).toBe('API Key is required');
+      expect(validate('some-key')).toBeUndefined();
+    });
+
+    it('should validate Project ID and Region', async () => {
+      (select as Mock).mockResolvedValueOnce('gemini-2.5-flash'); // Model
+      (select as Mock).mockResolvedValueOnce('ts'); // Language
+      (select as Mock).mockResolvedValueOnce('vertex'); // Backend
+
+      (text as Mock).mockResolvedValueOnce('my-project');
+      (text as Mock).mockResolvedValueOnce('my-region');
+
+      await createAgent(getFreshOptions());
+
+      expect(text).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Enter the Google Cloud Project ID',
+          validate: expect.any(Function),
+        }),
+      );
+      expect(text).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Enter the Google Cloud Region',
+          validate: expect.any(Function),
+        }),
+      );
+
+      const projectValidate = (text as Mock).mock.calls[0][0].validate;
+      expect(projectValidate('')).toBe('Project ID is required');
+      expect(projectValidate('proj')).toBeUndefined();
+
+      const regionValidate = (text as Mock).mock.calls[1][0].validate;
+      expect(regionValidate('')).toBe('Region is required');
+      expect(regionValidate('reg')).toBeUndefined();
+    });
+
     it('should prompt for model if not provided', async () => {
       (select as Mock).mockResolvedValueOnce('gemini-2.5-pro'); // Model
       (select as Mock).mockResolvedValueOnce('ts'); // Language

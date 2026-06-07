@@ -259,7 +259,7 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
       const sessionId =
         options.sessionId ||
         (await text({
-          message: 'Session ID to save',
+          message: 'Session ID to save (will be used as filename)',
           initialValue: defaultSessionId,
           placeholder: 'e.g. my-session',
           validate: (value) => {
