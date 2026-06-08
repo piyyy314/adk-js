@@ -89,6 +89,13 @@ describe('createAgent', () => {
     vi.clearAllMocks();
     (isCancel as unknown as Mock).mockReturnValue(false);
     (listFiles as Mock).mockResolvedValue(['file1', 'file2']);
+    vi.stubGlobal('process', {
+      ...process,
+      stdout: {
+        ...process.stdout,
+        isTTY: true,
+      },
+    });
   });
 
   afterEach(() => {
@@ -96,6 +103,16 @@ describe('createAgent', () => {
   });
 
   describe('Non-interactive Mode (forceYes: true)', () => {
+    beforeEach(() => {
+      vi.stubGlobal('process', {
+        ...process,
+        stdout: {
+          ...process.stdout,
+          isTTY: false,
+        },
+      });
+    });
+
     it('should create agent with default values when minimal args provided', async () => {
       const {intro, note, outro, spinner, log} = await import('@clack/prompts');
       await createAgent({...getFreshOptions(), forceYes: true});
@@ -189,12 +206,14 @@ describe('createAgent', () => {
       );
     });
 
-    it('should return without creating files if model selection is cancelled', async () => {
+    it('should return without creating files and call outro if model selection is cancelled', async () => {
+      const {outro} = await import('@clack/prompts');
       (select as Mock).mockResolvedValueOnce('cancel-symbol');
       (isCancel as unknown as Mock).mockReturnValue(true);
 
       await expect(createAgent(getFreshOptions())).resolves.toBeUndefined();
       expect(saveToFile).not.toHaveBeenCalled();
+      expect(outro).toHaveBeenCalledWith('Operation cancelled.');
     });
 
     it('should prompt for language if not provided', async () => {
@@ -238,12 +257,49 @@ describe('createAgent', () => {
       expect(text).toHaveBeenCalledWith(
         expect.objectContaining({
           initialValue: 'gcloud-project',
+          validate: expect.any(Function),
         }),
       );
+
+      const projectValidate = (text as Mock).mock.calls.find(
+        (call) => call[0].message === 'Enter the Google Cloud Project ID',
+      )[0].validate;
+      expect(projectValidate('')).toBe('Project ID is required');
+      expect(projectValidate('some-id')).toBeUndefined();
+
+      const regionValidate = (text as Mock).mock.calls.find(
+        (call) => call[0].message === 'Enter the Google Cloud Region',
+      )[0].validate;
+      expect(regionValidate('')).toBe('Region is required');
+      expect(regionValidate('us-central1')).toBeUndefined();
+
       expect(saveToFile).toHaveBeenCalledWith(
         expect.stringContaining('.env'),
         expect.stringContaining('GOOGLE_CLOUD_PROJECT=gcloud-project'),
       );
+    });
+
+    it('should prompt for API key with guidance and validation', async () => {
+      const {log, password: passwordMock} = await import('@clack/prompts');
+      (select as Mock).mockResolvedValueOnce('gemini-2.5-flash');
+      (select as Mock).mockResolvedValueOnce('ts');
+      (select as Mock).mockResolvedValueOnce('googleai');
+      (passwordMock as Mock).mockResolvedValueOnce('test-key');
+
+      await createAgent(getFreshOptions());
+
+      expect(log.info).toHaveBeenCalledWith(
+        expect.stringContaining('https://aistudio.google.com/'),
+      );
+      expect(passwordMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          validate: expect.any(Function),
+        }),
+      );
+
+      const apiKeyValidate = (passwordMock as Mock).mock.calls[0][0].validate;
+      expect(apiKeyValidate('')).toBe('API Key is required');
+      expect(apiKeyValidate('some-key')).toBeUndefined();
     });
   });
 
@@ -268,15 +324,18 @@ describe('createAgent', () => {
       expect(removeFolder).toHaveBeenCalled();
     });
 
-    it('should return without modifying files if user declines overwrite', async () => {
+    it('should return without modifying files and call outro if user declines overwrite', async () => {
+      const {outro} = await import('@clack/prompts');
       (isFolderExists as Mock).mockResolvedValue(true);
       (confirm as unknown as Mock).mockResolvedValueOnce(false); // Overwrite = No
 
       await expect(createAgent(getFreshOptions())).resolves.toBeUndefined();
       expect(removeFolder).not.toHaveBeenCalled();
+      expect(outro).toHaveBeenCalledWith('Agent creation aborted.');
     });
 
-    it('should return without modifying files if overwrite confirm is cancelled', async () => {
+    it('should return without modifying files and call outro if overwrite confirm is cancelled', async () => {
+      const {outro} = await import('@clack/prompts');
       (isFolderExists as Mock).mockResolvedValue(true);
       const cancelSymbol = Symbol('cancel');
       (confirm as unknown as Mock).mockResolvedValueOnce(cancelSymbol);
@@ -285,6 +344,7 @@ describe('createAgent', () => {
       await expect(createAgent(getFreshOptions())).resolves.toBeUndefined();
       expect(removeFolder).not.toHaveBeenCalled();
       expect(createFolder).not.toHaveBeenCalledTimes(2);
+      expect(outro).toHaveBeenCalledWith('Agent creation aborted.');
     });
   });
 

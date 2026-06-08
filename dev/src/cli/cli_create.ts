@@ -210,6 +210,7 @@ export async function createAgent(options: AgentCreationOptions) {
   const agentDir = path.join(dirname, options.agentName);
   const folderReady = await generateAgentFolder(agentDir, options.forceYes);
   if (!folderReady) {
+    if (!options.forceYes && process.stdout.isTTY) outro('Agent creation aborted.');
     return;
   }
 
@@ -243,6 +244,7 @@ export async function createAgent(options: AgentCreationOptions) {
         });
 
     if (isCancel(model)) {
+      if (process.stdout.isTTY) outro('Operation cancelled.');
       return;
     }
     options.model = model;
@@ -268,6 +270,7 @@ export async function createAgent(options: AgentCreationOptions) {
         });
 
     if (isCancel(language)) {
+      if (process.stdout.isTTY) outro('Operation cancelled.');
       return;
     }
     options.language = language;
@@ -293,6 +296,7 @@ export async function createAgent(options: AgentCreationOptions) {
         });
 
     if (isCancel(backend)) {
+      if (process.stdout.isTTY) outro('Operation cancelled.');
       return;
     }
 
@@ -306,9 +310,14 @@ export async function createAgent(options: AgentCreationOptions) {
             message: 'Enter the Google Cloud Project ID',
             initialValue: defaultProject,
             placeholder: 'my-project-id',
+            validate: (value) => {
+              if (!value) return 'Project ID is required';
+              return;
+            },
           });
 
       if (isCancel(projectResponse)) {
+        if (process.stdout.isTTY) outro('Operation cancelled.');
         return;
       }
       options.project = projectResponse;
@@ -319,20 +328,35 @@ export async function createAgent(options: AgentCreationOptions) {
             message: 'Enter the Google Cloud Region',
             initialValue: defaultRegion,
             placeholder: 'us-central1',
+            validate: (value) => {
+              if (!value) return 'Region is required';
+              return;
+            },
           });
 
       if (isCancel(regionResponse)) {
+        if (process.stdout.isTTY) outro('Operation cancelled.');
         return;
       }
       options.region = regionResponse;
     } else {
+      if (!options.forceYes) {
+        log.info(
+          'You can get an API Key from Google AI Studio: https://aistudio.google.com/',
+        );
+      }
       const apiKeyResponse: symbol | string = options.forceYes
         ? ''
         : await password({
             message: 'Enter the Google API Key',
+            validate: (value) => {
+              if (!value) return 'API Key is required';
+              return;
+            },
           });
 
       if (isCancel(apiKeyResponse)) {
+        if (process.stdout.isTTY) outro('Operation cancelled.');
         return;
       }
       options.apiKey = apiKeyResponse;
