@@ -4,7 +4,18 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {confirm, isCancel, password, select, text} from '@clack/prompts';
+import {
+  confirm,
+  intro,
+  isCancel,
+  log,
+  note,
+  outro,
+  password,
+  select,
+  spinner,
+  text,
+} from '@clack/prompts';
 import {execSync} from 'node:child_process';
 import {
   afterEach,
@@ -97,7 +108,6 @@ describe('createAgent', () => {
 
   describe('Non-interactive Mode (forceYes: true)', () => {
     it('should create agent with default values when minimal args provided', async () => {
-      const {intro, note, outro, spinner, log} = await import('@clack/prompts');
       await createAgent({...getFreshOptions(), forceYes: true});
 
       expect(intro).not.toHaveBeenCalled();
@@ -183,6 +193,15 @@ describe('createAgent', () => {
           message: 'Choose a model for the root agent',
         }),
       );
+      expect(log.info).toHaveBeenCalledWith(
+        expect.stringContaining('aistudio.google.com'),
+      );
+      expect(password).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Enter the Google API Key',
+          validate: expect.any(Function),
+        }),
+      );
       expect(saveToFile).toHaveBeenCalledWith(
         expect.stringContaining('agent.ts'),
         expect.stringContaining("model: 'gemini-2.5-pro'"),
@@ -213,6 +232,10 @@ describe('createAgent', () => {
           ]),
         }),
       );
+      expect(note).toHaveBeenCalledWith(
+        expect.stringContaining('npm run cli'),
+        expect.anything(),
+      );
       expect(saveToFile).toHaveBeenCalledWith(
         expect.stringContaining('agent.js'),
         expect.anything(),
@@ -237,7 +260,16 @@ describe('createAgent', () => {
 
       expect(text).toHaveBeenCalledWith(
         expect.objectContaining({
+          message: 'Enter the Google Cloud Project ID',
           initialValue: 'gcloud-project',
+          validate: expect.any(Function),
+        }),
+      );
+      expect(text).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Enter the Google Cloud Region',
+          initialValue: 'gcloud-region',
+          validate: expect.any(Function),
         }),
       );
       expect(saveToFile).toHaveBeenCalledWith(
@@ -291,8 +323,7 @@ describe('createAgent', () => {
   describe('spinner behavior during dependency installation', () => {
     it('should start and stop spinner during successful npm install when not forceYes', async () => {
       const mockSpinnerInstance = {start: vi.fn(), stop: vi.fn()};
-      const {spinner: spinnerMock} = await import('@clack/prompts');
-      (spinnerMock as Mock).mockReturnValue(mockSpinnerInstance);
+      (spinner as Mock).mockReturnValue(mockSpinnerInstance);
 
       await createAgent({...getFreshOptions(), forceYes: false});
 
@@ -306,19 +337,17 @@ describe('createAgent', () => {
 
     it('should NOT start spinner during npm install when forceYes is true', async () => {
       const mockSpinnerInstance = {start: vi.fn(), stop: vi.fn()};
-      const {spinner: spinnerMock, intro} = await import('@clack/prompts');
-      (spinnerMock as Mock).mockReturnValue(mockSpinnerInstance);
+      (spinner as Mock).mockReturnValue(mockSpinnerInstance);
 
       await createAgent({...getFreshOptions(), forceYes: true});
 
-      expect(spinnerMock).not.toHaveBeenCalled();
+      expect(spinner).not.toHaveBeenCalled();
       expect(intro).not.toHaveBeenCalled();
     });
 
     it('should stop spinner with error message when npm install fails and not forceYes', async () => {
       const mockSpinnerInstance = {start: vi.fn(), stop: vi.fn()};
-      const {spinner: spinnerMock} = await import('@clack/prompts');
-      (spinnerMock as Mock).mockReturnValue(mockSpinnerInstance);
+      (spinner as Mock).mockReturnValue(mockSpinnerInstance);
 
       const {exec: execMock} = await import('node:child_process');
       // Make exec fail by calling callback with error
