@@ -326,10 +326,14 @@ export async function createAgent(options: AgentCreationOptions) {
       }
       options.region = regionResponse;
     } else {
+      if (!options.forceYes) {
+        log.info('Get your API key at https://aistudio.google.com/');
+      }
       const apiKeyResponse: symbol | string = options.forceYes
         ? ''
         : await password({
             message: 'Enter the Google API Key',
+            validate: (value) => (!value ? 'API Key is required' : undefined),
           });
 
       if (isCancel(apiKeyResponse)) {
@@ -366,7 +370,10 @@ export async function createAgent(options: AgentCreationOptions) {
     note(
       `Created the following files in ${agentDir}:\n` +
         files.map((file) => `  - ${file}`).join('\n') +
-        `\n\nRun 'cd ${options.agentName} && npm run web' to start the agent in a web interface`,
+        `\n\nTo get started, run:\n` +
+        `  cd ${options.agentName}\n` +
+        `  npm run web   # Start web interface\n` +
+        `  npm run cli   # Start interactive CLI`,
       'Agent Created Successfully',
     );
 

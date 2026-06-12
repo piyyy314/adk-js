@@ -29,3 +29,8 @@
 
 **Learning:** Placing `outro` before conditional final interactions (like session saving) creates a "zombie interaction" feel. Also, providing immediate validation feedback for session identifiers prevents runtime errors and file-system pollution.
 **Action:** Always place `outro` at the absolute end of the command lifecycle and use `validate` in `@clack/prompts` to ensure identifiers conform to expected patterns (e.g., filename-safe).
+
+## 2025-06-01 - Improving CLI Onboarding and Actionable Feedback
+
+**Learning:** CLI onboarding is greatly enhanced by providing contextual guidance for external credentials (like API key URLs) immediately before the prompt and explicitly listing all available interaction modes (e.g., web vs. CLI) in the success summary. Furthermore, providing copy-pasteable commands for next steps (like resuming a session) makes the tool feel more proactive and helpful.
+**Action:** Always include credential discovery links, validate required inputs, and provide actionable next-step commands in CLI success messages.
