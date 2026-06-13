@@ -169,6 +169,49 @@ describe('createAgent', () => {
     });
   });
 
+  describe('Validation', () => {
+    it('should validate Project ID is not empty', async () => {
+      (select as Mock).mockResolvedValueOnce('gemini-2.5-flash');
+      (select as Mock).mockResolvedValueOnce('ts');
+      (select as Mock).mockResolvedValueOnce('vertex');
+
+      await createAgent(getFreshOptions());
+
+      const textOptions = (text as Mock).mock.calls.find(
+        (call) => call[0].message === 'Enter the Google Cloud Project ID',
+      )[0];
+      expect(textOptions.validate('')).toBe('Project ID is required');
+      expect(textOptions.validate('my-project')).toBeUndefined();
+    });
+
+    it('should validate Region is not empty', async () => {
+      (select as Mock).mockResolvedValueOnce('gemini-2.5-flash');
+      (select as Mock).mockResolvedValueOnce('ts');
+      (select as Mock).mockResolvedValueOnce('vertex');
+      (text as Mock).mockResolvedValue('value'); // Project ID
+
+      await createAgent(getFreshOptions());
+
+      const textOptions = (text as Mock).mock.calls.find(
+        (call) => call[0].message === 'Enter the Google Cloud Region',
+      )[0];
+      expect(textOptions.validate('')).toBe('Region is required');
+      expect(textOptions.validate('us-central1')).toBeUndefined();
+    });
+
+    it('should validate API Key is not empty', async () => {
+      (select as Mock).mockResolvedValueOnce('gemini-2.5-flash');
+      (select as Mock).mockResolvedValueOnce('ts');
+      (select as Mock).mockResolvedValueOnce('googleai');
+
+      await createAgent(getFreshOptions());
+
+      const passwordOptions = (password as Mock).mock.calls[0][0];
+      expect(passwordOptions.validate('')).toBe('API Key is required');
+      expect(passwordOptions.validate('my-key')).toBeUndefined();
+    });
+  });
+
   describe('Interactive Mode', () => {
     it('should prompt for model if not provided', async () => {
       (select as Mock).mockResolvedValueOnce('gemini-2.5-pro'); // Model

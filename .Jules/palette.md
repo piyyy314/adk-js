@@ -29,3 +29,8 @@
 
 **Learning:** Placing `outro` before conditional final interactions (like session saving) creates a "zombie interaction" feel. Also, providing immediate validation feedback for session identifiers prevents runtime errors and file-system pollution.
 **Action:** Always place `outro` at the absolute end of the command lifecycle and use `validate` in `@clack/prompts` to ensure identifiers conform to expected patterns (e.g., filename-safe).
+
+## 2025-06-13 - Standardizing Onboarding with Validation and Guidance
+
+**Learning:** Providing immediate validation for required fields (API Keys, Project IDs) and offering direct links to credential management (Google AI Studio) significantly reduces setup friction and prevents downstream failures in CLI-based onboarding.
+**Action:** Always include `validate` functions for required interactive inputs and provide contextual URLs for external dependencies via `log.info`.
