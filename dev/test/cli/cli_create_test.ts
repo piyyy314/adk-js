@@ -171,6 +171,7 @@ describe('createAgent', () => {
 
   describe('Interactive Mode', () => {
     it('should prompt for model if not provided', async () => {
+      const {log} = await import('@clack/prompts');
       (select as Mock).mockResolvedValueOnce('gemini-2.5-pro'); // Model
       (select as Mock).mockResolvedValueOnce('ts'); // Language
       (select as Mock).mockResolvedValueOnce('googleai'); // Backend
@@ -181,6 +182,14 @@ describe('createAgent', () => {
       expect(select).toHaveBeenCalledWith(
         expect.objectContaining({
           message: 'Choose a model for the root agent',
+        }),
+      );
+      expect(log.info).toHaveBeenCalledWith(
+        expect.stringContaining('https://aistudio.google.com/'),
+      );
+      expect(password).toHaveBeenCalledWith(
+        expect.objectContaining({
+          validate: expect.any(Function),
         }),
       );
       expect(saveToFile).toHaveBeenCalledWith(
@@ -238,6 +247,13 @@ describe('createAgent', () => {
       expect(text).toHaveBeenCalledWith(
         expect.objectContaining({
           initialValue: 'gcloud-project',
+          validate: expect.any(Function),
+        }),
+      );
+      expect(text).toHaveBeenCalledWith(
+        expect.objectContaining({
+          initialValue: 'gcloud-region',
+          validate: expect.any(Function),
         }),
       );
       expect(saveToFile).toHaveBeenCalledWith(
@@ -313,6 +329,23 @@ describe('createAgent', () => {
 
       expect(spinnerMock).not.toHaveBeenCalled();
       expect(intro).not.toHaveBeenCalled();
+    });
+
+    it('should show both web and cli commands in success note', async () => {
+      const {note, select, password} = await import('@clack/prompts');
+      (select as Mock).mockResolvedValue('val');
+      (password as Mock).mockResolvedValue('val');
+
+      await createAgent(getFreshOptions());
+
+      expect(note).toHaveBeenCalledWith(
+        expect.stringContaining('npm run web'),
+        expect.anything(),
+      );
+      expect(note).toHaveBeenCalledWith(
+        expect.stringContaining('npm run cli'),
+        expect.anything(),
+      );
     });
 
     it('should stop spinner with error message when npm install fails and not forceYes', async () => {
