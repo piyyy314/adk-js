@@ -210,6 +210,7 @@ export async function createAgent(options: AgentCreationOptions) {
   const agentDir = path.join(dirname, options.agentName);
   const folderReady = await generateAgentFolder(agentDir, options.forceYes);
   if (!folderReady) {
+    if (!options.forceYes && process.stdout.isTTY) outro('Agent creation cancelled');
     return;
   }
 
@@ -243,6 +244,7 @@ export async function createAgent(options: AgentCreationOptions) {
         });
 
     if (isCancel(model)) {
+      if (process.stdout.isTTY) outro('Agent creation cancelled');
       return;
     }
     options.model = model;
@@ -268,6 +270,7 @@ export async function createAgent(options: AgentCreationOptions) {
         });
 
     if (isCancel(language)) {
+      if (process.stdout.isTTY) outro('Agent creation cancelled');
       return;
     }
     options.language = language;
@@ -293,6 +296,7 @@ export async function createAgent(options: AgentCreationOptions) {
         });
 
     if (isCancel(backend)) {
+      if (process.stdout.isTTY) outro('Agent creation cancelled');
       return;
     }
 
@@ -309,6 +313,7 @@ export async function createAgent(options: AgentCreationOptions) {
           });
 
       if (isCancel(projectResponse)) {
+        if (process.stdout.isTTY) outro('Agent creation cancelled');
         return;
       }
       options.project = projectResponse;
@@ -322,6 +327,7 @@ export async function createAgent(options: AgentCreationOptions) {
           });
 
       if (isCancel(regionResponse)) {
+        if (process.stdout.isTTY) outro('Agent creation cancelled');
         return;
       }
       options.region = regionResponse;
@@ -333,6 +339,7 @@ export async function createAgent(options: AgentCreationOptions) {
           });
 
       if (isCancel(apiKeyResponse)) {
+        if (process.stdout.isTTY) outro('Agent creation cancelled');
         return;
       }
       options.apiKey = apiKeyResponse;
