@@ -29,3 +29,8 @@
 
 **Learning:** Placing `outro` before conditional final interactions (like session saving) creates a "zombie interaction" feel. Also, providing immediate validation feedback for session identifiers prevents runtime errors and file-system pollution.
 **Action:** Always place `outro` at the absolute end of the command lifecycle and use `validate` in `@clack/prompts` to ensure identifiers conform to expected patterns (e.g., filename-safe).
+
+## 2025-06-16 - Improving Onboarding and Session Resumption
+
+**Learning:** Providing actionable, copy-pasteable commands after successful operations (like agent creation or session saving) and ensuring required fields are validated with helpful guidance (like API Studio links) significantly lowers the barrier to entry for new users.
+**Action:** Always include validation for required CLI inputs and provide direct links to credential sources. Add explicit 'next step' commands in success messages to guide the user's flow.
