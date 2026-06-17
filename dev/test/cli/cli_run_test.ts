@@ -696,4 +696,102 @@ describe('cli_run', () => {
       expect(mockSpinner.start).toHaveBeenCalledTimes(1);
     });
   });
+
+  describe('session save log.info resume message', () => {
+    it('should log the session path and a resume command after saving', async () => {
+      const {log} = await import('@clack/prompts');
+      const mockSessionService = createMockSessionService();
+
+      await runAgent({
+        agentPath: 'my-agent',
+        saveSession: true,
+        sessionId: 'my-session',
+        sessionService: mockSessionService,
+      });
+
+      expect(log.info).toHaveBeenCalledWith(
+        expect.stringContaining('Session saved to'),
+      );
+      expect(log.info).toHaveBeenCalledWith(
+        expect.stringContaining('To resume, run: adk run my-agent --resume'),
+      );
+    });
+
+    it('should include the agent path in the resume command', async () => {
+      const {log} = await import('@clack/prompts');
+      const mockSessionService = createMockSessionService();
+
+      await runAgent({
+        agentPath: 'path/to/my-agent',
+        saveSession: true,
+        sessionId: 'test-session',
+        sessionService: mockSessionService,
+      });
+
+      const logInfoArg = (log.info as Mock).mock.calls[0][0] as string;
+      expect(logInfoArg).toContain('adk run path/to/my-agent');
+    });
+
+    it('should include the session file path in the resume command', async () => {
+      const {log} = await import('@clack/prompts');
+      const mockSessionService = createMockSessionService();
+
+      await runAgent({
+        agentPath: 'my-agent',
+        saveSession: true,
+        sessionId: 'saved-session',
+        sessionService: mockSessionService,
+      });
+
+      const logInfoArg = (log.info as Mock).mock.calls[0][0] as string;
+      expect(logInfoArg).toContain('saved-session.session.json');
+    });
+
+    it('should include the --resume flag in the log.info message', async () => {
+      const {log} = await import('@clack/prompts');
+      const mockSessionService = createMockSessionService();
+
+      await runAgent({
+        agentPath: 'my-agent',
+        saveSession: true,
+        sessionId: 'my-session',
+        sessionService: mockSessionService,
+      });
+
+      const logInfoArg = (log.info as Mock).mock.calls[0][0] as string;
+      expect(logInfoArg).toContain('--resume');
+    });
+
+    it('should not call log.info when saveSession is false', async () => {
+      const {log} = await import('@clack/prompts');
+      const mockSessionService = createMockSessionService();
+
+      await runAgent({
+        agentPath: 'my-agent',
+        saveSession: false,
+        sessionService: mockSessionService,
+      });
+
+      expect(log.info).not.toHaveBeenCalled();
+    });
+
+    it('should use the prompted session ID in the resume command when sessionId is not pre-provided', async () => {
+      const {log} = await import('@clack/prompts');
+      (text as Mock)
+        .mockResolvedValueOnce('exit') // interactive loop exit
+        .mockResolvedValueOnce('prompted-id'); // session ID prompt
+      (isCancel as unknown as Mock).mockReturnValue(false);
+      const mockSessionService = createMockSessionService();
+
+      await runAgent({
+        agentPath: 'my-agent',
+        saveSession: true,
+        sessionService: mockSessionService,
+      });
+
+      const logInfoArg = (log.info as Mock).mock.calls[0][0] as string;
+      expect(logInfoArg).toContain('prompted-id.session.json');
+      expect(logInfoArg).toContain('--resume');
+    });
+  });
 });

@@ -344,4 +344,207 @@ describe('createAgent', () => {
       );
     });
   });
+
+  describe('Validation functions for required fields', () => {
+    it('should call Project ID text prompt with a validate function that rejects empty input', async () => {
+      (select as Mock).mockResolvedValueOnce('gemini-2.5-flash'); // model
+      (select as Mock).mockResolvedValueOnce('ts'); // language
+      (select as Mock).mockResolvedValueOnce('vertex'); // backend
+      (text as Mock).mockResolvedValueOnce('my-project'); // project
+      (text as Mock).mockResolvedValueOnce('us-central1'); // region
+
+      await createAgent(getFreshOptions());
+
+      const projectTextCall = (text as Mock).mock.calls.find(
+        (call) => call[0]?.message === 'Enter the Google Cloud Project ID',
+      );
+      expect(projectTextCall).toBeDefined();
+      const validate = projectTextCall![0].validate as (v: string) => string | undefined;
+      expect(validate('')).toBe('Project ID is required');
+    });
+
+    it('should call Project ID text prompt with a validate function that accepts non-empty input', async () => {
+      (select as Mock).mockResolvedValueOnce('gemini-2.5-flash');
+      (select as Mock).mockResolvedValueOnce('ts');
+      (select as Mock).mockResolvedValueOnce('vertex');
+      (text as Mock).mockResolvedValueOnce('my-project');
+      (text as Mock).mockResolvedValueOnce('us-central1');
+
+      await createAgent(getFreshOptions());
+
+      const projectTextCall = (text as Mock).mock.calls.find(
+        (call) => call[0]?.message === 'Enter the Google Cloud Project ID',
+      );
+      const validate = projectTextCall![0].validate as (v: string) => string | undefined;
+      expect(validate('my-project-id')).toBeUndefined();
+    });
+
+    it('should call Region text prompt with a validate function that rejects empty input', async () => {
+      (select as Mock).mockResolvedValueOnce('gemini-2.5-flash');
+      (select as Mock).mockResolvedValueOnce('ts');
+      (select as Mock).mockResolvedValueOnce('vertex');
+      (text as Mock).mockResolvedValueOnce('my-project');
+      (text as Mock).mockResolvedValueOnce('us-central1');
+
+      await createAgent(getFreshOptions());
+
+      const regionTextCall = (text as Mock).mock.calls.find(
+        (call) => call[0]?.message === 'Enter the Google Cloud Region',
+      );
+      expect(regionTextCall).toBeDefined();
+      const validate = regionTextCall![0].validate as (v: string) => string | undefined;
+      expect(validate('')).toBe('Region is required');
+    });
+
+    it('should call Region text prompt with a validate function that accepts non-empty input', async () => {
+      (select as Mock).mockResolvedValueOnce('gemini-2.5-flash');
+      (select as Mock).mockResolvedValueOnce('ts');
+      (select as Mock).mockResolvedValueOnce('vertex');
+      (text as Mock).mockResolvedValueOnce('my-project');
+      (text as Mock).mockResolvedValueOnce('us-central1');
+
+      await createAgent(getFreshOptions());
+
+      const regionTextCall = (text as Mock).mock.calls.find(
+        (call) => call[0]?.message === 'Enter the Google Cloud Region',
+      );
+      const validate = regionTextCall![0].validate as (v: string) => string | undefined;
+      expect(validate('us-central1')).toBeUndefined();
+    });
+
+    it('should call API Key password prompt with a validate function that rejects empty input', async () => {
+      (select as Mock).mockResolvedValueOnce('gemini-2.5-flash');
+      (select as Mock).mockResolvedValueOnce('ts');
+      (select as Mock).mockResolvedValueOnce('googleai');
+      (password as Mock).mockResolvedValueOnce('my-api-key');
+
+      await createAgent(getFreshOptions());
+
+      expect(password).toHaveBeenCalled();
+      const passwordCall = (password as Mock).mock.calls[0];
+      const validate = passwordCall[0].validate as (v: string) => string | undefined;
+      expect(validate('')).toBe('API Key is required');
+    });
+
+    it('should call API Key password prompt with a validate function that accepts non-empty input', async () => {
+      (select as Mock).mockResolvedValueOnce('gemini-2.5-flash');
+      (select as Mock).mockResolvedValueOnce('ts');
+      (select as Mock).mockResolvedValueOnce('googleai');
+      (password as Mock).mockResolvedValueOnce('my-api-key');
+
+      await createAgent(getFreshOptions());
+
+      const passwordCall = (password as Mock).mock.calls[0];
+      const validate = passwordCall[0].validate as (v: string) => string | undefined;
+      expect(validate('valid-api-key')).toBeUndefined();
+    });
+
+    it('should accept whitespace-only input for Project ID (boundary: only empty string triggers error)', async () => {
+      (select as Mock).mockResolvedValueOnce('gemini-2.5-flash');
+      (select as Mock).mockResolvedValueOnce('ts');
+      (select as Mock).mockResolvedValueOnce('vertex');
+      (text as Mock).mockResolvedValueOnce('my-project');
+      (text as Mock).mockResolvedValueOnce('us-central1');
+
+      await createAgent(getFreshOptions());
+
+      const projectTextCall = (text as Mock).mock.calls.find(
+        (call) => call[0]?.message === 'Enter the Google Cloud Project ID',
+      );
+      const validate = projectTextCall![0].validate as (v: string) => string | undefined;
+      // Whitespace is truthy in JS, so the validate only blocks truly empty string
+      expect(validate('   ')).toBeUndefined();
+    });
+
+    it('should accept whitespace-only input for API Key (boundary: only empty string triggers error)', async () => {
+      (select as Mock).mockResolvedValueOnce('gemini-2.5-flash');
+      (select as Mock).mockResolvedValueOnce('ts');
+      (select as Mock).mockResolvedValueOnce('googleai');
+      (password as Mock).mockResolvedValueOnce('my-api-key');
+
+      await createAgent(getFreshOptions());
+
+      const passwordCall = (password as Mock).mock.calls[0];
+      const validate = passwordCall[0].validate as (v: string) => string | undefined;
+      expect(validate('   ')).toBeUndefined();
+    });
+  });
+
+  describe('Note message content after agent creation', () => {
+    it('should include npm run web command in the success note', async () => {
+      const {note} = await import('@clack/prompts');
+
+      await createAgent({
+        ...getFreshOptions(),
+        model: 'gemini-2.5-flash',
+        language: 'ts',
+        apiKey: 'test-key',
+      });
+
+      expect(note).toHaveBeenCalled();
+      const noteArg = (note as Mock).mock.calls[0][0] as string;
+      expect(noteArg).toContain('npm run web');
+    });
+
+    it('should include npm run cli command in the success note', async () => {
+      const {note} = await import('@clack/prompts');
+
+      await createAgent({
+        ...getFreshOptions(),
+        model: 'gemini-2.5-flash',
+        language: 'ts',
+        apiKey: 'test-key',
+      });
+
+      expect(note).toHaveBeenCalled();
+      const noteArg = (note as Mock).mock.calls[0][0] as string;
+      expect(noteArg).toContain('npm run cli');
+    });
+
+    it('should include both npm run web and npm run cli commands in the same note', async () => {
+      const {note} = await import('@clack/prompts');
+
+      await createAgent({
+        ...getFreshOptions(),
+        model: 'gemini-2.5-flash',
+        language: 'ts',
+        apiKey: 'test-key',
+      });
+
+      expect(note).toHaveBeenCalledTimes(1);
+      const noteArg = (note as Mock).mock.calls[0][0] as string;
+      expect(noteArg).toContain('npm run web');
+      expect(noteArg).toContain('npm run cli');
+    });
+
+    it('should label the note with "Agent Created Successfully"', async () => {
+      const {note} = await import('@clack/prompts');
+
+      await createAgent({
+        ...getFreshOptions(),
+        model: 'gemini-2.5-flash',
+        language: 'ts',
+        apiKey: 'test-key',
+      });
+
+      expect(note).toHaveBeenCalledWith(
+        expect.any(String),
+        'Agent Created Successfully',
+      );
+    });
+
+    it('should not call note when forceYes is true', async () => {
+      const {note} = await import('@clack/prompts');
+
+      await createAgent({
+        ...getFreshOptions(),
+        forceYes: true,
+        model: 'gemini-2.5-flash',
+        language: 'ts',
+        apiKey: 'test-key',
+      });
+
+      expect(note).not.toHaveBeenCalled();
+    });
+  });
 });
