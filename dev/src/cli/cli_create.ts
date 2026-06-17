@@ -205,6 +205,16 @@ async function generateFiles(options: AgentCreationOptions) {
   }
 }
 
+/**
+ * Creates a new agent project with interactive configuration and dependency installation.
+ *
+ * Sets up a complete project directory structure, prompts for missing configuration
+ * (model, language, and backend credentials) unless `forceYes` is enabled, generates
+ * template files, and installs required npm dependencies.
+ *
+ * @param options - Configuration for the agent project, including the agent name and
+ * optional model, language, and backend credentials.
+ */
 export async function createAgent(options: AgentCreationOptions) {
   if (!options.forceYes && process.stdout.isTTY) intro('Agent Creation');
   const agentDir = path.join(dirname, options.agentName);
