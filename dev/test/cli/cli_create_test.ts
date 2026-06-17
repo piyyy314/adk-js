@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {confirm, isCancel, password, select, text} from '@clack/prompts';
+import {confirm, intro, isCancel, note, outro, password, select, text} from '@clack/prompts';
 import {execSync} from 'node:child_process';
 import {
   afterEach,
@@ -48,6 +48,15 @@ vi.mock('@clack/prompts', () => ({
   })),
   text: vi.fn(),
 }));
+
+// Helper to set process.stdout.isTTY for a block of tests
+function setTTY(value: boolean) {
+  Object.defineProperty(process.stdout, 'isTTY', {
+    value,
+    configurable: true,
+    writable: true,
+  });
+}
 
 vi.mock('node:child_process', () => ({
   exec: vi.fn((cmd, opts, callback) => {
@@ -97,14 +106,8 @@ describe('createAgent', () => {
 
   describe('Non-interactive Mode (forceYes: true)', () => {
     it('should create agent with default values when minimal args provided', async () => {
-      const {intro, note, outro, spinner, log} = await import('@clack/prompts');
       await createAgent({...getFreshOptions(), forceYes: true});
 
-      expect(intro).not.toHaveBeenCalled();
-      expect(note).not.toHaveBeenCalled();
-      expect(outro).not.toHaveBeenCalled();
-      expect(spinner).not.toHaveBeenCalled();
-      expect(log.step).not.toHaveBeenCalled();
       expect(isFolderExists).toHaveBeenCalled();
       expect(createFolder).toHaveBeenCalled();
 
@@ -116,6 +119,20 @@ describe('createAgent', () => {
       expect(saveToFile).toHaveBeenCalledWith(
         expect.stringContaining('package.json'),
         expect.stringContaining('"main": "agent.ts"'),
+      );
+    });
+
+    it('should use pnpm for installation and scripts', async () => {
+      await createAgent({...getFreshOptions(), forceYes: true});
+
+      expect(saveToFile).toHaveBeenCalledWith(
+        expect.stringContaining('package.json'),
+        expect.stringContaining('pnpm dlx'),
+      );
+      // We check that npx is NOT used in the template
+      expect(saveToFile).not.toHaveBeenCalledWith(
+        expect.stringContaining('package.json'),
+        expect.stringContaining('npx'),
       );
     });
 
@@ -288,13 +305,177 @@ describe('createAgent', () => {
     });
   });
 
+  describe('TTY-aware intro and outro', () => {
+    afterEach(() => {
+      // Restore isTTY to default (undefined / non-TTY) after each test in this suite
+      setTTY(false);
+    });
+
+    it('should call intro and outro when process.stdout.isTTY is true', async () => {
+      setTTY(true);
+      const {intro: introMock, outro: outroMock} = await import(
+        '@clack/prompts'
+      );
+
+      await createAgent({...getFreshOptions(), forceYes: true});
+
+      expect(introMock).toHaveBeenCalledWith('Agent Creation');
+      expect(outroMock).toHaveBeenCalledWith('Happy Agent Building!');
+    });
+
+    it('should NOT call intro when process.stdout.isTTY is false', async () => {
+      setTTY(false);
+      const {intro: introMock} = await import('@clack/prompts');
+
+      await createAgent({...getFreshOptions(), forceYes: true});
+
+      expect(introMock).not.toHaveBeenCalled();
+    });
+
+    it('should NOT call outro when process.stdout.isTTY is false', async () => {
+      setTTY(false);
+      const {outro: outroMock} = await import('@clack/prompts');
+
+      await createAgent({...getFreshOptions(), forceYes: true});
+
+      expect(outroMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('select option hints', () => {
+    it('should include hint for each model option in interactive mode', async () => {
+      (select as Mock).mockResolvedValueOnce('gemini-2.5-flash'); // Model
+      (select as Mock).mockResolvedValueOnce('ts'); // Language
+      (select as Mock).mockResolvedValueOnce('googleai'); // Backend
+      (password as Mock).mockResolvedValueOnce('api-key');
+
+      await createAgent(getFreshOptions());
+
+      expect(select).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Choose a model for the root agent',
+          options: expect.arrayContaining([
+            expect.objectContaining({
+              label: 'gemini-2.5-flash',
+              value: 'gemini-2.5-flash',
+              hint: 'Fast and cost-effective',
+            }),
+            expect.objectContaining({
+              label: 'gemini-2.5-pro',
+              value: 'gemini-2.5-pro',
+              hint: 'Best for complex reasoning',
+            }),
+            expect.objectContaining({
+              label: 'gemini-3-flash-preview',
+              value: 'gemini-3-flash-preview',
+              hint: 'Next-gen speed (Preview)',
+            }),
+            expect.objectContaining({
+              label: 'gemini-3-pro-preview',
+              value: 'gemini-3-pro-preview',
+              hint: 'Next-gen intelligence (Preview)',
+            }),
+          ]),
+        }),
+      );
+    });
+
+    it('should include hint for each language option in interactive mode', async () => {
+      (select as Mock).mockResolvedValueOnce('gemini-2.5-flash'); // Model
+      (select as Mock).mockResolvedValueOnce('ts'); // Language
+      (select as Mock).mockResolvedValueOnce('googleai'); // Backend
+      (password as Mock).mockResolvedValueOnce('api-key');
+
+      await createAgent(getFreshOptions());
+
+      expect(select).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Choose a language for the agent',
+          options: expect.arrayContaining([
+            expect.objectContaining({
+              label: 'TypeScript',
+              value: 'ts',
+              hint: 'Type-safe (recommended)',
+            }),
+            expect.objectContaining({
+              label: 'JavaScript',
+              value: 'js',
+              hint: 'Simple and standard',
+            }),
+          ]),
+        }),
+      );
+    });
+
+    it('should include hint for each backend option in interactive mode', async () => {
+      (select as Mock).mockResolvedValueOnce('gemini-2.5-flash'); // Model
+      (select as Mock).mockResolvedValueOnce('ts'); // Language
+      (select as Mock).mockResolvedValueOnce('googleai'); // Backend
+      (password as Mock).mockResolvedValueOnce('api-key');
+
+      await createAgent(getFreshOptions());
+
+      expect(select).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Choose a backend',
+          options: expect.arrayContaining([
+            expect.objectContaining({
+              label: 'Google AI',
+              value: 'googleai',
+              hint: 'Quick start with API key',
+            }),
+            expect.objectContaining({
+              label: 'Vertex AI',
+              value: 'vertex',
+              hint: 'Enterprise-ready GCP platform',
+            }),
+          ]),
+        }),
+      );
+    });
+  });
+
+  describe('note message content', () => {
+    it('should include both pnpm run web and pnpm run cli in the success note', async () => {
+      await createAgent({...getFreshOptions(), forceYes: true});
+
+      expect(note).toHaveBeenCalledWith(
+        expect.stringContaining('pnpm run web'),
+        expect.anything(),
+      );
+      expect(note).toHaveBeenCalledWith(
+        expect.stringContaining('pnpm run cli'),
+        expect.anything(),
+      );
+    });
+
+    it('should NOT reference npm run in the success note', async () => {
+      await createAgent({...getFreshOptions(), forceYes: true});
+
+      const noteCalls = (note as Mock).mock.calls;
+      for (const call of noteCalls) {
+        expect(call[0]).not.toContain('npm run');
+      }
+    });
+
+    it('should include the agent name in the pnpm run web command hint', async () => {
+      await createAgent({...getFreshOptions(), forceYes: true});
+
+      expect(note).toHaveBeenCalledWith(
+        expect.stringContaining(`cd test-agent`),
+        expect.anything(),
+      );
+    });
+  });
+
   describe('spinner behavior during dependency installation', () => {
-    it('should start and stop spinner during successful npm install when not forceYes', async () => {
+    it('should start and stop spinner during successful pnpm install', async () => {
       const mockSpinnerInstance = {start: vi.fn(), stop: vi.fn()};
+      // The spinner mock is already set up in the module mock, but we override for this test
       const {spinner: spinnerMock} = await import('@clack/prompts');
       (spinnerMock as Mock).mockReturnValue(mockSpinnerInstance);
 
-      await createAgent({...getFreshOptions(), forceYes: false});
+      await createAgent({...getFreshOptions(), forceYes: true});
 
       expect(mockSpinnerInstance.start).toHaveBeenCalledWith(
         'Installing dependencies...',
@@ -304,18 +485,7 @@ describe('createAgent', () => {
       );
     });
 
-    it('should NOT start spinner during npm install when forceYes is true', async () => {
-      const mockSpinnerInstance = {start: vi.fn(), stop: vi.fn()};
-      const {spinner: spinnerMock, intro} = await import('@clack/prompts');
-      (spinnerMock as Mock).mockReturnValue(mockSpinnerInstance);
-
-      await createAgent({...getFreshOptions(), forceYes: true});
-
-      expect(spinnerMock).not.toHaveBeenCalled();
-      expect(intro).not.toHaveBeenCalled();
-    });
-
-    it('should stop spinner with error message when npm install fails and not forceYes', async () => {
+    it('should stop spinner with error message when pnpm install fails', async () => {
       const mockSpinnerInstance = {start: vi.fn(), stop: vi.fn()};
       const {spinner: spinnerMock} = await import('@clack/prompts');
       (spinnerMock as Mock).mockReturnValue(mockSpinnerInstance);
@@ -328,12 +498,12 @@ describe('createAgent', () => {
           _opts: unknown,
           callback: (err: Error | null) => void,
         ) => {
-          callback(new Error('npm install failed'));
+          callback(new Error('pnpm install failed'));
           return {on: vi.fn()};
         },
       );
 
-      await createAgent({...getFreshOptions(), forceYes: false});
+      await createAgent({...getFreshOptions(), forceYes: true});
 
       expect(mockSpinnerInstance.start).toHaveBeenCalledWith(
         'Installing dependencies...',
