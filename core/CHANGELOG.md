@@ -1,5 +1,62 @@
 # Changelog
 
+## [0.2.5](https://github.com/piyyy314/adk-js/compare/adk-v0.6.1...adk-v0.2.5) (2026-05-17)
+
+
+### Features
+
+* A2A integration: A2A Remote agent ([#190](https://github.com/piyyy314/adk-js/issues/190)) ([c6b75a2](https://github.com/piyyy314/adk-js/commit/c6b75a29683b0bbac98e1e17d811aa958025a11a))
+* A2A integration: Add CLI option and serve ADK agents via A2A ([#188](https://github.com/piyyy314/adk-js/issues/188)) ([3897ee9](https://github.com/piyyy314/adk-js/commit/3897ee99df7122b57e4ff2c29b3f6806d6cb1ff4))
+* A2A integration: add toA2a util function ([#205](https://github.com/piyyy314/adk-js/issues/205)) ([b7043ab](https://github.com/piyyy314/adk-js/commit/b7043abd2cc5193deb95bdad5cc347d04d56d87d))
+* Add ability to prefix toolsets to avoid tool name conflicts ([#184](https://github.com/piyyy314/adk-js/issues/184)) ([95837b2](https://github.com/piyyy314/adk-js/commit/95837b2d6e89a3455f104c352c5ef7e9077b989a))
+* add Agent type alias for LlmAgent to keep parity with Python ADK. ([#242](https://github.com/piyyy314/adk-js/issues/242)) ([03da958](https://github.com/piyyy314/adk-js/commit/03da95820efb5cdbca045f0621f15c5a60efe2ea))
+* Add ApigeeLlm to the typescript ADK ([#125](https://github.com/piyyy314/adk-js/issues/125)) ([9e42b25](https://github.com/piyyy314/adk-js/commit/9e42b257d10117b4900374b257029ec6572eca0e))
+* add auth preprocessor and update auth handler. ([#227](https://github.com/piyyy314/adk-js/issues/227)) ([e94c181](https://github.com/piyyy314/adk-js/commit/e94c181d50760b47dde5b2302a385f7c35cbe34e))
+* add auth related base classes ([#223](https://github.com/piyyy314/adk-js/issues/223)) ([a87ed8e](https://github.com/piyyy314/adk-js/commit/a87ed8e0215e4eb654d000cd2ce6b763ab9b7b6b))
+* add database session service ([b3c38fe](https://github.com/piyyy314/adk-js/commit/b3c38feeb006cf40d0c7b71abe3afd052febb9b1))
+* Add headers option for MCP Session manager and deprecate the header option. ([#98](https://github.com/piyyy314/adk-js/issues/98)) ([c28aae3](https://github.com/piyyy314/adk-js/commit/c28aae311948522cc769a8346b3e2af3653fcf46))
+* add setLogger() for custom logger support ([#96](https://github.com/piyyy314/adk-js/issues/96)) ([7e96728](https://github.com/piyyy314/adk-js/commit/7e967282757ed66f5a9f45a6ba0b2abbed78856f))
+* flip ADK CLI to be ESM native instead of CommonJS. ([#113](https://github.com/piyyy314/adk-js/issues/113)) ([1eb443e](https://github.com/piyyy314/adk-js/commit/1eb443eff054bde1aa9e85faaeb08de902620991))
+* implement ExitLoopTool similar to Python and Java ADK equivalent ([#170](https://github.com/piyyy314/adk-js/issues/170)) ([258998f](https://github.com/piyyy314/adk-js/commit/258998f7fbd086e2c6ecf894e15576f8a94481d4))
+* Implement LoadMemoryTool and add tests. ([#201](https://github.com/piyyy314/adk-js/issues/201)) ([eac351f](https://github.com/piyyy314/adk-js/commit/eac351ff50637505cfbb7e53fc9ecd38060984cd))
+* integrate with ADK conformance tests ([#168](https://github.com/piyyy314/adk-js/issues/168)) ([3a7c012](https://github.com/piyyy314/adk-js/commit/3a7c012e035f665dbf200640c10caa6e6dd82aa3))
+* LoadArtifactsTool ([#200](https://github.com/piyyy314/adk-js/issues/200)) ([b5eebdd](https://github.com/piyyy314/adk-js/commit/b5eebddeab086a868cadba0a8fd54459865bfbe9))
+* oauth support: add oauth2 related classes ([#225](https://github.com/piyyy314/adk-js/issues/225)) ([d2b7dcb](https://github.com/piyyy314/adk-js/commit/d2b7dcb80c9c501a96630582a02191cc55aafcca))
+* Plugin callbacks for context compaction and tool selection ([#250](https://github.com/piyyy314/adk-js/issues/250)) ([3deda16](https://github.com/piyyy314/adk-js/commit/3deda167a6b2e9fd465142ed718db96a0f20d446))
+* Preload memory tool ([#203](https://github.com/piyyy314/adk-js/issues/203)) ([5e0dfa1](https://github.com/piyyy314/adk-js/commit/5e0dfa1d22a1101a38999b651482013c03e0dacd))
+* RoutedAgent and RoutedLlm ([#215](https://github.com/piyyy314/adk-js/issues/215)) ([1083301](https://github.com/piyyy314/adk-js/commit/10833019afafa3e0993af3f3f9fe87c3728ac08d))
+* skills: add skills toolset (part 2) ([#252](https://github.com/piyyy314/adk-js/issues/252)) ([6869e23](https://github.com/piyyy314/adk-js/commit/6869e2336db6aa80d96ac87e444e6c657480d9e7))
+* skills: define skills interface ([#251](https://github.com/piyyy314/adk-js/issues/251)) ([e8b2cae](https://github.com/piyyy314/adk-js/commit/e8b2caeb219de7d84e1a9e399a52fe19cb9c70c9))
+* skills: loader (part 3) ([#256](https://github.com/piyyy314/adk-js/issues/256)) ([a4d2858](https://github.com/piyyy314/adk-js/commit/a4d2858a7a8f2e87bd7e0f10d8988fc08c350824))
+* support Zod v3 and v4. ([#46](https://github.com/piyyy314/adk-js/issues/46)) ([accb7ca](https://github.com/piyyy314/adk-js/commit/accb7ca3bdec1295c81a4966177a2d5ed1103313))
+* token-based context compaction ([#191](https://github.com/piyyy314/adk-js/issues/191)) ([ad24580](https://github.com/piyyy314/adk-js/commit/ad24580797ddf09e90376c9f677bfd22d8a3c1cf))
+* unsafe local code executor ([#257](https://github.com/piyyy314/adk-js/issues/257)) ([ce5bde9](https://github.com/piyyy314/adk-js/commit/ce5bde9c37635f01a67b137354d32aa5d1ea4650))
+
+
+### Bug Fixes
+
+* a2a integration: use right enum values for agent card transport types. ([#212](https://github.com/piyyy314/adk-js/issues/212)) ([b00cef7](https://github.com/piyyy314/adk-js/commit/b00cef76734c9730fb186dfd8e57ca22d357411a))
+* a2a support videometadata during part convertion ([#198](https://github.com/piyyy314/adk-js/issues/198)) ([7b36f48](https://github.com/piyyy314/adk-js/commit/7b36f4809fc5f46fbb1bbdf1a164eb6e6691edfd))
+* add missing invocation id when creating new ADK event while merging parallel tool responses. ([#253](https://github.com/piyyy314/adk-js/issues/253)) ([7739bd8](https://github.com/piyyy314/adk-js/commit/7739bd8b79ef38fc65fb06495043318c3f287f40))
+* add support for MCP type array instead of string only in gemini_schema_util ([#199](https://github.com/piyyy314/adk-js/issues/199)) ([9cb4a33](https://github.com/piyyy314/adk-js/commit/9cb4a33b9a15718e97cbda532a04f1e91c45389e))
+* Lazy load MikroORM drivers to avoid errors when not used. ([#183](https://github.com/piyyy314/adk-js/issues/183)) ([9cb726f](https://github.com/piyyy314/adk-js/commit/9cb726ffc23d5da79f46605af11e3a4765dec3c0))
+* move otel dependencies from dev deps to deps ([#243](https://github.com/piyyy314/adk-js/issues/243)) ([9622da6](https://github.com/piyyy314/adk-js/commit/9622da610f394c3cb4a93432ea1d9a9391000947))
+* persist session state correctly to not lose prev data. ([#209](https://github.com/piyyy314/adk-js/issues/209)) ([dbfa367](https://github.com/piyyy314/adk-js/commit/dbfa367fb34deaf246fdeea6ec45cd87d4adbdc4))
+* polish CLI UX and help formatting ([50f7a93](https://github.com/piyyy314/adk-js/commit/50f7a93d010291261d10860beb7556482969f700))
+* polish CLI UX and help formatting ([488115b](https://github.com/piyyy314/adk-js/commit/488115b16a33c0a17c7299e17f904d722ae6342f))
+* prevent path traversal in FileArtifactService (CWE-22) ([#210](https://github.com/piyyy314/adk-js/issues/210)) ([8c0eaa1](https://github.com/piyyy314/adk-js/commit/8c0eaa160a43c1d791d5838a5de6ac87d905cf70))
+* Print error message when port for ADK API server already in use ([#207](https://github.com/piyyy314/adk-js/issues/207)) ([8164857](https://github.com/piyyy314/adk-js/commit/816485786940daefded405731fe776170df80efb))
+* stop droping all existing tables in schema during sesstion db initialisation ([#195](https://github.com/piyyy314/adk-js/issues/195)) ([40a9f14](https://github.com/piyyy314/adk-js/commit/40a9f14a660214114505da31105f432353514fa1))
+* support dynamic requre in esm builds ([#244](https://github.com/piyyy314/adk-js/issues/244)) ([fecbdd3](https://github.com/piyyy314/adk-js/commit/fecbdd351552fbacf2db1d6174920e76ddc56a53))
+* use getter for rootAgent to match Python SDK behavior ([#95](https://github.com/piyyy314/adk-js/issues/95)) ([23b1d7f](https://github.com/piyyy314/adk-js/commit/23b1d7f27ce8175ecf0ca14f2c974234fca0ae7d))
+* use isBaseTool | isLlmAgent instead of instanceof keyword. ([#116](https://github.com/piyyy314/adk-js/issues/116)) ([cc4d67b](https://github.com/piyyy314/adk-js/commit/cc4d67ba2f69932030b03efea2c9186680028cb8))
+* use llmAgent instruction when root agent is not llmAgent ([#208](https://github.com/piyyy314/adk-js/issues/208)) ([b3c677c](https://github.com/piyyy314/adk-js/commit/b3c677c0c946e7f0b44eb8d6c4c9a51e61649d51))
+
+
+### Miscellaneous Chores
+
+* support release-please for release automation ([2c55c5d](https://github.com/piyyy314/adk-js/commit/2c55c5d09f56b18f7adea61d0106c7f77112bde1))
+
 ## [0.6.1](https://github.com/google/adk-js/compare/adk-v0.6.0...adk-v0.6.1) (2026-03-30)
 
 

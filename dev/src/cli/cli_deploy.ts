@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import {intro, log, outro} from '@clack/prompts';
+import {intro, log, outro, spinner} from '@clack/prompts';
 import {exec, spawn, SpawnOptions} from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
@@ -315,13 +316,16 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
       : path.basename(options.agentPath);
 
   log.step('Starting deployment to Cloud Run...');
+  if (process.stdout.isTTY) intro('Cloud Run Deployment');
 
   if (await isFolderExists(options.tempFolder)) {
     await fs.rm(options.tempFolder, {recursive: true, force: true});
   }
 
+  const s = process.stdout.isTTY ? spinner() : null;
   try {
     log.step('Copying agent source files...');
+    s?.start('Preparing deployment files...');
     await copyAgentFiles(
       agentLoader,
       path.join(options.tempFolder, 'agents', appName),
@@ -331,6 +335,8 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
     await createPackageJson(agentDir, options.tempFolder);
 
     log.step('Creating Dockerfile...');
+    await createPackageJson(agentDir, options.tempFolder);
+
     await createDockerFile(options.tempFolder, {
       appName,
       project: options.project,
@@ -342,6 +348,7 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
       otelToCloud: options.otelToCloud,
       a2a: options.a2a,
     });
+    s?.stop('Deployment files prepared.');
 
     log.step('Deploying to Cloud Run...');
     await spawnAsync('gcloud', gcloudCommands, {stdio: 'inherit'});
@@ -351,6 +358,14 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
     log.error(`Failed to deploy to Cloud Run: ${(e as Error).message}`);
   } finally {
     await fs.rm(options.tempFolder, {recursive: true, force: true});
+    s?.stop('Failed to prepare deployment files.', 1);
+    log.error(`Failed to deploy to Cloud Run: ${(e as Error).message}`);
+  } finally {
+    if (await isFolderExists(options.tempFolder)) {
+      await fs.rm(options.tempFolder, {recursive: true, force: true});
+    }
     await agentLoader.disposeAll();
   }
+
+  if (process.stdout.isTTY) outro('Happy Agent Building!');
 }
