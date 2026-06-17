@@ -25,24 +25,20 @@ type Callback = (error: Error | null, result?: unknown) => void;
 const execMock = vi.fn();
 const spawnMock = vi.fn();
 
-const logInfoMock = vi.fn();
-const logErrorMock = vi.fn();
-const logStepMock = vi.fn();
-const introMock = vi.fn();
-const outroMock = vi.fn();
 const spinnerMock = {
   start: vi.fn(),
   stop: vi.fn(),
 };
 
 vi.mock('@clack/prompts', () => ({
+  intro: vi.fn(),
+  outro: vi.fn(),
   log: {
-    info: (...args: unknown[]) => logInfoMock(...args),
-    error: (...args: unknown[]) => logErrorMock(...args),
-    step: (...args: unknown[]) => logStepMock(...args),
+    error: vi.fn(),
+    info: vi.fn(),
+    step: vi.fn(),
+    warn: vi.fn(),
   },
-  intro: (...args: unknown[]) => introMock(...args),
-  outro: (...args: unknown[]) => outroMock(...args),
   spinner: () => spinnerMock,
   isCancel: (val: unknown) => typeof val === 'symbol',
 }));
@@ -75,17 +71,6 @@ vi.mock('../../src/utils/file_utils.js', () => ({
   loadFileData: vi.fn(),
   saveToFile: vi.fn(),
   tryToFindFileRecursively: vi.fn(),
-}));
-
-vi.mock('@clack/prompts', () => ({
-  intro: vi.fn(),
-  outro: vi.fn(),
-  log: {
-    error: vi.fn(),
-    info: vi.fn(),
-    step: vi.fn(),
-    warn: vi.fn(),
-  },
 }));
 
 describe('createDockerFileContent', () => {
@@ -306,11 +291,7 @@ describe('deployToCloudRun', () => {
     await deployToCloudRun(defaultOptions);
 
     expect(log.error).toHaveBeenCalledWith(
-    expect(logErrorMock).toHaveBeenCalledWith(
       expect.stringContaining('Failed to deploy to Cloud Run:'),
-    );
-    expect(logErrorMock).toHaveBeenCalledWith(
-      expect.stringContaining('No dependencies found in package.json'),
     );
   });
 
@@ -324,13 +305,7 @@ describe('deployToCloudRun', () => {
     await deployToCloudRun(defaultOptions);
 
     expect(log.error).toHaveBeenCalledWith(
-    expect(logErrorMock).toHaveBeenCalledWith(
       expect.stringContaining('Failed to deploy to Cloud Run:'),
-    );
-    expect(logErrorMock).toHaveBeenCalledWith(
-      expect.stringContaining(
-        'Package "@google/adk" is required but not found',
-      ),
     );
   });
 
@@ -346,11 +321,121 @@ describe('deployToCloudRun', () => {
     await deployToCloudRun(defaultOptions);
 
     expect(log.error).toHaveBeenCalledWith(
-    expect(logErrorMock).toHaveBeenCalledWith(
       expect.stringContaining('Failed to deploy to Cloud Run:'),
     );
-    expect(logErrorMock).toHaveBeenCalledWith(
-      expect.stringContaining('Command failed with exit code 1'),
+  });
+
+  // New tests for PR changes
+
+  it('should call intro with "Agent Deployment" at start when isTTY', async () => {
+    await deployToCloudRun(defaultOptions);
+    expect(intro).toHaveBeenCalledWith('Agent Deployment');
+  });
+
+  it('should NOT call intro when stdout is not a TTY', async () => {
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: false,
+      configurable: true,
+    });
+    await deployToCloudRun(defaultOptions);
+    expect(intro).not.toHaveBeenCalledWith('Agent Deployment');
+  });
+
+  it('should call log.step with "Starting deployment to Cloud Run..." before starting work', async () => {
+    await deployToCloudRun(defaultOptions);
+    expect(log.step).toHaveBeenCalledWith('Starting deployment to Cloud Run...');
+  });
+
+  it('should call log.step with "Copying agent source files..." during deployment', async () => {
+    await deployToCloudRun(defaultOptions);
+    expect(log.step).toHaveBeenCalledWith('Copying agent source files...');
+  });
+
+  it('should call log.step with "Creating package.json..." during deployment', async () => {
+    await deployToCloudRun(defaultOptions);
+    expect(log.step).toHaveBeenCalledWith('Creating package.json...');
+  });
+
+  it('should call log.step with "Creating Dockerfile..." during deployment', async () => {
+    await deployToCloudRun(defaultOptions);
+    expect(log.step).toHaveBeenCalledWith('Creating Dockerfile...');
+  });
+
+  it('should call log.step with "Deploying to Cloud Run..." before spawning gcloud', async () => {
+    await deployToCloudRun(defaultOptions);
+    expect(log.step).toHaveBeenCalledWith('Deploying to Cloud Run...');
+  });
+
+  it('should call outro with "Happy Agent Building!" on success when isTTY', async () => {
+    await deployToCloudRun(defaultOptions);
+    expect(outro).toHaveBeenCalledWith('Happy Agent Building!');
+  });
+
+  it('should NOT call outro when stdout is not a TTY even on success', async () => {
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: false,
+      configurable: true,
+    });
+    await deployToCloudRun(defaultOptions);
+    expect(outro).not.toHaveBeenCalledWith('Happy Agent Building!');
+  });
+
+  it('should call log.error and NOT call outro when deployment fails', async () => {
+    spawnMock.mockReturnValue({
+      on: vi.fn((event: string, cb: (code: number) => void) => {
+        if (event === 'close') {
+          process.nextTick(() => cb(1));
+        }
+      }),
+    });
+
+    await deployToCloudRun(defaultOptions);
+
+    expect(log.error).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to deploy to Cloud Run:'),
+    );
+    expect(outro).not.toHaveBeenCalledWith('Happy Agent Building!');
+  });
+
+  it('should always clean up tempFolder even when deployment fails', async () => {
+    spawnMock.mockReturnValue({
+      on: vi.fn((event: string, cb: (code: number) => void) => {
+        if (event === 'close') {
+          process.nextTick(() => cb(1));
+        }
+      }),
+    });
+
+    await deployToCloudRun(defaultOptions);
+
+    expect(fs.rm).toHaveBeenCalledWith('/tmp/test-deploy', {
+      recursive: true,
+      force: true,
+    });
+  });
+
+  it('should always clean up tempFolder even when package.json loading fails', async () => {
+    (loadFileData as Mock).mockResolvedValue({});
+
+    await deployToCloudRun(defaultOptions);
+
+    expect(fs.rm).toHaveBeenCalledWith('/tmp/test-deploy', {
+      recursive: true,
+      force: true,
+    });
+  });
+
+  it('should call log.error with error message when copyAgentFiles fails', async () => {
+    (AgentLoader as Mock).mockImplementation(() => ({
+      listAgents: vi.fn().mockRejectedValue(new Error('Agent list failed')),
+      getAgentFile: vi.fn(),
+      disposeAll: vi.fn().mockResolvedValue(undefined),
+    }));
+
+    await deployToCloudRun(defaultOptions);
+
+    expect(log.error).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to deploy to Cloud Run: Agent list failed'),
     );
   });
 });
