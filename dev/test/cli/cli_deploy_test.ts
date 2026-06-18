@@ -271,6 +271,8 @@ describe('deployToCloudRun', () => {
         callback(null, {stdout: '(unset)\n'});
       } else if (cmd.includes('config get-value run/region')) {
         callback(null, {stdout: 'gcloud-region\n'});
+      } else {
+        callback(null, {stdout: ''});
       }
     });
 
