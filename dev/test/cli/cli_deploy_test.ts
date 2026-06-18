@@ -37,12 +37,13 @@ const spinnerMock = {
 
 vi.mock('@clack/prompts', () => ({
   log: {
-    info: (...args: unknown[]) => logInfoMock(...args),
-    error: (...args: unknown[]) => logErrorMock(...args),
-    step: (...args: unknown[]) => logStepMock(...args),
+    info: vi.fn((...args: unknown[]) => logInfoMock(...args)),
+    error: vi.fn((...args: unknown[]) => logErrorMock(...args)),
+    step: vi.fn((...args: unknown[]) => logStepMock(...args)),
+    warn: vi.fn(),
   },
-  intro: (...args: unknown[]) => introMock(...args),
-  outro: (...args: unknown[]) => outroMock(...args),
+  intro: vi.fn((...args: unknown[]) => introMock(...args)),
+  outro: vi.fn((...args: unknown[]) => outroMock(...args)),
   spinner: () => spinnerMock,
   isCancel: (val: unknown) => typeof val === 'symbol',
 }));
@@ -75,17 +76,6 @@ vi.mock('../../src/utils/file_utils.js', () => ({
   loadFileData: vi.fn(),
   saveToFile: vi.fn(),
   tryToFindFileRecursively: vi.fn(),
-}));
-
-vi.mock('@clack/prompts', () => ({
-  intro: vi.fn(),
-  outro: vi.fn(),
-  log: {
-    error: vi.fn(),
-    info: vi.fn(),
-    step: vi.fn(),
-    warn: vi.fn(),
-  },
 }));
 
 describe('createDockerFileContent', () => {
@@ -305,7 +295,6 @@ describe('deployToCloudRun', () => {
 
     await deployToCloudRun(defaultOptions);
 
-    expect(log.error).toHaveBeenCalledWith(
     expect(logErrorMock).toHaveBeenCalledWith(
       expect.stringContaining('Failed to deploy to Cloud Run:'),
     );
@@ -323,7 +312,6 @@ describe('deployToCloudRun', () => {
 
     await deployToCloudRun(defaultOptions);
 
-    expect(log.error).toHaveBeenCalledWith(
     expect(logErrorMock).toHaveBeenCalledWith(
       expect.stringContaining('Failed to deploy to Cloud Run:'),
     );
@@ -345,7 +333,6 @@ describe('deployToCloudRun', () => {
 
     await deployToCloudRun(defaultOptions);
 
-    expect(log.error).toHaveBeenCalledWith(
     expect(logErrorMock).toHaveBeenCalledWith(
       expect.stringContaining('Failed to deploy to Cloud Run:'),
     );
