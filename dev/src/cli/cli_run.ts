@@ -93,6 +93,34 @@ interface RunInteractivelyOptions {
   sessionService: BaseSessionService;
   memoryService?: BaseMemoryService;
 }
+
+/**
+ * Provides an async generator of user queries from stdin.
+ */
+async function* getQueries(): AsyncGenerator<string, void, unknown> {
+  if (process.stdin.isTTY === true) {
+    while (true) {
+      const input = await text({
+        message: 'Message',
+        placeholder: 'Type your message here (or "exit" to quit)...',
+      });
+      if (isCancel(input) || input === 'exit') {
+        return;
+      }
+      yield input as string;
+    }
+  } else {
+    // Non-interactive mode (piped stdin): read lines directly via readline.
+    const rl = createInterface({input: process.stdin, terminal: false});
+    for await (const line of rl) {
+      if (line === 'exit') {
+        return;
+      }
+      yield line;
+    }
+  }
+}
+
 /**
  * Runs an agent in an interactive CLI loop, sending each user input to the agent runner and printing emitted events.
  *
@@ -114,34 +142,7 @@ async function runInteractively(
     memoryService: options.memoryService,
   });
 
-  while (true) {
-    let query: string;
-
-    if (process.stdin.isTTY === true) {
-      const input = await text({
-        message: 'Message',
-        placeholder: 'Type your message here (or "exit" to quit)...',
-      });
-      if (isCancel(input) || input === 'exit') {
-        break;
-      }
-      query = input as string;
-    } else {
-      // Non-interactive mode (piped stdin): read a line directly via readline.
-      const line = await new Promise<string | null>((resolve) => {
-        const rl = createInterface({input: process.stdin, terminal: false});
-        rl.once('line', (l) => {
-          rl.close();
-          resolve(l);
-        });
-        rl.once('close', () => resolve(null));
-      });
-      if (line === null || line === 'exit') {
-        break;
-      }
-      query = line;
-    }
-
+  for await (const query of getQueries()) {
     if (!query || !query.trim()) {
       continue;
     }
