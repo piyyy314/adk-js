@@ -114,6 +114,16 @@ async function runInteractively(
     memoryService: options.memoryService,
   });
 
+  // Use a single readline interface for the entire loop in non-TTY mode to avoid
+  // MaxListenersExceededWarning and ensure input is consumed reliably.
+  let rlIterator: AsyncIterableIterator<string> | undefined;
+  if (process.stdin.isTTY !== true) {
+    rlIterator = createInterface({
+      input: process.stdin,
+      terminal: false,
+    })[Symbol.asyncIterator]();
+  }
+
   while (true) {
     let query: string;
 
@@ -127,19 +137,12 @@ async function runInteractively(
       }
       query = input as string;
     } else {
-      // Non-interactive mode (piped stdin): read a line directly via readline.
-      const line = await new Promise<string | null>((resolve) => {
-        const rl = createInterface({input: process.stdin, terminal: false});
-        rl.once('line', (l) => {
-          rl.close();
-          resolve(l);
-        });
-        rl.once('close', () => resolve(null));
-      });
-      if (line === null || line === 'exit') {
+      // Non-interactive mode (piped stdin): read next line from iterator.
+      const result = await rlIterator!.next();
+      if (result.done || result.value === 'exit') {
         break;
       }
-      query = line;
+      query = result.value;
     }
 
     if (!query || !query.trim()) {
@@ -209,7 +212,8 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
     });
 
     if (process.stdout.isTTY && !options.inputFile) {
-      const mode = options.savedSessionFile ? 'Resuming session' : 'Running agent';
+      const mode =
+        options.savedSessionFile ? 'Resuming session' : 'Running agent';
       intro(`${mode}: ${rootAgent.name}`);
     }
 
@@ -272,7 +276,8 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
         }));
 
       if (isCancel(sessionId)) {
-        if (process.stdout.isTTY && !options.inputFile) outro('Operation cancelled');
+        if (process.stdout.isTTY && !options.inputFile)
+          outro('Operation cancelled');
         return;
       }
 
@@ -292,7 +297,8 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
       );
     }
 
-    if (process.stdout.isTTY && !options.inputFile) outro('Happy Agent Building!');
+    if (process.stdout.isTTY && !options.inputFile)
+      outro('Happy Agent Building!');
   } catch (e) {
     log.error(e instanceof Error ? e.message : String(e));
   }
