@@ -33,3 +33,8 @@
 ## 2025-06-15 - Enhancing CLI Onboarding and Error Prevention
 **Learning:** Adding validation to mandatory CLI inputs (like API keys and Project IDs) prevents downstream runtime errors and improves the robust feel of the tool. Providing copy-pasteable commands for common follow-up actions (like resuming a session or starting different interface modes) significantly lowers the barrier to entry for new users.
 **Action:** Always include 'validate' functions for required fields and provide actionable, copy-pasteable next steps in 'note' and 'log.info' outputs.
+
+## 2025-06-16 - Orchestrating Spinners with Inherited Process Output
+
+**Learning:** When a CLI tool spawns an external process (like `gcloud`) that inherits `stdio`, any active `@clack/prompts` spinner must be stopped first. If left running, the external process output can interleave with the spinner's control sequences, leading to a corrupted and unreadable terminal state.
+**Action:** Always stop spinners before starting inherited subprocesses and use a 'success' flag to manage the final 'outro' message in complex `try-finally` blocks to ensure the terminal state remains clean and predictable.

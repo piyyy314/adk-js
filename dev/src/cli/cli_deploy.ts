@@ -3,7 +3,7 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
-import {intro, log, outro} from '@clack/prompts';
+
 import {intro, log, outro, spinner} from '@clack/prompts';
 import {exec, spawn, SpawnOptions} from 'node:child_process';
 import * as fs from 'node:fs/promises';
@@ -267,7 +267,7 @@ async function createDockerFile(
 }
 
 export async function deployToCloudRun(options: DeployToCloudRunOptions) {
-  if (process.stdout.isTTY) intro('Agent Deployment');
+  if (process.stdout.isTTY) intro('Cloud Run Deployment');
 
   const project =
     options.project || (await resolveDefaultFromGcloudConfig('project'));
@@ -311,21 +311,23 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
     ? path.dirname(options.agentPath)
     : options.agentPath;
   const appName =
-    options.appName || isFileProvided
+    options.appName ||
+    (isFileProvided
       ? path.parse(options.agentPath).name
-      : path.basename(options.agentPath);
-
-  log.step('Starting deployment to Cloud Run...');
-  if (process.stdout.isTTY) intro('Cloud Run Deployment');
+      : path.basename(options.agentPath));
 
   if (await isFolderExists(options.tempFolder)) {
     await fs.rm(options.tempFolder, {recursive: true, force: true});
   }
 
   const s = process.stdout.isTTY ? spinner() : null;
+  let success = false;
+  let spinnerActive = false;
   try {
-    log.step('Copying agent source files...');
+    log.step('Starting deployment to Cloud Run...');
     s?.start('Preparing deployment files...');
+    spinnerActive = true;
+
     await copyAgentFiles(
       agentLoader,
       path.join(options.tempFolder, 'agents', appName),
@@ -335,8 +337,6 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
     await createPackageJson(agentDir, options.tempFolder);
 
     log.step('Creating Dockerfile...');
-    await createPackageJson(agentDir, options.tempFolder);
-
     await createDockerFile(options.tempFolder, {
       appName,
       project: options.project,
@@ -349,16 +349,15 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
       a2a: options.a2a,
     });
     s?.stop('Deployment files prepared.');
+    spinnerActive = false;
 
     log.step('Deploying to Cloud Run...');
     await spawnAsync('gcloud', gcloudCommands, {stdio: 'inherit'});
-
-    if (process.stdout.isTTY) outro('Happy Agent Building!');
+    success = true;
   } catch (e: unknown) {
-    log.error(`Failed to deploy to Cloud Run: ${(e as Error).message}`);
-  } finally {
-    await fs.rm(options.tempFolder, {recursive: true, force: true});
-    s?.stop('Failed to prepare deployment files.', 1);
+    if (spinnerActive && s) {
+      s.stop('Failed to prepare deployment files.', 1);
+    }
     log.error(`Failed to deploy to Cloud Run: ${(e as Error).message}`);
   } finally {
     if (await isFolderExists(options.tempFolder)) {
@@ -367,5 +366,7 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
     await agentLoader.disposeAll();
   }
 
-  if (process.stdout.isTTY) outro('Happy Agent Building!');
+  if (success && process.stdout.isTTY) {
+    outro('Happy Agent Building!');
+  }
 }
