@@ -3,7 +3,6 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
-import {intro, log, outro} from '@clack/prompts';
 import {intro, log, outro, spinner} from '@clack/prompts';
 import {exec, spawn, SpawnOptions} from 'node:child_process';
 import * as fs from 'node:fs/promises';
@@ -335,8 +334,6 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
     await createPackageJson(agentDir, options.tempFolder);
 
     log.step('Creating Dockerfile...');
-    await createPackageJson(agentDir, options.tempFolder);
-
     await createDockerFile(options.tempFolder, {
       appName,
       project: options.project,
@@ -355,9 +352,6 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
 
     if (process.stdout.isTTY) outro('Happy Agent Building!');
   } catch (e: unknown) {
-    log.error(`Failed to deploy to Cloud Run: ${(e as Error).message}`);
-  } finally {
-    await fs.rm(options.tempFolder, {recursive: true, force: true});
     s?.stop('Failed to prepare deployment files.', 1);
     log.error(`Failed to deploy to Cloud Run: ${(e as Error).message}`);
   } finally {
