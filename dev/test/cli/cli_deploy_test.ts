@@ -6,6 +6,7 @@
 
 import {intro, log, outro} from '@clack/prompts';
 import * as fs from 'node:fs/promises';
+import {intro, log, outro} from '@clack/prompts';
 import {afterEach, beforeEach, describe, expect, it, Mock, vi} from 'vitest';
 import {
   createDockerFileContent,
