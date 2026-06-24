@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {intro, log, outro, spinner} from '@clack/prompts';
+import {log} from '@clack/prompts';
 import * as fs from 'node:fs/promises';
 import {afterEach, beforeEach, describe, expect, it, Mock, vi} from 'vitest';
 import {
@@ -198,9 +198,15 @@ describe('deployToCloudRun', () => {
     await deployToCloudRun(defaultOptions);
 
     expect(introMock).toHaveBeenCalledWith('Agent Deployment');
-    expect(logStepMock).toHaveBeenCalledWith('Starting deployment to Cloud Run...');
-    expect(spinnerMock.start).toHaveBeenCalledWith('Copying agent source files...');
-    expect(spinnerMock.message).toHaveBeenCalledWith('Creating package.json...');
+    expect(logStepMock).toHaveBeenCalledWith(
+      'Starting deployment to Cloud Run...',
+    );
+    expect(spinnerMock.start).toHaveBeenCalledWith(
+      'Copying agent source files...',
+    );
+    expect(spinnerMock.message).toHaveBeenCalledWith(
+      'Creating package.json...',
+    );
     expect(spinnerMock.message).toHaveBeenCalledWith('Creating Dockerfile...');
     expect(outroMock).toHaveBeenCalledWith('Happy Agent Building!');
     expect(spawnMock).toHaveBeenCalledWith(
@@ -240,12 +246,12 @@ describe('deployToCloudRun', () => {
       expect.any(Function),
     );
 
-    expect(logInfoMock).toHaveBeenCalledWith(
+    expect(log.info).toHaveBeenCalledWith(
       expect.stringContaining(
         '--project option is not provided, using default project from gcloud config: gcloud-project',
       ),
     );
-    expect(logInfoMock).toHaveBeenCalledWith(
+    expect(log.info).toHaveBeenCalledWith(
       expect.stringContaining(
         '--region option is not provided, using default region from gcloud config: gcloud-region',
       ),

@@ -272,7 +272,7 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
     options.project || (await resolveDefaultFromGcloudConfig('project'));
   if (!project || project === '(unset)') {
     throw new Error(
-      'Project is not specified and default value for "project" is not set in gcloud config. Please specify project with --project option or set default value running "gcloud config set project YOUR_PROJECT_ID"'
+      'Project is not specified and default value for "project" is not set in gcloud config. Please specify project with --project option or set default value running "gcloud config set project YOUR_PROJECT_ID"',
     );
   }
   if (!options.project) {
@@ -286,7 +286,7 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
     options.region || (await resolveDefaultFromGcloudConfig('run/region'));
   if (!region) {
     throw new Error(
-      'Region is not specified and default value for "run/region" is not set in gcloud config. Please specify region with --region option or set default value running "gcloud config set run/region YOUR_REGION_NAME"'
+      'Region is not specified and default value for "run/region" is not set in gcloud config. Please specify region with --region option or set default value running "gcloud config set run/region YOUR_REGION_NAME"',
     );
   }
   if (!options.region) {

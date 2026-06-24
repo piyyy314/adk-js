@@ -235,7 +235,9 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
     });
 
     if (process.stdout.isTTY && !options.inputFile) {
-      const mode = options.savedSessionFile ? 'Resuming session' : 'Running agent';
+      const mode = options.savedSessionFile
+        ? 'Resuming session'
+        : 'Running agent';
       intro(`${mode}: ${rootAgent.name}`);
     }
 
@@ -298,7 +300,8 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
         }));
 
       if (isCancel(sessionId)) {
-        if (process.stdout.isTTY && !options.inputFile) outro('Operation cancelled');
+        if (process.stdout.isTTY && !options.inputFile)
+          outro('Operation cancelled');
         return;
       }
 
@@ -318,7 +321,8 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
       );
     }
 
-    if (process.stdout.isTTY && !options.inputFile) outro('Happy Agent Building!');
+    if (process.stdout.isTTY && !options.inputFile)
+      outro('Happy Agent Building!');
   } catch (e) {
     log.error(e instanceof Error ? e.message : String(e));
   }
