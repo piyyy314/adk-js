@@ -4,9 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {intro, log, outro} from '@clack/prompts';
+import {intro, log, outro, spinner} from '@clack/prompts';
 import * as fs from 'node:fs/promises';
-import {intro, log, outro} from '@clack/prompts';
 import {afterEach, beforeEach, describe, expect, it, Mock, vi} from 'vitest';
 import {
   createDockerFileContent,
@@ -34,18 +33,19 @@ const outroMock = vi.fn();
 const spinnerMock = {
   start: vi.fn(),
   stop: vi.fn(),
+  message: vi.fn(),
 };
 
 vi.mock('@clack/prompts', () => ({
   log: {
-    info: (...args: unknown[]) => logInfoMock(...args),
-    error: (...args: unknown[]) => logErrorMock(...args),
-    step: (...args: unknown[]) => logStepMock(...args),
+    info: vi.fn((...args: unknown[]) => logInfoMock(...args)),
+    error: vi.fn((...args: unknown[]) => logErrorMock(...args)),
+    step: vi.fn((...args: unknown[]) => logStepMock(...args)),
   },
-  intro: (...args: unknown[]) => introMock(...args),
-  outro: (...args: unknown[]) => outroMock(...args),
-  spinner: () => spinnerMock,
-  isCancel: (val: unknown) => typeof val === 'symbol',
+  intro: vi.fn((...args: unknown[]) => introMock(...args)),
+  outro: vi.fn((...args: unknown[]) => outroMock(...args)),
+  spinner: vi.fn(() => spinnerMock),
+  isCancel: vi.fn((val: unknown) => typeof val === 'symbol'),
 }));
 
 vi.mock('node:child_process', () => ({
@@ -76,17 +76,6 @@ vi.mock('../../src/utils/file_utils.js', () => ({
   loadFileData: vi.fn(),
   saveToFile: vi.fn(),
   tryToFindFileRecursively: vi.fn(),
-}));
-
-vi.mock('@clack/prompts', () => ({
-  intro: vi.fn(),
-  outro: vi.fn(),
-  log: {
-    error: vi.fn(),
-    info: vi.fn(),
-    step: vi.fn(),
-    warn: vi.fn(),
-  },
 }));
 
 describe('createDockerFileContent', () => {
@@ -208,9 +197,12 @@ describe('deployToCloudRun', () => {
     (isFolderExists as Mock).mockResolvedValue(true);
     await deployToCloudRun(defaultOptions);
 
-    expect(intro).toHaveBeenCalledWith('Agent Deployment');
-    expect(log.step).toHaveBeenCalledWith('Starting deployment to Cloud Run...');
-    expect(outro).toHaveBeenCalledWith('Happy Agent Building!');
+    expect(introMock).toHaveBeenCalledWith('Agent Deployment');
+    expect(logStepMock).toHaveBeenCalledWith('Starting deployment to Cloud Run...');
+    expect(spinnerMock.start).toHaveBeenCalledWith('Copying agent source files...');
+    expect(spinnerMock.message).toHaveBeenCalledWith('Creating package.json...');
+    expect(spinnerMock.message).toHaveBeenCalledWith('Creating Dockerfile...');
+    expect(outroMock).toHaveBeenCalledWith('Happy Agent Building!');
     expect(spawnMock).toHaveBeenCalledWith(
       'gcloud',
       expect.arrayContaining([
@@ -248,12 +240,12 @@ describe('deployToCloudRun', () => {
       expect.any(Function),
     );
 
-    expect(log.info).toHaveBeenCalledWith(
+    expect(logInfoMock).toHaveBeenCalledWith(
       expect.stringContaining(
         '--project option is not provided, using default project from gcloud config: gcloud-project',
       ),
     );
-    expect(log.info).toHaveBeenCalledWith(
+    expect(logInfoMock).toHaveBeenCalledWith(
       expect.stringContaining(
         '--region option is not provided, using default region from gcloud config: gcloud-region',
       ),
@@ -306,7 +298,6 @@ describe('deployToCloudRun', () => {
 
     await deployToCloudRun(defaultOptions);
 
-    expect(log.error).toHaveBeenCalledWith(
     expect(logErrorMock).toHaveBeenCalledWith(
       expect.stringContaining('Failed to deploy to Cloud Run:'),
     );
@@ -324,7 +315,6 @@ describe('deployToCloudRun', () => {
 
     await deployToCloudRun(defaultOptions);
 
-    expect(log.error).toHaveBeenCalledWith(
     expect(logErrorMock).toHaveBeenCalledWith(
       expect.stringContaining('Failed to deploy to Cloud Run:'),
     );
@@ -346,7 +336,6 @@ describe('deployToCloudRun', () => {
 
     await deployToCloudRun(defaultOptions);
 
-    expect(log.error).toHaveBeenCalledWith(
     expect(logErrorMock).toHaveBeenCalledWith(
       expect.stringContaining('Failed to deploy to Cloud Run:'),
     );

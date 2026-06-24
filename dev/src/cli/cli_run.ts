@@ -69,18 +69,27 @@ async function runFromInputFile(
 
     const s = process.stdout.isTTY ? spinner() : null;
     s?.start('Thinking...');
+    let spinnerStopped = false;
     for await (const event of runner.runAsync(runOptions)) {
       if (event.content && event.content.parts) {
         const text = event.content.parts
           .map((part) => part.text || '')
           .join('');
         if (text) {
-          s?.stop();
-          console.log(`[${event.author}]: ${text}`);
+          if (!spinnerStopped) {
+            s?.stop();
+            spinnerStopped = true;
+            process.stdout.write(`[${event.author}]: `);
+          }
+          process.stdout.write(text);
         }
       }
     }
-    s?.stop();
+    if (spinnerStopped) {
+      process.stdout.write('\n');
+    } else {
+      s?.stop();
+    }
   }
 
   return session;
@@ -148,6 +157,7 @@ async function runInteractively(
 
     const s = process.stdout.isTTY ? spinner() : null;
     s?.start('Thinking...');
+    let spinnerStopped = false;
     for await (const event of runner.runAsync({
       userId: options.session.userId,
       sessionId: options.session.id,
@@ -158,12 +168,20 @@ async function runInteractively(
           .map((part) => part.text || '')
           .join('');
         if (text) {
-          s?.stop();
-          console.log(`[${event.author}]: ${text}`);
+          if (!spinnerStopped) {
+            s?.stop();
+            spinnerStopped = true;
+            process.stdout.write(`[${event.author}]: `);
+          }
+          process.stdout.write(text);
         }
       }
     }
-    s?.stop();
+    if (spinnerStopped) {
+      process.stdout.write('\n');
+    } else {
+      s?.stop();
+    }
   }
 }
 
@@ -259,7 +277,7 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
       const sessionId =
         options.sessionId ||
         (await text({
-          message: 'Session ID to save',
+          message: 'Session ID to save (will be used as filename)',
           initialValue: defaultSessionId,
           placeholder: 'e.g. my-session',
           validate: (value) => {
