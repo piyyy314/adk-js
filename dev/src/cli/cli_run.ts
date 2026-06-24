@@ -76,16 +76,20 @@ async function runFromInputFile(
           .map((part) => part.text || '')
           .join('');
         if (text) {
-          if (!spinnerStopped) {
-            s?.stop();
-            spinnerStopped = true;
-            process.stdout.write(`[${event.author}]: `);
+          if (process.stdout.isTTY) {
+            if (!spinnerStopped) {
+              s?.stop();
+              spinnerStopped = true;
+              process.stdout.write(`[${event.author}]: `);
+            }
+            process.stdout.write(text);
+          } else {
+            console.log(`[${event.author}]: ${text}`);
           }
-          process.stdout.write(text);
         }
       }
     }
-    if (spinnerStopped) {
+    if (process.stdout.isTTY && spinnerStopped) {
       process.stdout.write('\n');
     } else {
       s?.stop();
@@ -168,16 +172,20 @@ async function runInteractively(
           .map((part) => part.text || '')
           .join('');
         if (text) {
-          if (!spinnerStopped) {
-            s?.stop();
-            spinnerStopped = true;
-            process.stdout.write(`[${event.author}]: `);
+          if (process.stdout.isTTY) {
+            if (!spinnerStopped) {
+              s?.stop();
+              spinnerStopped = true;
+              process.stdout.write(`[${event.author}]: `);
+            }
+            process.stdout.write(text);
+          } else {
+            console.log(`[${event.author}]: ${text}`);
           }
-          process.stdout.write(text);
         }
       }
     }
-    if (spinnerStopped) {
+    if (process.stdout.isTTY && spinnerStopped) {
       process.stdout.write('\n');
     } else {
       s?.stop();
