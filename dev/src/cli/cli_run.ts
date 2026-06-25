@@ -69,18 +69,31 @@ async function runFromInputFile(
 
     const s = process.stdout.isTTY ? spinner() : null;
     s?.start('Thinking...');
+    let spinnerStopped = false;
     for await (const event of runner.runAsync(runOptions)) {
       if (event.content && event.content.parts) {
         const text = event.content.parts
           .map((part) => part.text || '')
           .join('');
         if (text) {
-          s?.stop();
-          console.log(`[${event.author}]: ${text}`);
+          if (process.stdout.isTTY) {
+            if (!spinnerStopped) {
+              s?.stop();
+              spinnerStopped = true;
+              process.stdout.write(`[${event.author}]: `);
+            }
+            process.stdout.write(text);
+          } else {
+            console.log(`[${event.author}]: ${text}`);
+          }
         }
       }
     }
-    s?.stop();
+    if (process.stdout.isTTY && spinnerStopped) {
+      process.stdout.write('\n');
+    } else {
+      s?.stop();
+    }
   }
 
   return session;
@@ -148,6 +161,7 @@ async function runInteractively(
 
     const s = process.stdout.isTTY ? spinner() : null;
     s?.start('Thinking...');
+    let spinnerStopped = false;
     for await (const event of runner.runAsync({
       userId: options.session.userId,
       sessionId: options.session.id,
@@ -158,12 +172,24 @@ async function runInteractively(
           .map((part) => part.text || '')
           .join('');
         if (text) {
-          s?.stop();
-          console.log(`[${event.author}]: ${text}`);
+          if (process.stdout.isTTY) {
+            if (!spinnerStopped) {
+              s?.stop();
+              spinnerStopped = true;
+              process.stdout.write(`[${event.author}]: `);
+            }
+            process.stdout.write(text);
+          } else {
+            console.log(`[${event.author}]: ${text}`);
+          }
         }
       }
     }
-    s?.stop();
+    if (process.stdout.isTTY && spinnerStopped) {
+      process.stdout.write('\n');
+    } else {
+      s?.stop();
+    }
   }
 }
 
@@ -209,7 +235,9 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
     });
 
     if (process.stdout.isTTY && !options.inputFile) {
-      const mode = options.savedSessionFile ? 'Resuming session' : 'Running agent';
+      const mode = options.savedSessionFile
+        ? 'Resuming session'
+        : 'Running agent';
       intro(`${mode}: ${rootAgent.name}`);
     }
 
@@ -259,7 +287,7 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
       const sessionId =
         options.sessionId ||
         (await text({
-          message: 'Session ID to save',
+          message: 'Session ID to save (will be used as filename)',
           initialValue: defaultSessionId,
           placeholder: 'e.g. my-session',
           validate: (value) => {
@@ -272,7 +300,8 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
         }));
 
       if (isCancel(sessionId)) {
-        if (process.stdout.isTTY && !options.inputFile) outro('Operation cancelled');
+        if (process.stdout.isTTY && !options.inputFile)
+          outro('Operation cancelled');
         return;
       }
 
@@ -292,7 +321,8 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
       );
     }
 
-    if (process.stdout.isTTY && !options.inputFile) outro('Happy Agent Building!');
+    if (process.stdout.isTTY && !options.inputFile)
+      outro('Happy Agent Building!');
   } catch (e) {
     log.error(e instanceof Error ? e.message : String(e));
   }
