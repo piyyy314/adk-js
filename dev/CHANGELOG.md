@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.2.6](https://github.com/piyyy314/adk-js/compare/devtools-v0.2.5...devtools-v0.2.6) (2026-06-25)
+
+
+### Bug Fixes
+
+* resolve TypeScript compilation errors in cli_deploy.ts ([68395b3](https://github.com/piyyy314/adk-js/commit/68395b37d44efee22f7dab2bc318b031ee5968be))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @google/adk bumped from ^0.2.5 to ^0.2.6
+
 ## [0.2.5](https://github.com/piyyy314/adk-js/compare/devtools-v0.6.1...devtools-v0.2.5) (2026-05-17)
 
 

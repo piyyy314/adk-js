@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.6](https://github.com/piyyy314/adk-js/compare/adk-v0.2.5...adk-v0.2.6) (2026-06-25)
+
+
+### Miscellaneous Chores
+
+* **adk:** Synchronize adk versions
+
 ## [0.2.5](https://github.com/piyyy314/adk-js/compare/adk-v0.6.1...adk-v0.2.5) (2026-05-17)
 
 
