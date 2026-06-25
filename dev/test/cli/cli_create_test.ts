@@ -190,11 +190,26 @@ describe('createAgent', () => {
     });
 
     it('should return without creating files if model selection is cancelled', async () => {
-      (select as Mock).mockResolvedValueOnce('cancel-symbol');
-      (isCancel as unknown as Mock).mockReturnValue(true);
+      const originalIsTTY = process.stdout.isTTY;
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: true,
+        configurable: true,
+      });
+      const {outro} = await import('@clack/prompts');
 
-      await expect(createAgent(getFreshOptions())).resolves.toBeUndefined();
-      expect(saveToFile).not.toHaveBeenCalled();
+      try {
+        (select as Mock).mockResolvedValueOnce('cancel-symbol');
+        (isCancel as unknown as Mock).mockReturnValue(true);
+
+        await expect(createAgent(getFreshOptions())).resolves.toBeUndefined();
+        expect(saveToFile).not.toHaveBeenCalled();
+        expect(outro).toHaveBeenCalledWith('Operation cancelled');
+      } finally {
+        Object.defineProperty(process.stdout, 'isTTY', {
+          value: originalIsTTY,
+          configurable: true,
+        });
+      }
     });
 
     it('should prompt for language if not provided', async () => {

@@ -30,6 +30,19 @@ import {
 const execPromise = promisify(exec);
 const dirname = process.cwd();
 
+function isCancellation(
+  value: unknown,
+  options: AgentCreationOptions,
+): value is symbol {
+  if (isCancel(value)) {
+    if (!options.forceYes && process.stdout.isTTY) {
+      outro('Operation cancelled');
+    }
+    return true;
+  }
+  return false;
+}
+
 const TS_CONFIG = `{
   "compilerOptions": {
     "target": "esnext",
@@ -210,6 +223,9 @@ export async function createAgent(options: AgentCreationOptions) {
   const agentDir = path.join(dirname, options.agentName);
   const folderReady = await generateAgentFolder(agentDir, options.forceYes);
   if (!folderReady) {
+    if (!options.forceYes && process.stdout.isTTY) {
+      outro('Operation cancelled');
+    }
     return;
   }
 
@@ -242,7 +258,7 @@ export async function createAgent(options: AgentCreationOptions) {
           ],
         });
 
-    if (isCancel(model)) {
+    if (isCancellation(model, options)) {
       return;
     }
     options.model = model;
@@ -267,7 +283,7 @@ export async function createAgent(options: AgentCreationOptions) {
           ],
         });
 
-    if (isCancel(language)) {
+    if (isCancellation(language, options)) {
       return;
     }
     options.language = language;
@@ -292,7 +308,7 @@ export async function createAgent(options: AgentCreationOptions) {
           ],
         });
 
-    if (isCancel(backend)) {
+    if (isCancellation(backend, options)) {
       return;
     }
 
@@ -312,7 +328,7 @@ export async function createAgent(options: AgentCreationOptions) {
             },
           });
 
-      if (isCancel(projectResponse)) {
+      if (isCancellation(projectResponse, options)) {
         return;
       }
       options.project = projectResponse;
@@ -329,11 +345,16 @@ export async function createAgent(options: AgentCreationOptions) {
             },
           });
 
-      if (isCancel(regionResponse)) {
+      if (isCancellation(regionResponse, options)) {
         return;
       }
       options.region = regionResponse;
     } else {
+      if (!options.forceYes && process.stdout.isTTY) {
+        log.info(
+          'To get a Google API Key, visit: https://aistudio.google.com/',
+        );
+      }
       const apiKeyResponse: symbol | string = options.forceYes
         ? ''
         : await password({
@@ -344,7 +365,7 @@ export async function createAgent(options: AgentCreationOptions) {
             },
           });
 
-      if (isCancel(apiKeyResponse)) {
+      if (isCancellation(apiKeyResponse, options)) {
         return;
       }
       options.apiKey = apiKeyResponse;
