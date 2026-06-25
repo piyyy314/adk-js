@@ -34,3 +34,6 @@
 
 **Learning:** Replacing raw `console.info` and manual ANSI-colored `console.error` with structured logging from `@clack/prompts` (like `log.step` and `log.info`) creates a more professional and consistent CLI experience. However, rich UI elements like `intro` and `outro` must be guarded with `process.stdout.isTTY` checks to avoid polluting logs in non-interactive environments.
 **Action:** Transition CLI tools to use `@clack/prompts` for all user-facing output and always use TTY guards for framing elements.
+## 2025-06-15 - Enhancing CLI Onboarding and Error Prevention
+**Learning:** Adding validation to mandatory CLI inputs (like API keys and Project IDs) prevents downstream runtime errors and improves the robust feel of the tool. Providing copy-pasteable commands for common follow-up actions (like resuming a session or starting different interface modes) significantly lowers the barrier to entry for new users.
+**Action:** Always include 'validate' functions for required fields and provide actionable, copy-pasteable next steps in 'note' and 'log.info' outputs.
