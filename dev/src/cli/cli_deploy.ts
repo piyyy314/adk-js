@@ -3,7 +3,6 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
-import {intro, log, outro} from '@clack/prompts';
 import {intro, log, outro, spinner} from '@clack/prompts';
 import {exec, spawn, SpawnOptions} from 'node:child_process';
 import * as fs from 'node:fs/promises';
@@ -270,18 +269,13 @@ async function createDockerFile(
 }
 
 export async function deployToCloudRun(options: DeployToCloudRunOptions) {
-  if (process.stdout.isTTY) intro('Deployment to Cloud Run');
-}
-
-export async function deployToCloudRun(options: DeployToCloudRunOptions) {
   if (process.stdout.isTTY) intro('Agent Deployment');
 
   const project =
     options.project || (await resolveDefaultFromGcloudConfig('project'));
   if (!project || project === '(unset)') {
     throw new Error(
-      'Project is not specified and default value for "project" is not set in gcloud config. Please specify project with --project option or set default value running "gcloud config set project YOUR_PROJECT".',
-      'Project is not specified and default value for "project" is not set in gcloud config. Please specify project with --project option or set default value running "gcloud config set project YOUR_PROJECT_ID"',
+      'Project is not specified and default value for "project" is not set in gcloud config. Please specify project with --project option or set default value running "gcloud config set project YOUR_PROJECT"',
     );
   }
   if (!options.project) {
@@ -295,7 +289,7 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
     options.region || (await resolveDefaultFromGcloudConfig('run/region'));
   if (!region) {
     throw new Error(
-      'Region is not specified and default value for "run/region" is not set in gcloud config. Please specify region with --region option or set default value running "gcloud config set run/region YOUR_REGION_NAME"',
+      'Region is not specified and default value for "run/region" is not set in gcloud config. Please specify region with --region option or set default value running "gcloud config set run/region YOUR_REGION"',
     );
   }
   if (!options.region) {
@@ -326,16 +320,11 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
   log.step('Starting deployment to Cloud Run...');
 
   if (await isFolderExists(options.tempFolder)) {
-    log.step('Cleaning up existing temporary files...');
-  if (process.stdout.isTTY) intro('Cloud Run Deployment');
-
-  if (await isFolderExists(options.tempFolder)) {
     await fs.rm(options.tempFolder, {recursive: true, force: true});
   }
 
   const s = process.stdout.isTTY ? spinner() : null;
   try {
-    log.step('Copying agent source files...');
     if (s) {
       s.start('Copying agent source files...');
     } else {
@@ -346,10 +335,6 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
       path.join(options.tempFolder, 'agents', appName),
     );
 
-    log.step('Creating package.json...');
-    await createPackageJson(agentDir, options.tempFolder);
-
-    log.step('Creating Dockerfile...');
     if (s) {
       s.message('Creating package.json...');
     } else {
@@ -379,15 +364,6 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
     await spawnAsync('gcloud', gcloudCommands, {stdio: 'inherit'});
     if (process.stdout.isTTY) outro('Agent Deployed Successfully!');
   } catch (e: unknown) {
-    log.error(`Failed to deploy to Cloud Run: ${(e as Error).message}`);
-  } finally {
-    log.step('Cleaning up temporary files...');
-    await fs.rm(options.tempFolder, {recursive: true, force: true});
-    await agentLoader.disposeAll();
-    log.info('Temporary files cleaned up.');
-
-    if (process.stdout.isTTY) outro('Happy Agent Building!');
-  } catch (e: unknown) {
     s?.stop('Failed to prepare deployment files.', 1);
     log.error(`Failed to deploy to Cloud Run: ${(e as Error).message}`);
   } finally {
@@ -395,5 +371,6 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
       await fs.rm(options.tempFolder, {recursive: true, force: true});
     }
     await agentLoader.disposeAll();
+    if (process.stdout.isTTY) outro('Happy Agent Building!');
   }
 }
