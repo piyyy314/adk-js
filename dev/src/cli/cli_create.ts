@@ -30,19 +30,6 @@ import {
 const execPromise = promisify(exec);
 const dirname = process.cwd();
 
-function isCancellation(
-  value: unknown,
-  options: AgentCreationOptions,
-): value is symbol {
-  if (isCancel(value)) {
-    if (!options.forceYes && process.stdout.isTTY) {
-      outro('Operation cancelled');
-    }
-    return true;
-  }
-  return false;
-}
-
 const TS_CONFIG = `{
   "compilerOptions": {
     "target": "esnext",
@@ -122,6 +109,19 @@ interface AgentCreationOptions {
   project: string;
   region: string;
   language: string;
+}
+
+function isCancellation(
+  value: unknown,
+  options: AgentCreationOptions,
+): value is symbol {
+  if (isCancel(value)) {
+    if (!options.forceYes && process.stdout.isTTY) {
+      outro('Operation cancelled');
+    }
+    return true;
+  }
+  return false;
 }
 
 async function getGcpProject(): Promise<string> {

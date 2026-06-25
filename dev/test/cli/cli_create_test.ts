@@ -260,6 +260,33 @@ describe('createAgent', () => {
         expect.stringContaining('GOOGLE_CLOUD_PROJECT=gcloud-project'),
       );
     });
+
+    it('should show link to Google AI Studio before API Key prompt', async () => {
+      const originalIsTTY = process.stdout.isTTY;
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: true,
+        configurable: true,
+      });
+      const {log} = await import('@clack/prompts');
+
+      try {
+        (select as Mock).mockResolvedValueOnce('gemini-2.5-flash');
+        (select as Mock).mockResolvedValueOnce('ts');
+        (select as Mock).mockResolvedValueOnce('googleai');
+        (password as Mock).mockResolvedValueOnce('test-key');
+
+        await createAgent(getFreshOptions());
+
+        expect(log.info).toHaveBeenCalledWith(
+          expect.stringContaining('https://aistudio.google.com/'),
+        );
+      } finally {
+        Object.defineProperty(process.stdout, 'isTTY', {
+          value: originalIsTTY,
+          configurable: true,
+        });
+      }
+    });
   });
 
   describe('Folder Handling', () => {
