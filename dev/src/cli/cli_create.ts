@@ -7,7 +7,6 @@
 import {
   confirm,
   intro,
-  isCancel,
   log,
   note,
   outro,
@@ -17,6 +16,7 @@ import {
   text,
 } from '@clack/prompts';
 import {exec, execSync} from 'node:child_process';
+import {isCancellation} from '../utils/cli_utils.js';
 import * as path from 'node:path';
 import {promisify} from 'node:util';
 import {
@@ -29,19 +29,6 @@ import {
 
 const execPromise = promisify(exec);
 const dirname = process.cwd();
-
-/**
- * Checks if the value is a cancellation from clack.
- */
-function isCancellation(value: unknown): value is symbol {
-  if (isCancel(value)) {
-    if (process.stdout.isTTY) {
-      outro('Operation cancelled');
-    }
-    return true;
-  }
-  return false;
-}
 
 const TS_CONFIG = `{
   "compilerOptions": {

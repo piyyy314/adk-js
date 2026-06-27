@@ -63,11 +63,6 @@ vi.mock('@clack/prompts', () => ({
     step: vi.fn(),
     error: vi.fn(),
   },
-  spinner: vi.fn(() => ({
-    start: vi.fn(),
-    stop: vi.fn(),
-    message: vi.fn(),
-  })),
 }));
 
 describe('createDockerFileContent', () => {

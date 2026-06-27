@@ -4,7 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {intro, isCancel, log, outro, spinner, text} from '@clack/prompts';
+import {intro, log, outro, spinner, text} from '@clack/prompts';
+import {isCancellation} from '../utils/cli_utils.js';
 import {
   BaseAgent,
   BaseArtifactService,
@@ -23,19 +24,6 @@ import {AgentFile, AgentFileOptions} from '../utils/agent_loader.js';
 import {loadFileData, saveToFile} from '../utils/file_utils.js';
 
 const dirname = process.cwd();
-
-/**
- * Checks if the value is a cancellation from clack.
- */
-function isCancellation(value: unknown): value is symbol {
-  if (isCancel(value)) {
-    if (process.stdout.isTTY) {
-      outro('Operation cancelled');
-    }
-    return true;
-  }
-  return false;
-}
 
 interface InputFile {
   state: Record<string, unknown>;
@@ -160,7 +148,7 @@ async function runInteractively(
           break;
         }
         if (isCancellation(input)) {
-          return;
+          return true;
         }
         query = input as string;
       } else {
@@ -211,6 +199,7 @@ async function runInteractively(
   } finally {
     rl?.close();
   }
+  return false;
 }
 
 /**
@@ -293,13 +282,16 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
         }
       }
 
-      await runInteractively({
+      const cancelled = await runInteractively({
         rootAgent,
         artifactService,
         sessionService,
         memoryService,
         session,
       });
+      if (cancelled) {
+        return;
+      }
     }
 
     if (options.saveSession) {
