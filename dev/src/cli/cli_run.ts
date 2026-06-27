@@ -119,7 +119,7 @@ interface RunInteractivelyOptions {
  */
 async function runInteractively(
   options: RunInteractivelyOptions,
-): Promise<void> {
+): Promise<boolean> {
   const runner = new Runner({
     appName: options.rootAgent.name,
     agent: options.rootAgent,
