@@ -24,6 +24,19 @@ import {loadFileData, saveToFile} from '../utils/file_utils.js';
 
 const dirname = process.cwd();
 
+/**
+ * Checks if the value is a cancellation from clack.
+ */
+function isCancellation(value: unknown): value is symbol {
+  if (isCancel(value)) {
+    if (process.stdout.isTTY) {
+      outro('Operation cancelled');
+    }
+    return true;
+  }
+  return false;
+}
+
 interface InputFile {
   state: Record<string, unknown>;
   queries: string[];
@@ -127,69 +140,76 @@ async function runInteractively(
     memoryService: options.memoryService,
   });
 
-  while (true) {
-    let query: string;
+  const rl =
+    process.stdin.isTTY === true
+      ? null
+      : createInterface({input: process.stdin, terminal: false});
 
-    if (process.stdin.isTTY === true) {
-      const input = await text({
-        message: 'Message',
-        placeholder: 'Type your message here (or "exit" to quit)...',
-      });
-      if (isCancel(input) || input === 'exit') {
-        break;
-      }
-      query = input as string;
-    } else {
-      // Non-interactive mode (piped stdin): read a line directly via readline.
-      const line = await new Promise<string | null>((resolve) => {
-        const rl = createInterface({input: process.stdin, terminal: false});
-        rl.once('line', (l) => {
-          rl.close();
-          resolve(l);
+  try {
+    const iterator = rl ? rl[Symbol.asyncIterator]() : null;
+
+    while (true) {
+      let query: string;
+
+      if (!rl) {
+        const input = await text({
+          message: 'Message',
+          placeholder: 'Type your message here (or "exit" to quit)...',
         });
-        rl.once('close', () => resolve(null));
-      });
-      if (line === null || line === 'exit') {
-        break;
+        if (input === 'exit') {
+          break;
+        }
+        if (isCancellation(input)) {
+          return;
+        }
+        query = input as string;
+      } else {
+        // Non-interactive mode (piped stdin): read a line directly via readline.
+        const result = await iterator!.next();
+        if (result.done || result.value === 'exit') {
+          break;
+        }
+        query = result.value;
       }
-      query = line;
-    }
 
-    if (!query || !query.trim()) {
-      continue;
-    }
+      if (!query || !query.trim()) {
+        continue;
+      }
 
-    const s = process.stdout.isTTY ? spinner() : null;
-    s?.start('Thinking...');
-    let spinnerStopped = false;
-    for await (const event of runner.runAsync({
-      userId: options.session.userId,
-      sessionId: options.session.id,
-      newMessage: {role: 'user', parts: [{text: query}]},
-    })) {
-      if (event.content && event.content.parts) {
-        const text = event.content.parts
-          .map((part) => part.text || '')
-          .join('');
-        if (text) {
-          if (process.stdout.isTTY) {
-            if (!spinnerStopped) {
-              s?.stop();
-              spinnerStopped = true;
-              process.stdout.write(`[${event.author}]: `);
+      const s = process.stdout.isTTY ? spinner() : null;
+      s?.start('Thinking...');
+      let spinnerStopped = false;
+      for await (const event of runner.runAsync({
+        userId: options.session.userId,
+        sessionId: options.session.id,
+        newMessage: {role: 'user', parts: [{text: query}]},
+      })) {
+        if (event.content && event.content.parts) {
+          const text = event.content.parts
+            .map((part) => part.text || '')
+            .join('');
+          if (text) {
+            if (process.stdout.isTTY) {
+              if (!spinnerStopped) {
+                s?.stop();
+                spinnerStopped = true;
+                process.stdout.write(`[${event.author}]: `);
+              }
+              process.stdout.write(text);
+            } else {
+              console.log(`[${event.author}]: ${text}`);
             }
-            process.stdout.write(text);
-          } else {
-            console.log(`[${event.author}]: ${text}`);
           }
         }
       }
+      if (process.stdout.isTTY && spinnerStopped) {
+        process.stdout.write('\n');
+      } else {
+        s?.stop();
+      }
     }
-    if (process.stdout.isTTY && spinnerStopped) {
-      process.stdout.write('\n');
-    } else {
-      s?.stop();
-    }
+  } finally {
+    rl?.close();
   }
 }
 
@@ -299,9 +319,7 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
           },
         }));
 
-      if (isCancel(sessionId)) {
-        if (process.stdout.isTTY && !options.inputFile)
-          outro('Operation cancelled');
+      if (isCancellation(sessionId)) {
         return;
       }
 
