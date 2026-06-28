@@ -266,7 +266,7 @@ async function createDockerFile(
 }
 
 export async function deployToCloudRun(options: DeployToCloudRunOptions) {
-  if (process.stdout.isTTY) intro('Agent Deployment');
+  if (process.stdout.isTTY) intro('Deployment to Cloud Run');
 
   const project =
     options.project || (await resolveDefaultFromGcloudConfig('project'));
@@ -315,7 +315,6 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
       : path.basename(options.agentPath);
 
   log.step('Starting deployment to Cloud Run...');
-  if (process.stdout.isTTY) intro('Cloud Run Deployment');
 
   if (await isFolderExists(options.tempFolder)) {
     await fs.rm(options.tempFolder, {recursive: true, force: true});
