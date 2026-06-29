@@ -30,6 +30,16 @@ import {
 const execPromise = promisify(exec);
 const dirname = process.cwd();
 
+function handleCancellation(value: unknown): boolean {
+  if (isCancel(value)) {
+    if (process.stdout.isTTY) {
+      outro('Operation cancelled');
+    }
+    return true;
+  }
+  return false;
+}
+
 const TS_CONFIG = `{
   "compilerOptions": {
     "target": "esnext",
@@ -156,12 +166,16 @@ async function generateAgentFolder(
         message: `Folder ${agentDir} already exists. Would you like to overwrite existing folder?`,
       });
 
-  if (isCancel(overwriteFolderResponse)) {
+  if (handleCancellation(overwriteFolderResponse)) {
     return false;
   }
 
   if (!overwriteFolderResponse) {
-    log.error(`Agent directory ${agentDir} already exists.`);
+    if (process.stdout.isTTY) {
+      outro(`Agent directory ${agentDir} already exists. Operation cancelled.`);
+    } else {
+      log.error(`Agent directory ${agentDir} already exists.`);
+    }
     return false;
   }
 
@@ -242,7 +256,7 @@ export async function createAgent(options: AgentCreationOptions) {
           ],
         });
 
-    if (isCancel(model)) {
+    if (handleCancellation(model)) {
       return;
     }
     options.model = model;
@@ -267,7 +281,7 @@ export async function createAgent(options: AgentCreationOptions) {
           ],
         });
 
-    if (isCancel(language)) {
+    if (handleCancellation(language)) {
       return;
     }
     options.language = language;
@@ -292,7 +306,7 @@ export async function createAgent(options: AgentCreationOptions) {
           ],
         });
 
-    if (isCancel(backend)) {
+    if (handleCancellation(backend)) {
       return;
     }
 
@@ -312,7 +326,7 @@ export async function createAgent(options: AgentCreationOptions) {
             },
           });
 
-      if (isCancel(projectResponse)) {
+      if (handleCancellation(projectResponse)) {
         return;
       }
       options.project = projectResponse;
@@ -329,11 +343,16 @@ export async function createAgent(options: AgentCreationOptions) {
             },
           });
 
-      if (isCancel(regionResponse)) {
+      if (handleCancellation(regionResponse)) {
         return;
       }
       options.region = regionResponse;
     } else {
+      if (!options.forceYes) {
+        log.info(
+          'To get a Google AI API Key, visit: https://aistudio.google.com/',
+        );
+      }
       const apiKeyResponse: symbol | string = options.forceYes
         ? ''
         : await password({
@@ -344,7 +363,7 @@ export async function createAgent(options: AgentCreationOptions) {
             },
           });
 
-      if (isCancel(apiKeyResponse)) {
+      if (handleCancellation(apiKeyResponse)) {
         return;
       }
       options.apiKey = apiKeyResponse;
