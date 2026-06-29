@@ -30,7 +30,7 @@ import {
 const execPromise = promisify(exec);
 const dirname = process.cwd();
 
-function handleCancellation(value: unknown): boolean {
+function handleCancellation(value: unknown): value is symbol {
   if (isCancel(value)) {
     if (process.stdout.isTTY) {
       outro('Operation cancelled');
