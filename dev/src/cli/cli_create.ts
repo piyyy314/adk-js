@@ -171,7 +171,11 @@ async function generateAgentFolder(
   }
 
   if (!overwriteFolderResponse) {
-    log.error(`Agent directory ${agentDir} already exists.`);
+    if (process.stdout.isTTY) {
+      outro(`Agent directory ${agentDir} already exists. Operation cancelled.`);
+    } else {
+      log.error(`Agent directory ${agentDir} already exists.`);
+    }
     return false;
   }
 

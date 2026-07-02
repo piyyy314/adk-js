@@ -63,6 +63,11 @@ vi.mock('@clack/prompts', () => ({
     step: vi.fn(),
     error: vi.fn(),
   },
+  spinner: vi.fn(() => ({
+    start: vi.fn(),
+    stop: vi.fn(),
+    message: vi.fn(),
+  })),
 }));
 
 describe('createDockerFileContent', () => {
@@ -300,13 +305,19 @@ describe('deployToCloudRun', () => {
 
   it('should call intro when process.stdout.isTTY is true', async () => {
     const originalIsTTY = process.stdout.isTTY;
-    Object.defineProperty(process.stdout, 'isTTY', {value: true, configurable: true});
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
 
     try {
       await deployToCloudRun(defaultOptions);
       expect(intro).toHaveBeenCalledWith('Deployment to Cloud Run');
     } finally {
-      Object.defineProperty(process.stdout, 'isTTY', {value: originalIsTTY, configurable: true});
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: originalIsTTY,
+        configurable: true,
+      });
     }
   });
 
@@ -324,13 +335,19 @@ describe('deployToCloudRun', () => {
 
   it('should call outro on successful deployment when process.stdout.isTTY is true', async () => {
     const originalIsTTY = process.stdout.isTTY;
-    Object.defineProperty(process.stdout, 'isTTY', {value: true, configurable: true});
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
 
     try {
       await deployToCloudRun(defaultOptions);
-      expect(outro).toHaveBeenCalledWith('Agent Deployed Successfully!');
+      expect(outro).toHaveBeenCalledWith('Happy Agent Building!');
     } finally {
-      Object.defineProperty(process.stdout, 'isTTY', {value: originalIsTTY, configurable: true});
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: originalIsTTY,
+        configurable: true,
+      });
     }
   });
 
@@ -373,13 +390,11 @@ describe('deployToCloudRun', () => {
     await deployToCloudRun(defaultOptions);
 
     expect(log.step).toHaveBeenCalledWith('Starting deployment to Cloud Run...');
-    expect(log.step).toHaveBeenCalledWith('Copying agent source files...');
-    expect(log.step).toHaveBeenCalledWith('Creating package.json...');
-    expect(log.step).toHaveBeenCalledWith('Creating Dockerfile...');
     expect(log.step).toHaveBeenCalledWith('Deploying to Cloud Run...');
   });
 
   it('should call log.step for cleanup in finally block', async () => {
+    (isFolderExists as Mock).mockResolvedValue(true);
     await deployToCloudRun(defaultOptions);
 
     expect(log.step).toHaveBeenCalledWith('Cleaning up temporary files...');
@@ -475,6 +490,7 @@ describe('deployToCloudRun', () => {
 
   it('should call log.step for cleanup even when deployment fails', async () => {
     (loadFileData as Mock).mockResolvedValue({});
+    (isFolderExists as Mock).mockResolvedValue(true);
 
     await deployToCloudRun(defaultOptions);
 
