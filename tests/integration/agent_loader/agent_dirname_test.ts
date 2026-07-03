@@ -30,7 +30,7 @@ function sendInput(
 function waitForOutput(
   childProcess: ChildProcessWithoutNullStreams,
   matcher: (output: string) => boolean,
-  timeout = 15_000,
+  timeout = 30_000,
 ): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     let output = '';

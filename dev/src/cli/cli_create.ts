@@ -19,6 +19,7 @@ import {
 import {exec, execSync} from 'node:child_process';
 import * as path from 'node:path';
 import {promisify} from 'node:util';
+import {handleCancellation} from '../utils/cli_utils.js';
 import {
   createFolder,
   isFolderExists,
@@ -139,16 +140,6 @@ async function getGcpRegion(): Promise<string> {
   } catch (_e: unknown) {
     return '';
   }
-}
-
-function handleCancellation(value: string | symbol | boolean): value is symbol {
-  if (isCancel(value)) {
-    if (process.stdout.isTTY) {
-      outro('Operation cancelled');
-    }
-    return true;
-  }
-  return false;
 }
 
 async function generateAgentFolder(

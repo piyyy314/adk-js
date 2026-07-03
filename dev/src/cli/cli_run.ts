@@ -5,6 +5,7 @@
  */
 
 import {intro, isCancel, log, outro, spinner, text} from '@clack/prompts';
+import {handleCancellation} from '../utils/cli_utils.js';
 import {
   BaseAgent,
   BaseArtifactService,
@@ -127,69 +128,64 @@ async function runInteractively(
     memoryService: options.memoryService,
   });
 
-  while (true) {
-    let query: string;
+  const isTTY = process.stdin.isTTY === true;
+  const rl = isTTY
+    ? null
+    : createInterface({input: process.stdin, terminal: false});
 
-    if (process.stdin.isTTY === true) {
-      const input = await text({
-        message: 'Message',
-        placeholder: 'Type your message here (or "exit" to quit)...',
-      });
-      if (isCancel(input) || input === 'exit') {
-        break;
-      }
-      query = input as string;
-    } else {
-      // Non-interactive mode (piped stdin): read a line directly via readline.
-      const line = await new Promise<string | null>((resolve) => {
-        const rl = createInterface({input: process.stdin, terminal: false});
-        rl.once('line', (l) => {
-          rl.close();
-          resolve(l);
-        });
-        rl.once('close', () => resolve(null));
-      });
-      if (line === null || line === 'exit') {
-        break;
-      }
-      query = line;
-    }
+  try {
+    const inputIterator = isTTY
+      ? (async function* () {
+          while (true) {
+            const input = await text({
+              message: 'Message',
+              placeholder: 'Type your message here (or "exit" to quit)...',
+            });
+            if (handleCancellation(input)) return;
+            yield input as string;
+          }
+        })()
+      : rl![Symbol.asyncIterator]();
 
-    if (!query || !query.trim()) {
-      continue;
-    }
+    for await (const line of inputIterator) {
+      const query = line?.trim();
+      if (!query) continue;
+      if (query === 'exit') break;
 
-    const s = process.stdout.isTTY ? spinner() : null;
-    s?.start('Thinking...');
-    let spinnerStopped = false;
-    for await (const event of runner.runAsync({
-      userId: options.session.userId,
-      sessionId: options.session.id,
-      newMessage: {role: 'user', parts: [{text: query}]},
-    })) {
-      if (event.content && event.content.parts) {
-        const text = event.content.parts
-          .map((part) => part.text || '')
-          .join('');
-        if (text) {
-          if (process.stdout.isTTY) {
-            if (!spinnerStopped) {
-              s?.stop();
-              spinnerStopped = true;
-              process.stdout.write(`[${event.author}]: `);
+      const s = process.stdout.isTTY ? spinner() : null;
+      s?.start('Thinking...');
+      let spinnerStopped = false;
+      for await (const event of runner.runAsync({
+        userId: options.session.userId,
+        sessionId: options.session.id,
+        newMessage: {role: 'user', parts: [{text: query}]},
+      })) {
+        if (event.content && event.content.parts) {
+          const text = event.content.parts
+            .map((part) => part.text || '')
+            .join('');
+          if (text) {
+            if (process.stdout.isTTY) {
+              if (!spinnerStopped) {
+                s?.stop();
+                spinnerStopped = true;
+                process.stdout.write(`[${event.author}]: `);
+              }
+              process.stdout.write(text);
+            } else {
+              console.log(`[${event.author}]: ${text}`);
             }
-            process.stdout.write(text);
-          } else {
-            console.log(`[${event.author}]: ${text}`);
           }
         }
       }
+      if (process.stdout.isTTY && spinnerStopped) {
+        process.stdout.write('\n');
+      } else {
+        s?.stop();
+      }
     }
-    if (process.stdout.isTTY && spinnerStopped) {
-      process.stdout.write('\n');
-    } else {
-      s?.stop();
-    }
+  } finally {
+    rl?.close();
   }
 }
 
@@ -299,9 +295,7 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
           },
         }));
 
-      if (isCancel(sessionId)) {
-        if (process.stdout.isTTY && !options.inputFile)
-          outro('Operation cancelled');
+      if (handleCancellation(sessionId)) {
         return;
       }
 
