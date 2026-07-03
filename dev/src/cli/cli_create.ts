@@ -7,7 +7,6 @@
 import {
   confirm,
   intro,
-  isCancel,
   log,
   note,
   outro,

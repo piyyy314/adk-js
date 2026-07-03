@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {intro, isCancel, log, outro, spinner, text} from '@clack/prompts';
+import {intro, log, outro, spinner, text} from '@clack/prompts';
 import {handleCancellation} from '../utils/cli_utils.js';
 import {
   BaseAgent,
