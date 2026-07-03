@@ -63,6 +63,11 @@ vi.mock('@clack/prompts', () => ({
     step: vi.fn(),
     error: vi.fn(),
   },
+  spinner: vi.fn(() => ({
+    start: vi.fn(),
+    stop: vi.fn(),
+    message: vi.fn(),
+  })),
 }));
 
 describe('createDockerFileContent', () => {
@@ -133,7 +138,7 @@ describe('deployToCloudRun', () => {
 
     // Default mock behavior
     (isFile as Mock).mockResolvedValue(false);
-    (isFolderExists as Mock).mockResolvedValue(false);
+    (isFolderExists as Mock).mockResolvedValue(true);
     (tryToFindFileRecursively as Mock).mockResolvedValue(
       'path/to/package.json',
     );
@@ -300,13 +305,19 @@ describe('deployToCloudRun', () => {
 
   it('should call intro when process.stdout.isTTY is true', async () => {
     const originalIsTTY = process.stdout.isTTY;
-    Object.defineProperty(process.stdout, 'isTTY', {value: true, configurable: true});
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
 
     try {
       await deployToCloudRun(defaultOptions);
       expect(intro).toHaveBeenCalledWith('Deployment to Cloud Run');
     } finally {
-      Object.defineProperty(process.stdout, 'isTTY', {value: originalIsTTY, configurable: true});
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: originalIsTTY,
+        configurable: true,
+      });
     }
   });
 
@@ -328,7 +339,7 @@ describe('deployToCloudRun', () => {
 
     try {
       await deployToCloudRun(defaultOptions);
-      expect(outro).toHaveBeenCalledWith('Agent Deployed Successfully!');
+      expect(outro).toHaveBeenCalledWith('Happy Agent Building!');
     } finally {
       Object.defineProperty(process.stdout, 'isTTY', {value: originalIsTTY, configurable: true});
     }
