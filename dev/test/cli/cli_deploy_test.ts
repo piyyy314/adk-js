@@ -63,6 +63,11 @@ vi.mock('@clack/prompts', () => ({
     step: vi.fn(),
     error: vi.fn(),
   },
+  spinner: vi.fn(() => ({
+    start: vi.fn(),
+    stop: vi.fn(),
+    message: vi.fn(),
+  })),
 }));
 
 describe('createDockerFileContent', () => {
@@ -175,6 +180,7 @@ describe('deployToCloudRun', () => {
   });
 
   it('should deploy successfully with explicit options', async () => {
+    (isFolderExists as Mock).mockResolvedValue(true);
     await deployToCloudRun(defaultOptions);
 
     expect(spawnMock).toHaveBeenCalledWith(
@@ -304,7 +310,7 @@ describe('deployToCloudRun', () => {
 
     try {
       await deployToCloudRun(defaultOptions);
-      expect(intro).toHaveBeenCalledWith('Deployment to Cloud Run');
+      expect(intro).toHaveBeenCalledWith('Agent Deployment');
     } finally {
       Object.defineProperty(process.stdout, 'isTTY', {value: originalIsTTY, configurable: true});
     }
@@ -328,7 +334,7 @@ describe('deployToCloudRun', () => {
 
     try {
       await deployToCloudRun(defaultOptions);
-      expect(outro).toHaveBeenCalledWith('Agent Deployed Successfully!');
+      expect(outro).toHaveBeenCalledWith('Happy Agent Building!');
     } finally {
       Object.defineProperty(process.stdout, 'isTTY', {value: originalIsTTY, configurable: true});
     }
@@ -380,6 +386,7 @@ describe('deployToCloudRun', () => {
   });
 
   it('should call log.step for cleanup in finally block', async () => {
+    (isFolderExists as Mock).mockResolvedValue(true);
     await deployToCloudRun(defaultOptions);
 
     expect(log.step).toHaveBeenCalledWith('Cleaning up temporary files...');
@@ -475,6 +482,7 @@ describe('deployToCloudRun', () => {
 
   it('should call log.step for cleanup even when deployment fails', async () => {
     (loadFileData as Mock).mockResolvedValue({});
+    (isFolderExists as Mock).mockResolvedValue(true);
 
     await deployToCloudRun(defaultOptions);
 
