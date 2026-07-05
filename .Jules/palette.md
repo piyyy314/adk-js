@@ -34,7 +34,6 @@
 **Learning:** Adding validation to mandatory CLI inputs (like API keys and Project IDs) prevents downstream runtime errors and improves the robust feel of the tool. Providing copy-pasteable commands for common follow-up actions (like resuming a session or starting different interface modes) significantly lowers the barrier to entry for new users.
 **Action:** Always include 'validate' functions for required fields and provide actionable, copy-pasteable next steps in 'note' and 'log.info' outputs.
 
-## 2025-06-20 - Robust Cancellation and API Key Discovery
-
-**Learning:** Consolidating cancellation logic into a `handleCancellation` type guard ensures consistent "Operation cancelled" feedback across all prompts while satisfying TypeScript's type narrowing requirements. Additionally, providing the API key generation URL (e.g., Google AI Studio) immediately before the password prompt significantly improves the onboarding experience for users who don't yet have their credentials ready.
-**Action:** Use a type-guarded cancellation helper for interactive prompts and provide context-specific discovery links for external credentials.
+## 2025-06-20 - Centralizing CLI Cancellation and Improving Discovery
+**Learning:** Implementing a type-guarded `handleCancellation` helper ensures consistent "Operation cancelled" feedback across all prompts while satisfying TypeScript narrowing. Providing contextual discovery links (e.g., to Google AI Studio) immediately before sensitive input prompts (like API keys) reduces friction and prevents users from leaving the terminal to search for setup steps.
+**Action:** Use type guards for `@clack/prompts` cancellation checks and proactively provide URLs for required external configuration at the point of request.

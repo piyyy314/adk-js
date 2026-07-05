@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {intro, log, outro} from '@clack/prompts';
+import {intro, log, outro, spinner} from '@clack/prompts';
 import * as fs from 'node:fs/promises';
 import {afterEach, beforeEach, describe, expect, it, Mock, vi} from 'vitest';
 import {
@@ -55,20 +55,23 @@ vi.mock('../../src/utils/file_utils.js', () => ({
   tryToFindFileRecursively: vi.fn(),
 }));
 
-vi.mock('@clack/prompts', () => ({
-  intro: vi.fn(),
-  outro: vi.fn(),
-  log: {
-    info: vi.fn(),
-    step: vi.fn(),
-    error: vi.fn(),
-  },
-  spinner: vi.fn().mockReturnValue({
+vi.mock('@clack/prompts', () => {
+  const s = {
     start: vi.fn(),
     stop: vi.fn(),
     message: vi.fn(),
-  }),
-}));
+  };
+  return {
+    intro: vi.fn(),
+    outro: vi.fn(),
+    spinner: vi.fn(() => s),
+    log: {
+      info: vi.fn(),
+      step: vi.fn(),
+      error: vi.fn(),
+    },
+  };
+});
 
 describe('createDockerFileContent', () => {
   const defaultOptions: CreateDockerFileContentOptions = {
@@ -180,7 +183,9 @@ describe('deployToCloudRun', () => {
   });
 
   it('should deploy successfully with explicit options', async () => {
+    // Mock temp folder existence so cleanup is called
     (isFolderExists as Mock).mockResolvedValue(true);
+
     await deployToCloudRun(defaultOptions);
 
     expect(spawnMock).toHaveBeenCalledWith(
@@ -256,6 +261,7 @@ describe('deployToCloudRun', () => {
 
     await deployToCloudRun(defaultOptions);
 
+    // Should be called twice: once at the start of preparation, and once in finally
     expect(fs.rm).toHaveBeenCalledWith('/tmp/test-deploy', {
       recursive: true,
       force: true,
@@ -481,8 +487,8 @@ describe('deployToCloudRun', () => {
   });
 
   it('should call log.step for cleanup even when deployment fails', async () => {
-    (isFolderExists as Mock).mockResolvedValue(true);
     (loadFileData as Mock).mockResolvedValue({});
+    (isFolderExists as Mock).mockResolvedValue(true);
 
     await deployToCloudRun(defaultOptions);
 
