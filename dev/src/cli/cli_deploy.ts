@@ -317,6 +317,7 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
   log.step('Starting deployment to Cloud Run...');
 
   if (await isFolderExists(options.tempFolder)) {
+    log.step('Cleaning up existing temporary files...');
     await fs.rm(options.tempFolder, {recursive: true, force: true});
   }
 
@@ -366,7 +367,9 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
     log.error(`Failed to deploy to Cloud Run: ${(e as Error).message}`);
   } finally {
     if (await isFolderExists(options.tempFolder)) {
+      log.step('Cleaning up temporary files...');
       await fs.rm(options.tempFolder, {recursive: true, force: true});
+      log.info('Temporary files cleaned up.');
     }
     await agentLoader.disposeAll();
   }
