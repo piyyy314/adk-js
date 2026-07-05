@@ -33,3 +33,8 @@
 ## 2025-06-15 - Enhancing CLI Onboarding and Error Prevention
 **Learning:** Adding validation to mandatory CLI inputs (like API keys and Project IDs) prevents downstream runtime errors and improves the robust feel of the tool. Providing copy-pasteable commands for common follow-up actions (like resuming a session or starting different interface modes) significantly lowers the barrier to entry for new users.
 **Action:** Always include 'validate' functions for required fields and provide actionable, copy-pasteable next steps in 'note' and 'log.info' outputs.
+
+## 2025-06-20 - Robust Cancellation and API Key Discovery
+
+**Learning:** Consolidating cancellation logic into a `handleCancellation` type guard ensures consistent "Operation cancelled" feedback across all prompts while satisfying TypeScript's type narrowing requirements. Additionally, providing the API key generation URL (e.g., Google AI Studio) immediately before the password prompt significantly improves the onboarding experience for users who don't yet have their credentials ready.
+**Action:** Use a type-guarded cancellation helper for interactive prompts and provide context-specific discovery links for external credentials.

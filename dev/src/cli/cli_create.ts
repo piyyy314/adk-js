@@ -30,6 +30,21 @@ import {
 const execPromise = promisify(exec);
 const dirname = process.cwd();
 
+/**
+ * Handles cancellation of a clack prompt.
+ */
+function handleCancellation(
+  value: string | symbol | boolean,
+): value is symbol {
+  if (isCancel(value)) {
+    if (process.stdout.isTTY) {
+      outro('Operation cancelled');
+    }
+    return true;
+  }
+  return false;
+}
+
 const TS_CONFIG = `{
   "compilerOptions": {
     "target": "esnext",
@@ -150,13 +165,13 @@ async function generateAgentFolder(
     return true;
   }
 
-  const overwriteFolderResponse: symbol | boolean = forceYes
+  const overwriteFolderResponse = forceYes
     ? true
     : await confirm({
         message: `Folder ${agentDir} already exists. Would you like to overwrite existing folder?`,
       });
 
-  if (isCancel(overwriteFolderResponse)) {
+  if (handleCancellation(overwriteFolderResponse)) {
     return false;
   }
 
@@ -214,7 +229,7 @@ export async function createAgent(options: AgentCreationOptions) {
   }
 
   if (!options.model) {
-    const model: symbol | string = options.forceYes
+    const model = options.forceYes
       ? 'gemini-2.5-flash'
       : await select({
           message: 'Choose a model for the root agent',
@@ -242,7 +257,7 @@ export async function createAgent(options: AgentCreationOptions) {
           ],
         });
 
-    if (isCancel(model)) {
+    if (handleCancellation(model)) {
       return;
     }
     options.model = model;
@@ -267,14 +282,14 @@ export async function createAgent(options: AgentCreationOptions) {
           ],
         });
 
-    if (isCancel(language)) {
+    if (handleCancellation(language)) {
       return;
     }
     options.language = language;
   }
 
   if (!options.apiKey && !options.project) {
-    const backend: symbol | string = options.forceYes
+    const backend = options.forceYes
       ? 'googleai'
       : await select({
           message: 'Choose a backend',
@@ -292,7 +307,7 @@ export async function createAgent(options: AgentCreationOptions) {
           ],
         });
 
-    if (isCancel(backend)) {
+    if (handleCancellation(backend)) {
       return;
     }
 
@@ -300,7 +315,7 @@ export async function createAgent(options: AgentCreationOptions) {
       const defaultProject = await getGcpProject();
       const defaultRegion = await getGcpRegion();
 
-      const projectResponse: symbol | string = options.forceYes
+      const projectResponse = options.forceYes
         ? defaultProject
         : await text({
             message: 'Enter the Google Cloud Project ID',
@@ -312,12 +327,12 @@ export async function createAgent(options: AgentCreationOptions) {
             },
           });
 
-      if (isCancel(projectResponse)) {
+      if (handleCancellation(projectResponse)) {
         return;
       }
       options.project = projectResponse;
 
-      const regionResponse: symbol | string = options.forceYes
+      const regionResponse = options.forceYes
         ? defaultRegion
         : await text({
             message: 'Enter the Google Cloud Region',
@@ -329,12 +344,17 @@ export async function createAgent(options: AgentCreationOptions) {
             },
           });
 
-      if (isCancel(regionResponse)) {
+      if (handleCancellation(regionResponse)) {
         return;
       }
       options.region = regionResponse;
     } else {
-      const apiKeyResponse: symbol | string = options.forceYes
+      if (!options.forceYes) {
+        log.info(
+          'You can get a Google API Key at https://aistudio.google.com/',
+        );
+      }
+      const apiKeyResponse = options.forceYes
         ? ''
         : await password({
             message: 'Enter the Google API Key',
@@ -344,7 +364,7 @@ export async function createAgent(options: AgentCreationOptions) {
             },
           });
 
-      if (isCancel(apiKeyResponse)) {
+      if (handleCancellation(apiKeyResponse)) {
         return;
       }
       options.apiKey = apiKeyResponse;
