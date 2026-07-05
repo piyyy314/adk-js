@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {isCancel, select, text} from '@clack/prompts';
+import {confirm, isCancel, password, select, text} from '@clack/prompts';
 import {execSync} from 'node:child_process';
 import {
   afterEach,
@@ -27,8 +27,25 @@ import {
 
 // Mock dependencies
 vi.mock('@clack/prompts', () => ({
+  confirm: vi.fn(),
+  intro: vi.fn(),
   isCancel: vi.fn(),
+  password: vi.fn(),
+  log: {
+    error: vi.fn(),
+    info: vi.fn(),
+    message: vi.fn(),
+    step: vi.fn(),
+    success: vi.fn(),
+    warn: vi.fn(),
+  },
+  note: vi.fn(),
+  outro: vi.fn(),
   select: vi.fn(),
+  spinner: vi.fn(() => ({
+    start: vi.fn(),
+    stop: vi.fn(),
+  })),
   text: vi.fn(),
 }));
 
@@ -80,8 +97,14 @@ describe('createAgent', () => {
 
   describe('Non-interactive Mode (forceYes: true)', () => {
     it('should create agent with default values when minimal args provided', async () => {
+      const {intro, note, outro, spinner, log} = await import('@clack/prompts');
       await createAgent({...getFreshOptions(), forceYes: true});
 
+      expect(intro).not.toHaveBeenCalled();
+      expect(note).not.toHaveBeenCalled();
+      expect(outro).not.toHaveBeenCalled();
+      expect(spinner).not.toHaveBeenCalled();
+      expect(log.step).not.toHaveBeenCalled();
       expect(isFolderExists).toHaveBeenCalled();
       expect(createFolder).toHaveBeenCalled();
 
@@ -151,7 +174,7 @@ describe('createAgent', () => {
       (select as Mock).mockResolvedValueOnce('gemini-2.5-pro'); // Model
       (select as Mock).mockResolvedValueOnce('ts'); // Language
       (select as Mock).mockResolvedValueOnce('googleai'); // Backend
-      (text as Mock).mockResolvedValueOnce('test-key'); // API Key
+      (password as Mock).mockResolvedValueOnce('test-key'); // API Key
 
       await createAgent(getFreshOptions());
 
@@ -166,27 +189,28 @@ describe('createAgent', () => {
       );
     });
 
-    it('should exit if model selection is cancelled', async () => {
+    it('should return without creating files if model selection is cancelled', async () => {
       (select as Mock).mockResolvedValueOnce('cancel-symbol');
       (isCancel as unknown as Mock).mockReturnValue(true);
 
-      await expect(createAgent(getFreshOptions())).rejects.toThrow(
-        /process\.exit/,
-      );
+      await expect(createAgent(getFreshOptions())).resolves.toBeUndefined();
+      expect(saveToFile).not.toHaveBeenCalled();
     });
 
     it('should prompt for language if not provided', async () => {
       (select as Mock).mockResolvedValueOnce('gemini-2.5-flash');
       (select as Mock).mockResolvedValueOnce('js');
       (select as Mock).mockResolvedValueOnce('googleai');
-      (text as Mock).mockResolvedValueOnce('test-key');
+      (password as Mock).mockResolvedValueOnce('test-key');
 
       await createAgent(getFreshOptions());
 
       expect(select).toHaveBeenCalledWith(
         expect.objectContaining({
           message: 'Choose a language for the agent',
-          options: expect.arrayContaining([{label: 'JavaScript', value: 'js'}]),
+          options: expect.arrayContaining([
+            expect.objectContaining({label: 'JavaScript', value: 'js'}),
+          ]),
         }),
       );
       expect(saveToFile).toHaveBeenCalledWith(
@@ -226,17 +250,17 @@ describe('createAgent', () => {
   describe('Folder Handling', () => {
     it('should ask to overwrite if folder exists', async () => {
       (isFolderExists as Mock).mockResolvedValue(true);
-      (select as Mock).mockResolvedValueOnce(true); // Overwrite = Yes
+      (confirm as unknown as Mock).mockResolvedValueOnce(true); // Overwrite = Yes
 
       // Follow up choices since we continue
       (select as Mock).mockResolvedValue('gemini-2.5-flash');
       (select as Mock).mockResolvedValue('ts');
       (select as Mock).mockResolvedValue('googleai');
-      (text as Mock).mockResolvedValue('key');
+      (password as Mock).mockResolvedValue('key');
 
       await createAgent(getFreshOptions());
 
-      expect(select).toHaveBeenCalledWith(
+      expect(confirm).toHaveBeenCalledWith(
         expect.objectContaining({
           message: expect.stringContaining('already exists'),
         }),
@@ -244,14 +268,80 @@ describe('createAgent', () => {
       expect(removeFolder).toHaveBeenCalled();
     });
 
-    it('should exit if user declines overwrite', async () => {
+    it('should return without modifying files if user declines overwrite', async () => {
       (isFolderExists as Mock).mockResolvedValue(true);
-      (select as Mock).mockResolvedValueOnce(false); // Overwrite = No
+      (confirm as unknown as Mock).mockResolvedValueOnce(false); // Overwrite = No
 
-      await expect(createAgent(getFreshOptions())).rejects.toThrow(
-        /process\.exit/,
-      );
+      await expect(createAgent(getFreshOptions())).resolves.toBeUndefined();
       expect(removeFolder).not.toHaveBeenCalled();
+    });
+
+    it('should return without modifying files if overwrite confirm is cancelled', async () => {
+      (isFolderExists as Mock).mockResolvedValue(true);
+      const cancelSymbol = Symbol('cancel');
+      (confirm as unknown as Mock).mockResolvedValueOnce(cancelSymbol);
+      (isCancel as unknown as Mock).mockReturnValueOnce(true);
+
+      await expect(createAgent(getFreshOptions())).resolves.toBeUndefined();
+      expect(removeFolder).not.toHaveBeenCalled();
+      expect(createFolder).not.toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('spinner behavior during dependency installation', () => {
+    it('should start and stop spinner during successful npm install when not forceYes', async () => {
+      const mockSpinnerInstance = {start: vi.fn(), stop: vi.fn()};
+      const {spinner: spinnerMock} = await import('@clack/prompts');
+      (spinnerMock as Mock).mockReturnValue(mockSpinnerInstance);
+
+      await createAgent({...getFreshOptions(), forceYes: false});
+
+      expect(mockSpinnerInstance.start).toHaveBeenCalledWith(
+        'Installing dependencies...',
+      );
+      expect(mockSpinnerInstance.stop).toHaveBeenCalledWith(
+        'Dependencies installed successfully.',
+      );
+    });
+
+    it('should NOT start spinner during npm install when forceYes is true', async () => {
+      const mockSpinnerInstance = {start: vi.fn(), stop: vi.fn()};
+      const {spinner: spinnerMock, intro} = await import('@clack/prompts');
+      (spinnerMock as Mock).mockReturnValue(mockSpinnerInstance);
+
+      await createAgent({...getFreshOptions(), forceYes: true});
+
+      expect(spinnerMock).not.toHaveBeenCalled();
+      expect(intro).not.toHaveBeenCalled();
+    });
+
+    it('should stop spinner with error message when npm install fails and not forceYes', async () => {
+      const mockSpinnerInstance = {start: vi.fn(), stop: vi.fn()};
+      const {spinner: spinnerMock} = await import('@clack/prompts');
+      (spinnerMock as Mock).mockReturnValue(mockSpinnerInstance);
+
+      const {exec: execMock} = await import('node:child_process');
+      // Make exec fail by calling callback with error
+      (execMock as unknown as Mock).mockImplementation(
+        (
+          _cmd: string,
+          _opts: unknown,
+          callback: (err: Error | null) => void,
+        ) => {
+          callback(new Error('npm install failed'));
+          return {on: vi.fn()};
+        },
+      );
+
+      await createAgent({...getFreshOptions(), forceYes: false});
+
+      expect(mockSpinnerInstance.start).toHaveBeenCalledWith(
+        'Installing dependencies...',
+      );
+      expect(mockSpinnerInstance.stop).toHaveBeenCalledWith(
+        'Failed to install dependencies.',
+        1,
+      );
     });
   });
 });

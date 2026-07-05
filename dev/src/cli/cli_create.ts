@@ -4,7 +4,18 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {isCancel, select, text} from '@clack/prompts';
+import {
+  confirm,
+  intro,
+  isCancel,
+  log,
+  note,
+  outro,
+  password,
+  select,
+  spinner,
+  text,
+} from '@clack/prompts';
 import {exec, execSync} from 'node:child_process';
 import * as path from 'node:path';
 import {promisify} from 'node:util';
@@ -130,34 +141,33 @@ async function getGcpRegion(): Promise<string> {
   }
 }
 
-async function generateAgentFolder(agentDir: string, forceYes: boolean) {
+async function generateAgentFolder(
+  agentDir: string,
+  forceYes: boolean,
+): Promise<boolean> {
   if (!(await isFolderExists(agentDir))) {
-    return await createFolder(agentDir);
+    await createFolder(agentDir);
+    return true;
   }
 
   const overwriteFolderResponse: symbol | boolean = forceYes
     ? true
-    : await select({
-        message: `Folder ${
-          agentDir
-        } already exists. Would you like to overwrite existing folder?`,
-        options: [
-          {label: 'Yes', value: true},
-          {label: 'No', value: false},
-        ],
+    : await confirm({
+        message: `Folder ${agentDir} already exists. Would you like to overwrite existing folder?`,
       });
 
   if (isCancel(overwriteFolderResponse)) {
-    process.exit(0);
+    return false;
   }
 
   if (!overwriteFolderResponse) {
-    console.error(`Agent directory ${agentDir} already exists.`);
-    process.exit(0);
+    log.error(`Agent directory ${agentDir} already exists.`);
+    return false;
   }
 
   await removeFolder(agentDir);
   await createFolder(agentDir);
+  return true;
 }
 
 function generateEnvFile(options: AgentCreationOptions): string {
@@ -196,8 +206,12 @@ async function generateFiles(options: AgentCreationOptions) {
 }
 
 export async function createAgent(options: AgentCreationOptions) {
+  if (!options.forceYes && process.stdout.isTTY) intro('Agent Creation');
   const agentDir = path.join(dirname, options.agentName);
-  await generateAgentFolder(agentDir, options.forceYes);
+  const folderReady = await generateAgentFolder(agentDir, options.forceYes);
+  if (!folderReady) {
+    return;
+  }
 
   if (!options.model) {
     const model: symbol | string = options.forceYes
@@ -205,18 +219,31 @@ export async function createAgent(options: AgentCreationOptions) {
       : await select({
           message: 'Choose a model for the root agent',
           options: [
-            {label: 'gemini-2.5-flash', value: 'gemini-2.5-flash'},
-            {label: 'gemini-2.5-pro', value: 'gemini-2.5-pro'},
+            {
+              label: 'gemini-2.5-flash',
+              value: 'gemini-2.5-flash',
+              hint: 'optimized for speed and efficiency',
+            },
+            {
+              label: 'gemini-2.5-pro',
+              value: 'gemini-2.5-pro',
+              hint: 'complex reasoning and large context',
+            },
             {
               label: 'gemini-3-flash-preview',
               value: 'gemini-3-flash-preview',
+              hint: 'next-gen speed and efficiency (preview)',
             },
-            {label: 'gemini-3-pro-preview', value: 'gemini-3-pro-preview'},
+            {
+              label: 'gemini-3-pro-preview',
+              value: 'gemini-3-pro-preview',
+              hint: 'next-gen complex reasoning (preview)',
+            },
           ],
         });
 
     if (isCancel(model)) {
-      process.exit(0);
+      return;
     }
     options.model = model;
   }
@@ -227,13 +254,21 @@ export async function createAgent(options: AgentCreationOptions) {
       : await select({
           message: 'Choose a language for the agent',
           options: [
-            {label: 'TypeScript', value: 'ts'},
-            {label: 'JavaScript', value: 'js'},
+            {
+              label: 'TypeScript',
+              value: 'ts',
+              hint: 'strongly typed, recommended',
+            },
+            {
+              label: 'JavaScript',
+              value: 'js',
+              hint: 'flexible, no compilation',
+            },
           ],
         });
 
     if (isCancel(language)) {
-      process.exit(0);
+      return;
     }
     options.language = language;
   }
@@ -244,30 +279,41 @@ export async function createAgent(options: AgentCreationOptions) {
       : await select({
           message: 'Choose a backend',
           options: [
-            {label: 'Google AI', value: 'googleai'},
-            {label: 'Vertex AI', value: 'vertex'},
+            {
+              label: 'Google AI',
+              value: 'googleai',
+              hint: 'requires API key (easiest to start)',
+            },
+            {
+              label: 'Vertex AI',
+              value: 'vertex',
+              hint: 'requires GCP project (enterprise-grade)',
+            },
           ],
         });
 
     if (isCancel(backend)) {
-      process.exit(0);
+      return;
     }
 
     if (backend === 'vertex') {
       const defaultProject = await getGcpProject();
       const defaultRegion = await getGcpRegion();
 
-      const projectResponse: string = options.forceYes
+      const projectResponse: symbol | string = options.forceYes
         ? defaultProject
-        : (
-            await text({
-              message: 'Enter the Google Cloud Project ID',
-              initialValue: defaultProject,
-            })
-          ).toString();
+        : await text({
+            message: 'Enter the Google Cloud Project ID',
+            initialValue: defaultProject,
+            placeholder: 'my-project-id',
+            validate: (value) => {
+              if (!value) return 'Project ID is required';
+              return;
+            },
+          });
 
       if (isCancel(projectResponse)) {
-        process.exit(0);
+        return;
       }
       options.project = projectResponse;
 
@@ -276,41 +322,69 @@ export async function createAgent(options: AgentCreationOptions) {
         : await text({
             message: 'Enter the Google Cloud Region',
             initialValue: defaultRegion,
+            placeholder: 'us-central1',
+            validate: (value) => {
+              if (!value) return 'Region is required';
+              return;
+            },
           });
 
       if (isCancel(regionResponse)) {
-        process.exit(0);
+        return;
       }
       options.region = regionResponse;
     } else {
       const apiKeyResponse: symbol | string = options.forceYes
         ? ''
-        : await text({
+        : await password({
             message: 'Enter the Google API Key',
+            validate: (value) => {
+              if (!value) return 'API Key is required';
+              return;
+            },
           });
 
       if (isCancel(apiKeyResponse)) {
-        process.exit(0);
+        return;
       }
       options.apiKey = apiKeyResponse;
     }
   }
 
+  if (!options.forceYes) log.step('Generating files...');
   await generateFiles(options);
-  if (options.language === 'ts') {
-    await execPromise(`npm install typescript --save-dev`, {cwd: agentDir});
+
+  const s = !options.forceYes ? spinner() : null;
+  s?.start('Installing dependencies...');
+  try {
+    if (options.language === 'ts') {
+      await execPromise(`npm install typescript --save-dev`, {cwd: agentDir});
+    }
+    await execPromise(
+      `npm install @google/adk @google/adk-devtools zod dotenv`,
+      {
+        cwd: agentDir,
+      },
+    );
+    s?.stop('Dependencies installed successfully.');
+  } catch (e) {
+    s?.stop('Failed to install dependencies.', 1);
+    if (!options.forceYes) log.error(`Error: ${(e as Error).message}`);
   }
-  await execPromise(`npm install @google/adk @google/adk-devtools zod dotenv`, {
-    cwd: agentDir,
-  });
 
   const files = await listFiles(agentDir);
 
-  console.log(`\nCreated the following files in ${agentDir}:`);
-  files.forEach((file) => {
-    console.log(`  - ${file}`);
-  });
-  console.log(
-    `Run 'cd ${options.agentName} && npm run web' to start the agent in a web interface`,
-  );
+  if (!options.forceYes) {
+    note(
+      `Created the following files in ${agentDir}:\n` +
+        files.map((file) => `  - ${file}`).join('\n') +
+        `\n\nTo get started, run:\n` +
+        `  cd ${options.agentName}\n` +
+        `  npm run web  # Start the agent in a web interface\n` +
+        `  npm run cli  # Interact with the agent in the terminal`,
+      'Agent Created Successfully',
+    );
+
+    if (process.stdout.isTTY) outro('Happy Agent Building!');
+  }
 }

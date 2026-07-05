@@ -17,11 +17,51 @@ const TEST_EXECUTION_TIMEOUT = 40000;
 function sendInput(
   childProcess: ChildProcessWithoutNullStreams,
   input: string,
+  waitText?: string,
 ): Promise<string> {
   childProcess.stdin.write(input);
-  childProcess.stdin.end();
 
+  if (waitText) {
+    return waitForOutput(childProcess, (output) => output.includes(waitText));
+  }
   return getResponse(childProcess);
+}
+
+function waitForOutput(
+  childProcess: ChildProcessWithoutNullStreams,
+  matcher: (output: string) => boolean,
+  timeout = 15_000,
+): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    let output = '';
+
+    const timer = setTimeout(() => {
+      cleanup();
+      reject(new Error(`Timed out waiting for output. Received:\n${output}`));
+    }, timeout);
+
+    const onData = (data: Buffer) => {
+      output += data.toString();
+      if (matcher(output)) {
+        cleanup();
+        resolve(output);
+      }
+    };
+
+    const onExit = () => {
+      cleanup();
+      resolve(output);
+    };
+
+    const cleanup = () => {
+      clearTimeout(timer);
+      childProcess.stdout.off('data', onData);
+      childProcess.off('exit', onExit);
+    };
+
+    childProcess.stdout.on('data', onData);
+    childProcess.once('exit', onExit);
+  });
 }
 
 function getResponse(
@@ -71,7 +111,11 @@ describe.each(['__dirname', '__filename', 'import_meta_url'])(
           shell: true,
         });
 
-        let response = await sendInput(childProcess, 'Tell me a joke.\n');
+        let response = await sendInput(
+          childProcess,
+          'Tell me a joke.\n',
+          "I'm stubby model response!",
+        );
 
         expect(response.toString()).toContain("I'm stubby model response!");
 

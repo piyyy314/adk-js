@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {isCancel, intro, outro, text} from '@clack/prompts';
+import {intro, isCancel, log, outro, spinner, text} from '@clack/prompts';
 import {
   BaseAgent,
   BaseArtifactService,
@@ -17,6 +17,7 @@ import {
   Session,
 } from '@google/adk';
 import * as path from 'node:path';
+import {createInterface} from 'node:readline';
 
 import {AgentFile, AgentFileOptions} from '../utils/agent_loader.js';
 import {loadFileData, saveToFile} from '../utils/file_utils.js';
@@ -66,15 +67,32 @@ async function runFromInputFile(
       newMessage: {role: 'user', parts: [{text: query}]},
     };
 
+    const s = process.stdout.isTTY ? spinner() : null;
+    s?.start('Thinking...');
+    let spinnerStopped = false;
     for await (const event of runner.runAsync(runOptions)) {
       if (event.content && event.content.parts) {
         const text = event.content.parts
           .map((part) => part.text || '')
           .join('');
         if (text) {
-          console.log(`[${event.author}]: ${text}`);
+          if (process.stdout.isTTY) {
+            if (!spinnerStopped) {
+              s?.stop();
+              spinnerStopped = true;
+              process.stdout.write(`[${event.author}]: `);
+            }
+            process.stdout.write(text);
+          } else {
+            console.log(`[${event.author}]: ${text}`);
+          }
         }
       }
+    }
+    if (process.stdout.isTTY && spinnerStopped) {
+      process.stdout.write('\n');
+    } else {
+      s?.stop();
     }
   }
 
@@ -88,6 +106,16 @@ interface RunInteractivelyOptions {
   sessionService: BaseSessionService;
   memoryService?: BaseMemoryService;
 }
+/**
+ * Runs an agent in an interactive CLI loop, sending each user input to the agent runner and printing emitted events.
+ *
+ * The loop ends when the user cancels the prompt or types `exit`. Empty or whitespace-only inputs are ignored.
+ *
+ * @param options - Configuration for the interactive run. Required fields:
+ *   - `rootAgent`: the agent implementation to drive.
+ *   - `session`: the current session (provides `userId` and `id`).
+ *   - `artifactService`, `sessionService`, `memoryService` (optional): services passed to the runner.
+ */
 async function runInteractively(
   options: RunInteractivelyOptions,
 ): Promise<void> {
@@ -100,19 +128,40 @@ async function runInteractively(
   });
 
   while (true) {
-    const query = await text({
-      message: 'User',
-      placeholder: 'Type your message or "exit" to quit',
-    });
+    let query: string;
 
-    if (isCancel(query) || query === 'exit') {
-      break;
+    if (process.stdin.isTTY === true) {
+      const input = await text({
+        message: 'Message',
+        placeholder: 'Type your message here (or "exit" to quit)...',
+      });
+      if (isCancel(input) || input === 'exit') {
+        break;
+      }
+      query = input as string;
+    } else {
+      // Non-interactive mode (piped stdin): read a line directly via readline.
+      const line = await new Promise<string | null>((resolve) => {
+        const rl = createInterface({input: process.stdin, terminal: false});
+        rl.once('line', (l) => {
+          rl.close();
+          resolve(l);
+        });
+        rl.once('close', () => resolve(null));
+      });
+      if (line === null || line === 'exit') {
+        break;
+      }
+      query = line;
     }
 
     if (!query || !query.trim()) {
       continue;
     }
 
+    const s = process.stdout.isTTY ? spinner() : null;
+    s?.start('Thinking...');
+    let spinnerStopped = false;
     for await (const event of runner.runAsync({
       userId: options.session.userId,
       sessionId: options.session.id,
@@ -123,9 +172,23 @@ async function runInteractively(
           .map((part) => part.text || '')
           .join('');
         if (text) {
-          console.log(`[${event.author}]: ${text}`);
+          if (process.stdout.isTTY) {
+            if (!spinnerStopped) {
+              s?.stop();
+              spinnerStopped = true;
+              process.stdout.write(`[${event.author}]: `);
+            }
+            process.stdout.write(text);
+          } else {
+            console.log(`[${event.author}]: ${text}`);
+          }
         }
       }
+    }
+    if (process.stdout.isTTY && spinnerStopped) {
+      process.stdout.write('\n');
+    } else {
+      s?.stop();
     }
   }
 }
@@ -145,6 +208,13 @@ export interface RunAgentOptions {
   otelToCloud?: boolean;
   agentFileLoadOptions?: AgentFileOptions;
 }
+/**
+ * Run an agent defined by an agent file, driving it from an input file, a saved session, or an interactive CLI and optionally persist the resulting session.
+ *
+ * Runs in one of three modes determined by `options`: if `inputFile` is provided, executes the ordered queries from that file; if `savedSessionFile` is provided, replays the saved session events and then enters interactive mode; otherwise starts a fresh interactive session. Uses in-memory defaults for artifact, session, and memory services when overrides are not supplied. If `saveSession` is true, prompts for a session ID (unless `sessionId` is provided) and writes the session to `${agentPath}/${sessionId}.session.json`; cancelling interactive input only exits the interaction loop, while cancelling the session ID prompt aborts saving.
+ *
+ * @param options - Configuration for running the agent including the agent file path, optional input or saved session file, whether to save the session, optional sessionId to use when saving, and optional service overrides for artifactService, sessionService, and memoryService.
+ */
 export async function runAgent(options: RunAgentOptions): Promise<void> {
   try {
     const userId = 'test_user';
@@ -164,6 +234,13 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
       userId,
     });
 
+    if (process.stdout.isTTY && !options.inputFile) {
+      const mode = options.savedSessionFile
+        ? 'Resuming session'
+        : 'Running agent';
+      intro(`${mode}: ${rootAgent.name}`);
+    }
+
     if (options.inputFile) {
       session =
         (await runFromInputFile({
@@ -175,18 +252,22 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
           memoryService,
           filePath: options.inputFile,
         })) || session;
-    } else if (options.savedSessionFile) {
-      const loadedSession = await loadFileData<Session>(
-        options.savedSessionFile,
-      );
-      if (loadedSession) {
-        for (const event of loadedSession.events) {
-          await sessionService.appendEvent({session, event});
-          const content = event.content;
-          if (content && content.parts?.length) {
-            const text = content.parts.map((part) => part.text || '').join('');
-            if (text) {
-              console.log(`[${event.author}]: ${text}`);
+    } else {
+      if (options.savedSessionFile) {
+        const loadedSession = await loadFileData<Session>(
+          options.savedSessionFile,
+        );
+        if (loadedSession) {
+          for (const event of loadedSession.events) {
+            await sessionService.appendEvent({session, event});
+            const content = event.content;
+            if (content && content.parts?.length) {
+              const text = content.parts
+                .map((part) => part.text || '')
+                .join('');
+              if (text) {
+                console.log(`[${event.author}]: ${text}`);
+              }
             }
           }
         }
@@ -199,28 +280,31 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
         memoryService,
         session,
       });
-    } else {
-      intro(`Running agent ${rootAgent.name}`);
-      await runInteractively({
-        rootAgent,
-        artifactService,
-        sessionService,
-        memoryService,
-        session,
-      });
     }
 
     if (options.saveSession) {
-      let sessionId = options.sessionId;
-      if (!sessionId) {
-        const sessionIdResponse = await text({
-          message: 'Session ID to save',
-        });
-        if (isCancel(sessionIdResponse)) {
-          return;
-        }
-        sessionId = sessionIdResponse;
+      const defaultSessionId = new Date().toISOString().replace(/[:.]/g, '-');
+      const sessionId =
+        options.sessionId ||
+        (await text({
+          message: 'Session ID to save (will be used as filename)',
+          initialValue: defaultSessionId,
+          placeholder: 'e.g. my-session',
+          validate: (value) => {
+            if (!value) return 'Session ID is required';
+            if (/[^-a-zA-Z0-9_]/.test(value)) {
+              return 'Session ID contains invalid characters';
+            }
+            return;
+          },
+        }));
+
+      if (isCancel(sessionId)) {
+        if (process.stdout.isTTY && !options.inputFile)
+          outro('Operation cancelled');
+        return;
       }
+
       const sessionPath = path.join(
         options.agentPath,
         `${sessionId}.session.json`,
@@ -232,10 +316,14 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
       });
       await saveToFile(path.join(dirname, sessionPath), sessionToStore);
 
-      console.log('Session saved to', sessionPath);
+      log.info(
+        `Session saved to ${sessionPath}. To resume, run: adk run ${options.agentPath} --resume ${sessionPath}`,
+      );
     }
-    outro('Goodbye!');
+
+    if (process.stdout.isTTY && !options.inputFile)
+      outro('Happy Agent Building!');
   } catch (e) {
-    console.log(e);
+    log.error(e instanceof Error ? e.message : String(e));
   }
 }

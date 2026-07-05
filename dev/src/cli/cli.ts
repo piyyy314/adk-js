@@ -119,10 +119,12 @@ const LOG_LEVEL_OPTION = new Option(
   'Optional. The log level of the server',
 ).default('info');
 const SESSION_SERVICE_URI_OPTION = new Option(
-  '--session_service_uri <string>, Optional. The URI of the session service. Supported URIs: memory:// for in-memory session service.',
+  '--session_service_uri <string>',
+  'Optional. The URI of the session service. Supported URIs: memory:// for in-memory session service.',
 );
 const ARTIFACT_SERVICE_URI_OPTION = new Option(
-  '--artifact_service_uri <string>, Optional. The URI of the artifact service. Supported URIs: gs://<bucket name> for GCS artifact service.',
+  '--artifact_service_uri <string>',
+  'Optional. The URI of the artifact service. Supported URIs: gs://<bucket name> for GCS artifact service.',
 );
 const OTEL_TO_CLOUD_OPTION = new Option(
   '--otel_to_cloud [boolean]',
@@ -134,13 +136,16 @@ const COMPILE_AGENT_FILE = new Option(
 ).default(true);
 const BUNDLE_AGENT_FILE = new Option(
   '--bundle [boolean]',
-  'Optional. Whether to compile ts agent file to js before execution',
+  'Optional. Whether to bundle the agent file and its dependencies',
 ).default(true);
 const A2A_OPTION = new Option(
   '--a2a [boolean]',
   'Optional. Whether to enable A2A for web/api server. Default: false',
 ).default(false);
-const AGENT_FILE_MODULE_TYPE = new Option('--file_type <string>', 'Optional. ');
+const AGENT_FILE_MODULE_TYPE = new Option(
+  '--file_type <string>',
+  'Optional. The module type of the agent file (cjs or esm)',
+);
 AGENT_FILE_MODULE_TYPE.argChoices = [FileModuleType.CJS, FileModuleType.ESM];
 
 /**
@@ -247,7 +252,7 @@ export function createProgram(): Command {
     .description('Creates a new agent')
     .argument('[agent]', 'Name to give the new agent', 'adk_agent')
     .option('-y, --yes', 'Optional. Skip confirmation prompts.')
-    .option('--model <string>', 'Optional. THe model used for the root_agent')
+    .option('--model <string>', 'Optional. The model used for the root_agent')
     .option(
       '--api_key <string>',
       'Optional. The API Key needed to access the model, e.g. Google AI API Key.',
