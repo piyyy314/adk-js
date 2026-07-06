@@ -304,7 +304,7 @@ describe('deployToCloudRun', () => {
 
     try {
       await deployToCloudRun(defaultOptions);
-      expect(intro).toHaveBeenCalledWith('Deployment to Cloud Run');
+      expect(intro).toHaveBeenCalledWith('Agent Deployment');
     } finally {
       Object.defineProperty(process.stdout, 'isTTY', {value: originalIsTTY, configurable: true});
     }
@@ -328,7 +328,7 @@ describe('deployToCloudRun', () => {
 
     try {
       await deployToCloudRun(defaultOptions);
-      expect(outro).toHaveBeenCalledWith('Agent Deployed Successfully!');
+      expect(outro).toHaveBeenCalledWith('Happy Agent Building!');
     } finally {
       Object.defineProperty(process.stdout, 'isTTY', {value: originalIsTTY, configurable: true});
     }
