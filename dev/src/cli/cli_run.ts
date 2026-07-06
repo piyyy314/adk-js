@@ -127,32 +127,35 @@ async function runInteractively(
     memoryService: options.memoryService,
   });
 
-  while (true) {
-    let query: string;
+  const rl =
+    process.stdin.isTTY === true
+      ? null
+      : createInterface({input: process.stdin, terminal: false});
+  const it = rl ? rl[Symbol.asyncIterator]() : null;
 
+  const getQuery = async (): Promise<string | null> => {
     if (process.stdin.isTTY === true) {
       const input = await text({
         message: 'Message',
         placeholder: 'Type your message here (or "exit" to quit)...',
       });
       if (isCancel(input) || input === 'exit') {
-        break;
+        return null;
       }
-      query = input as string;
+      return input as string;
     } else {
-      // Non-interactive mode (piped stdin): read a line directly via readline.
-      const line = await new Promise<string | null>((resolve) => {
-        const rl = createInterface({input: process.stdin, terminal: false});
-        rl.once('line', (l) => {
-          rl.close();
-          resolve(l);
-        });
-        rl.once('close', () => resolve(null));
-      });
-      if (line === null || line === 'exit') {
-        break;
+      const {value, done} = await it!.next();
+      if (done || value === 'exit') {
+        return null;
       }
-      query = line;
+      return value;
+    }
+  };
+
+  while (true) {
+    const query = await getQuery();
+    if (query === null) {
+      break;
     }
 
     if (!query || !query.trim()) {
