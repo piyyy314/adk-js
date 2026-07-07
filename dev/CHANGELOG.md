@@ -28,7 +28,7 @@
 - export AdkApiServer from @google/adk-devtools package ([#245](https://github.com/piyyy314/adk-js/issues/245)) ([0887e40](https://github.com/piyyy314/adk-js/commit/0887e4082974fb500a67411ded196f31e9d790bf))
 - flip ADK CLI to be ESM native instead of CommonJS. ([#113](https://github.com/piyyy314/adk-js/issues/113)) ([1eb443e](https://github.com/piyyy314/adk-js/commit/1eb443eff054bde1aa9e85faaeb08de902620991))
 - integrate with ADK conformance tests ([#168](https://github.com/piyyy314/adk-js/issues/168)) ([3a7c012](https://github.com/piyyy314/adk-js/commit/3a7c012e035f665dbf200640c10caa6e6dd82aa3))
-- keep original **dirname, **filename and import.meta.url value for compiled agent files. ([#254](https://github.com/piyyy314/adk-js/issues/254)) ([db89a42](https://github.com/piyyy314/adk-js/commit/db89a4212000a450b6b197438cb798b4bf294831))
+- keep original `__dirname`, `__filename` and `import.meta.url` value for compiled agent files. ([#254](https://github.com/piyyy314/adk-js/issues/254)) ([db89a42](https://github.com/piyyy314/adk-js/commit/db89a4212000a450b6b197438cb798b4bf294831))
 - support Zod v3 and v4. ([#46](https://github.com/piyyy314/adk-js/issues/46)) ([accb7ca](https://github.com/piyyy314/adk-js/commit/accb7ca3bdec1295c81a4966177a2d5ed1103313))
 
 ### Bug Fixes
