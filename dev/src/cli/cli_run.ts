@@ -153,6 +153,7 @@ async function processQuery(
  *   - `rootAgent`: the agent implementation to drive.
  *   - `session`: the current session (provides `userId` and `id`).
  *   - `artifactService`, `sessionService`, `memoryService` (optional): services passed to the runner.
+ * @returns `true` when cancelled from the interactive prompt, otherwise `false`.
  */
 async function runInteractively(
   options: RunInteractivelyOptions,
@@ -190,7 +191,11 @@ async function runInteractively(
         await processQuery(query, runner, options);
       }
     } else {
-      for await (const line of rl!) {
+      const stdinReader = rl;
+      if (!stdinReader) {
+        return false;
+      }
+      for await (const line of stdinReader) {
         if (line === 'exit') {
           break;
         }
