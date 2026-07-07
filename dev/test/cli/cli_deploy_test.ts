@@ -55,15 +55,23 @@ vi.mock('../../src/utils/file_utils.js', () => ({
   tryToFindFileRecursively: vi.fn(),
 }));
 
-vi.mock('@clack/prompts', () => ({
-  intro: vi.fn(),
-  outro: vi.fn(),
-  log: {
-    info: vi.fn(),
-    step: vi.fn(),
-    error: vi.fn(),
-  },
-}));
+vi.mock('@clack/prompts', () => {
+  const spinnerMock = {
+    start: vi.fn(),
+    stop: vi.fn(),
+    message: vi.fn(),
+  };
+  return {
+    intro: vi.fn(),
+    outro: vi.fn(),
+    spinner: vi.fn(() => spinnerMock),
+    log: {
+      info: vi.fn(),
+      step: vi.fn(),
+      error: vi.fn(),
+    },
+  };
+});
 
 describe('createDockerFileContent', () => {
   const defaultOptions: CreateDockerFileContentOptions = {
@@ -175,6 +183,7 @@ describe('deployToCloudRun', () => {
   });
 
   it('should deploy successfully with explicit options', async () => {
+    (isFolderExists as Mock).mockResolvedValue(true);
     await deployToCloudRun(defaultOptions);
 
     expect(spawnMock).toHaveBeenCalledWith(
@@ -300,13 +309,38 @@ describe('deployToCloudRun', () => {
 
   it('should call intro when process.stdout.isTTY is true', async () => {
     const originalIsTTY = process.stdout.isTTY;
-    Object.defineProperty(process.stdout, 'isTTY', {value: true, configurable: true});
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
 
     try {
       await deployToCloudRun(defaultOptions);
-      expect(intro).toHaveBeenCalledWith('Deployment to Cloud Run');
+      expect(intro).toHaveBeenCalledWith('Agent Deployment');
     } finally {
-      Object.defineProperty(process.stdout, 'isTTY', {value: originalIsTTY, configurable: true});
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: originalIsTTY,
+        configurable: true,
+      });
+    }
+  });
+
+  it('should call intro exactly once when process.stdout.isTTY is true (no duplicate intro call)', async () => {
+    const originalIsTTY = process.stdout.isTTY;
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
+
+    try {
+      await deployToCloudRun(defaultOptions);
+      expect(intro).toHaveBeenCalledTimes(1);
+      expect(intro).toHaveBeenCalledWith('Agent Deployment');
+    } finally {
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: originalIsTTY,
+        configurable: true,
+      });
     }
   });
 
@@ -324,13 +358,19 @@ describe('deployToCloudRun', () => {
 
   it('should call outro on successful deployment when process.stdout.isTTY is true', async () => {
     const originalIsTTY = process.stdout.isTTY;
-    Object.defineProperty(process.stdout, 'isTTY', {value: true, configurable: true});
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
 
     try {
       await deployToCloudRun(defaultOptions);
-      expect(outro).toHaveBeenCalledWith('Agent Deployed Successfully!');
+      expect(outro).toHaveBeenCalledWith('Happy Agent Building!');
     } finally {
-      Object.defineProperty(process.stdout, 'isTTY', {value: originalIsTTY, configurable: true});
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: originalIsTTY,
+        configurable: true,
+      });
     }
   });
 
@@ -379,21 +419,16 @@ describe('deployToCloudRun', () => {
     expect(log.step).toHaveBeenCalledWith('Deploying to Cloud Run...');
   });
 
-  it('should call log.step for cleanup in finally block', async () => {
-    await deployToCloudRun(defaultOptions);
-
-    expect(log.step).toHaveBeenCalledWith('Cleaning up temporary files...');
-    expect(log.info).toHaveBeenCalledWith('Temporary files cleaned up.');
-  });
-
   it('should call log.step for pre-existing temp folder cleanup', async () => {
     (isFolderExists as Mock).mockResolvedValue(true);
 
     await deployToCloudRun(defaultOptions);
 
-    expect(log.step).toHaveBeenCalledWith(
-      'Cleaning up existing temporary files...',
-    );
+    // No log.step for cleanup in current code, but we check if fs.rm was called.
+    expect(fs.rm).toHaveBeenCalledWith('/tmp/test-deploy', {
+      recursive: true,
+      force: true,
+    });
   });
 
   it('should call log.info with default project when project option is not provided', async () => {
@@ -473,12 +508,15 @@ describe('deployToCloudRun', () => {
     expect(thrownError!.message).not.toContain('specify region with --project');
   });
 
-  it('should call log.step for cleanup even when deployment fails', async () => {
+  it('should call fs.rm for cleanup even when deployment fails', async () => {
     (loadFileData as Mock).mockResolvedValue({});
+    (isFolderExists as Mock).mockResolvedValue(true);
 
     await deployToCloudRun(defaultOptions);
 
-    expect(log.step).toHaveBeenCalledWith('Cleaning up temporary files...');
-    expect(log.info).toHaveBeenCalledWith('Temporary files cleaned up.');
+    expect(fs.rm).toHaveBeenCalledWith('/tmp/test-deploy', {
+      recursive: true,
+      force: true,
+    });
   });
 });

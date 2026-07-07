@@ -344,4 +344,150 @@ describe('createAgent', () => {
       );
     });
   });
+
+  describe('Cancellation handling (handleCancellation)', () => {
+    afterEach(() => {
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: undefined,
+        configurable: true,
+      });
+    });
+
+    it('should call outro with "Operation cancelled" when model selection is cancelled and stdout is TTY', async () => {
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: true,
+        configurable: true,
+      });
+      const {outro} = await import('@clack/prompts');
+      const cancelSymbol = Symbol('cancel');
+      (select as Mock).mockResolvedValueOnce(cancelSymbol);
+      (isCancel as unknown as Mock).mockImplementation(
+        (v: unknown) => v === cancelSymbol,
+      );
+
+      await createAgent(getFreshOptions());
+
+      expect(outro).toHaveBeenCalledWith('Operation cancelled');
+    });
+
+    it('should not call outro when model selection is cancelled and stdout is not TTY', async () => {
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: false,
+        configurable: true,
+      });
+      const {outro} = await import('@clack/prompts');
+      const cancelSymbol = Symbol('cancel');
+      (select as Mock).mockResolvedValueOnce(cancelSymbol);
+      (isCancel as unknown as Mock).mockImplementation(
+        (v: unknown) => v === cancelSymbol,
+      );
+
+      await createAgent(getFreshOptions());
+
+      expect(outro).not.toHaveBeenCalled();
+      expect(saveToFile).not.toHaveBeenCalled();
+    });
+
+    it('should call outro with "Operation cancelled" when the folder overwrite confirm is cancelled and stdout is TTY', async () => {
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: true,
+        configurable: true,
+      });
+      const {outro} = await import('@clack/prompts');
+      (isFolderExists as Mock).mockResolvedValue(true);
+      const cancelSymbol = Symbol('cancel');
+      (confirm as unknown as Mock).mockResolvedValueOnce(cancelSymbol);
+      (isCancel as unknown as Mock).mockImplementation(
+        (v: unknown) => v === cancelSymbol,
+      );
+
+      await createAgent(getFreshOptions());
+
+      expect(outro).toHaveBeenCalledWith('Operation cancelled');
+      expect(removeFolder).not.toHaveBeenCalled();
+    });
+
+    it('should call outro with "Operation cancelled" when the API key prompt is cancelled and stdout is TTY', async () => {
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: true,
+        configurable: true,
+      });
+      const {outro} = await import('@clack/prompts');
+      const cancelSymbol = Symbol('cancel');
+      (select as Mock).mockResolvedValueOnce('gemini-2.5-flash');
+      (select as Mock).mockResolvedValueOnce('ts');
+      (select as Mock).mockResolvedValueOnce('googleai');
+      (password as Mock).mockResolvedValueOnce(cancelSymbol);
+      (isCancel as unknown as Mock).mockImplementation(
+        (v: unknown) => v === cancelSymbol,
+      );
+
+      await createAgent(getFreshOptions());
+
+      expect(outro).toHaveBeenCalledWith('Operation cancelled');
+      expect(saveToFile).not.toHaveBeenCalled();
+    });
+
+    it('should call outro with "Operation cancelled" when the Vertex project prompt is cancelled and stdout is TTY', async () => {
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: true,
+        configurable: true,
+      });
+      const {outro} = await import('@clack/prompts');
+      const cancelSymbol = Symbol('cancel');
+      (select as Mock).mockResolvedValueOnce('gemini-2.5-flash');
+      (select as Mock).mockResolvedValueOnce('ts');
+      (select as Mock).mockResolvedValueOnce('vertex');
+      (text as Mock).mockResolvedValueOnce(cancelSymbol);
+      (isCancel as unknown as Mock).mockImplementation(
+        (v: unknown) => v === cancelSymbol,
+      );
+
+      await createAgent(getFreshOptions());
+
+      expect(outro).toHaveBeenCalledWith('Operation cancelled');
+      expect(saveToFile).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Google API key info message', () => {
+    it('should show the API key info message when interactively prompting for the googleai backend', async () => {
+      const {log} = await import('@clack/prompts');
+      (select as Mock).mockResolvedValueOnce('gemini-2.5-flash');
+      (select as Mock).mockResolvedValueOnce('ts');
+      (select as Mock).mockResolvedValueOnce('googleai');
+      (password as Mock).mockResolvedValueOnce('test-key');
+
+      await createAgent(getFreshOptions());
+
+      expect(log.info).toHaveBeenCalledWith(
+        'You can get a Google API Key at https://aistudio.google.com/',
+      );
+    });
+
+    it('should not show the API key info message when forceYes is true', async () => {
+      const {log} = await import('@clack/prompts');
+
+      await createAgent({...getFreshOptions(), forceYes: true});
+
+      expect(log.info).not.toHaveBeenCalledWith(
+        expect.stringContaining('Google API Key'),
+      );
+    });
+
+    it('should not show the API key info message for the vertex backend', async () => {
+      const {log} = await import('@clack/prompts');
+      (select as Mock).mockResolvedValueOnce('gemini-2.5-flash');
+      (select as Mock).mockResolvedValueOnce('ts');
+      (select as Mock).mockResolvedValueOnce('vertex');
+      (text as Mock).mockResolvedValueOnce('my-project');
+      (text as Mock).mockResolvedValueOnce('us-central1');
+
+      await createAgent(getFreshOptions());
+
+      expect(log.info).not.toHaveBeenCalledWith(
+        expect.stringContaining('Google API Key'),
+      );
+    });
+  });
 });
