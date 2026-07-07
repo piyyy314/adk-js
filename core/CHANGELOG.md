@@ -50,7 +50,7 @@
 - polish CLI UX and help formatting ([488115b](https://github.com/piyyy314/adk-js/commit/488115b16a33c0a17c7299e17f904d722ae6342f))
 - prevent path traversal in FileArtifactService (CWE-22) ([#210](https://github.com/piyyy314/adk-js/issues/210)) ([8c0eaa1](https://github.com/piyyy314/adk-js/commit/8c0eaa160a43c1d791d5838a5de6ac87d905cf70))
 - Print error message when port for ADK API server already in use ([#207](https://github.com/piyyy314/adk-js/issues/207)) ([8164857](https://github.com/piyyy314/adk-js/commit/816485786940daefded405731fe776170df80efb))
-- stop droping all existing tables in schema during sesstion db initialisation ([#195](https://github.com/piyyy314/adk-js/issues/195)) ([40a9f14](https://github.com/piyyy314/adk-js/commit/40a9f14a660214114505da31105f432353514fa1))
+- stop dropping all existing tables in schema during session db initialisation ([#195](https://github.com/piyyy314/adk-js/issues/195)) ([40a9f14](https://github.com/piyyy314/adk-js/commit/40a9f14a660214114505da31105f432353514fa1))
 - support dynamic requre in esm builds ([#244](https://github.com/piyyy314/adk-js/issues/244)) ([fecbdd3](https://github.com/piyyy314/adk-js/commit/fecbdd351552fbacf2db1d6174920e76ddc56a53))
 - use getter for rootAgent to match Python SDK behavior ([#95](https://github.com/piyyy314/adk-js/issues/95)) ([23b1d7f](https://github.com/piyyy314/adk-js/commit/23b1d7f27ce8175ecf0ca14f2c974234fca0ae7d))
 - use isBaseTool | isLlmAgent instead of instanceof keyword. ([#116](https://github.com/piyyy314/adk-js/issues/116)) ([cc4d67b](https://github.com/piyyy314/adk-js/commit/cc4d67ba2f69932030b03efea2c9186680028cb8))
