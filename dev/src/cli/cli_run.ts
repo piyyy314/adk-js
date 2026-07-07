@@ -138,70 +138,75 @@ async function runInteractively(
   });
 
   let nonTtyIterator: AsyncIterableIterator<string> | undefined;
+  let rl: ReturnType<typeof createInterface> | undefined;
   if (!process.stdin.isTTY) {
-    const rl = createInterface({input: process.stdin, terminal: false});
+    rl = createInterface({input: process.stdin, terminal: false});
     nonTtyIterator = rl[Symbol.asyncIterator]();
   }
 
-  while (true) {
-    let query: string;
+  try {
+    while (true) {
+      let query: string;
 
-    if (process.stdin.isTTY === true) {
-      const input = await text({
-        message: 'Message',
-        placeholder: 'Type your message here (or "exit" to quit)...',
-      });
-      if (handleCancellation(input)) {
-        return true;
+      if (process.stdin.isTTY === true) {
+        const input = await text({
+          message: 'Message',
+          placeholder: 'Type your message here (or "exit" to quit)...',
+        });
+        if (handleCancellation(input)) {
+          return true;
+        }
+        if (input === 'exit') {
+          return false;
+        }
+        query = input as string;
+      } else {
+        // Non-interactive mode (piped stdin): read a line directly via async iterator.
+        const result = await nonTtyIterator!.next();
+        if (result.done || result.value === 'exit') {
+          return false;
+        }
+        query = result.value;
       }
-      if (input === 'exit') {
-        return false;
-      }
-      query = input as string;
-    } else {
-      // Non-interactive mode (piped stdin): read a line directly via async iterator.
-      const result = await nonTtyIterator!.next();
-      if (result.done || result.value === 'exit') {
-        return false;
-      }
-      query = result.value;
-    }
 
-    if (!query || !query.trim()) {
-      continue;
-    }
+      if (!query || !query.trim()) {
+        continue;
+      }
 
-    const s = process.stdout.isTTY ? spinner() : null;
-    s?.start('Thinking...');
-    let spinnerStopped = false;
-    for await (const event of runner.runAsync({
-      userId: options.session.userId,
-      sessionId: options.session.id,
-      newMessage: {role: 'user', parts: [{text: query}]},
-    })) {
-      if (event.content && event.content.parts) {
-        const text = event.content.parts
-          .map((part) => part.text || '')
-          .join('');
-        if (text) {
-          if (process.stdout.isTTY) {
-            if (!spinnerStopped) {
-              s?.stop();
-              spinnerStopped = true;
-              process.stdout.write(`[${event.author}]: `);
+      const s = process.stdout.isTTY ? spinner() : null;
+      s?.start('Thinking...');
+      let spinnerStopped = false;
+      for await (const event of runner.runAsync({
+        userId: options.session.userId,
+        sessionId: options.session.id,
+        newMessage: {role: 'user', parts: [{text: query}]},
+      })) {
+        if (event.content && event.content.parts) {
+          const text = event.content.parts
+            .map((part) => part.text || '')
+            .join('');
+          if (text) {
+            if (process.stdout.isTTY) {
+              if (!spinnerStopped) {
+                s?.stop();
+                spinnerStopped = true;
+                process.stdout.write(`[${event.author}]: `);
+              }
+              process.stdout.write(text);
+            } else {
+              console.log(`[${event.author}]: ${text}`);
             }
-            process.stdout.write(text);
-          } else {
-            console.log(`[${event.author}]: ${text}`);
           }
         }
       }
+      if (process.stdout.isTTY && spinnerStopped) {
+        process.stdout.write('\n');
+      } else {
+        s?.stop();
+      }
     }
-    if (process.stdout.isTTY && spinnerStopped) {
-      process.stdout.write('\n');
-    } else {
-      s?.stop();
-    }
+  } finally {
+    rl?.close();
   }
 }
 
