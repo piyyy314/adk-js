@@ -164,6 +164,7 @@ async function runInteractively(
         // Non-interactive mode (piped stdin): read a line directly via async iterator.
         const result = await nonTtyIterator!.next();
         if (result.done || result.value === 'exit') {
+          await nonTtyIterator!.return?.();
           return false;
         }
         query = result.value;
