@@ -81,7 +81,7 @@
 ### Bug Fixes
 
 - a2a integration: use right enum values for agent card transport types. ([#212](https://github.com/google/adk-js/issues/212)) ([b00cef7](https://github.com/google/adk-js/commit/b00cef76734c9730fb186dfd8e57ca22d357411a))
-- a2a support videometadata during part convertion ([#198](https://github.com/google/adk-js/issues/198)) ([7b36f48](https://github.com/google/adk-js/commit/7b36f4809fc5f46fbb1bbdf1a164eb6e6691edfd))
+- a2a support video metadata during part conversion ([#198](https://github.com/google/adk-js/issues/198)) ([7b36f48](https://github.com/google/adk-js/commit/7b36f4809fc5f46fbb1bbdf1a164eb6e6691edfd))
 - persist session state correctly to not lose prev data. ([#209](https://github.com/google/adk-js/issues/209)) ([dbfa367](https://github.com/google/adk-js/commit/dbfa367fb34deaf246fdeea6ec45cd87d4adbdc4))
 - prevent path traversal in FileArtifactService (CWE-22) ([#210](https://github.com/google/adk-js/issues/210)) ([8c0eaa1](https://github.com/google/adk-js/commit/8c0eaa160a43c1d791d5838a5de6ac87d905cf70))
 - Print error message when port for ADK API server already in use ([#207](https://github.com/google/adk-js/issues/207)) ([8164857](https://github.com/google/adk-js/commit/816485786940daefded405731fe776170df80efb))
