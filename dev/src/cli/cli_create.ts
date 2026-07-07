@@ -7,7 +7,6 @@
 import {
   confirm,
   intro,
-  isCancel,
   log,
   note,
   outro,
@@ -19,6 +18,7 @@ import {
 import {exec, execSync} from 'node:child_process';
 import * as path from 'node:path';
 import {promisify} from 'node:util';
+import {handleCancellation} from '../utils/cli_utils.js';
 import {
   createFolder,
   isFolderExists,
@@ -29,16 +29,6 @@ import {
 
 const execPromise = promisify(exec);
 const dirname = process.cwd();
-
-function handleCancellation(value: unknown): value is symbol {
-  if (isCancel(value)) {
-    if (process.stdout.isTTY) {
-      outro('Operation cancelled');
-    }
-    return true;
-  }
-  return false;
-}
 
 const TS_CONFIG = `{
   "compilerOptions": {
@@ -345,7 +335,9 @@ export async function createAgent(options: AgentCreationOptions) {
       options.region = regionResponse;
     } else {
       if (!options.forceYes) {
-        log.info('You can get a Google API Key at https://aistudio.google.com/');
+        log.info(
+          'You can get a Google API Key at https://aistudio.google.com/',
+        );
       }
       const apiKeyResponse: symbol | string = options.forceYes
         ? ''

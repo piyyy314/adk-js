@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {intro, isCancel, log, outro, spinner, text} from '@clack/prompts';
+import {intro, log, outro, spinner, text} from '@clack/prompts';
 import {
   BaseAgent,
   BaseArtifactService,
@@ -20,19 +20,10 @@ import * as path from 'node:path';
 import {createInterface} from 'node:readline';
 
 import {AgentFile, AgentFileOptions} from '../utils/agent_loader.js';
+import {handleCancellation} from '../utils/cli_utils.js';
 import {loadFileData, saveToFile} from '../utils/file_utils.js';
 
 const dirname = process.cwd();
-
-function handleCancellation(value: unknown): value is symbol {
-  if (isCancel(value)) {
-    if (process.stdout.isTTY) {
-      outro('Operation cancelled');
-    }
-    return true;
-  }
-  return false;
-}
 
 interface InputFile {
   state: Record<string, unknown>;
@@ -116,6 +107,43 @@ interface RunInteractivelyOptions {
   sessionService: BaseSessionService;
   memoryService?: BaseMemoryService;
 }
+
+async function processQuery(
+  query: string,
+  runner: Runner,
+  options: RunInteractivelyOptions,
+): Promise<void> {
+  const s = process.stdout.isTTY ? spinner() : null;
+  s?.start('Thinking...');
+  let spinnerStopped = false;
+  for await (const event of runner.runAsync({
+    userId: options.session.userId,
+    sessionId: options.session.id,
+    newMessage: {role: 'user', parts: [{text: query}]},
+  })) {
+    if (event.content && event.content.parts) {
+      const text = event.content.parts.map((part) => part.text || '').join('');
+      if (text) {
+        if (process.stdout.isTTY) {
+          if (!spinnerStopped) {
+            s?.stop();
+            spinnerStopped = true;
+            process.stdout.write(`[${event.author}]: `);
+          }
+          process.stdout.write(text);
+        } else {
+          console.log(`[${event.author}]: ${text}`);
+        }
+      }
+    }
+  }
+  if (process.stdout.isTTY && spinnerStopped) {
+    process.stdout.write('\n');
+  } else {
+    s?.stop();
+  }
+}
+
 /**
  * Runs an agent in an interactive CLI loop, sending each user input to the agent runner and printing emitted events.
  *
@@ -138,17 +166,13 @@ async function runInteractively(
   });
 
   let rl: ReturnType<typeof createInterface> | undefined;
-  let nonTtyIterator: AsyncIterableIterator<string> | undefined;
   if (!process.stdin.isTTY) {
     rl = createInterface({input: process.stdin, terminal: false});
-    nonTtyIterator = rl[Symbol.asyncIterator]();
   }
 
   try {
-    while (true) {
-      let query: string;
-
-      if (process.stdin.isTTY === true) {
+    if (process.stdin.isTTY) {
+      while (true) {
         const input = await text({
           message: 'Message',
           placeholder: 'Type your message here (or "exit" to quit)...',
@@ -159,52 +183,23 @@ async function runInteractively(
         if (input === 'exit') {
           return false;
         }
-        query = input as string;
-      } else {
-        // Non-interactive mode (piped stdin): read a line directly via async iterator.
-        const result = await nonTtyIterator!.next();
-        if (result.done || result.value === 'exit') {
-          await nonTtyIterator!.return?.();
-          return false;
+        const query = input as string;
+        if (!query || !query.trim()) {
+          continue;
         }
-        query = result.value;
+        await processQuery(query, runner, options);
       }
-
-    if (!query || !query.trim()) {
-      continue;
-    }
-
-    const s = process.stdout.isTTY ? spinner() : null;
-    s?.start('Thinking...');
-    let spinnerStopped = false;
-    for await (const event of runner.runAsync({
-      userId: options.session.userId,
-      sessionId: options.session.id,
-      newMessage: {role: 'user', parts: [{text: query}]},
-    })) {
-      if (event.content && event.content.parts) {
-        const text = event.content.parts
-          .map((part) => part.text || '')
-          .join('');
-        if (text) {
-          if (process.stdout.isTTY) {
-            if (!spinnerStopped) {
-              s?.stop();
-              spinnerStopped = true;
-              process.stdout.write(`[${event.author}]: `);
-            }
-            process.stdout.write(text);
-          } else {
-            console.log(`[${event.author}]: ${text}`);
-          }
+    } else {
+      for await (const line of rl!) {
+        if (line === 'exit') {
+          break;
         }
+        if (!line || !line.trim()) {
+          continue;
+        }
+        await processQuery(line, runner, options);
       }
-    }
-      if (process.stdout.isTTY && spinnerStopped) {
-        process.stdout.write('\n');
-      } else {
-        s?.stop();
-      }
+      return false;
     }
   } finally {
     rl?.close();

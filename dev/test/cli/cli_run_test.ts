@@ -70,10 +70,8 @@ vi.mock('@clack/prompts', () => ({
 
 vi.mock('node:readline', () => ({
   createInterface: vi.fn().mockReturnValue({
-    close: vi.fn(),
     [Symbol.asyncIterator]: vi.fn().mockReturnValue({
       next: vi.fn(),
-      return: vi.fn(),
     }),
   }),
 }));

@@ -327,13 +327,19 @@ describe('deployToCloudRun', () => {
 
   it('should not call intro when process.stdout.isTTY is false', async () => {
     const originalIsTTY = process.stdout.isTTY;
-    Object.defineProperty(process.stdout, 'isTTY', {value: false, configurable: true});
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: false,
+      configurable: true,
+    });
 
     try {
       await deployToCloudRun(defaultOptions);
       expect(intro).not.toHaveBeenCalled();
     } finally {
-      Object.defineProperty(process.stdout, 'isTTY', {value: originalIsTTY, configurable: true});
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: originalIsTTY,
+        configurable: true,
+      });
     }
   });
 
@@ -357,19 +363,28 @@ describe('deployToCloudRun', () => {
 
   it('should not call outro when process.stdout.isTTY is false', async () => {
     const originalIsTTY = process.stdout.isTTY;
-    Object.defineProperty(process.stdout, 'isTTY', {value: false, configurable: true});
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: false,
+      configurable: true,
+    });
 
     try {
       await deployToCloudRun(defaultOptions);
       expect(outro).not.toHaveBeenCalled();
     } finally {
-      Object.defineProperty(process.stdout, 'isTTY', {value: originalIsTTY, configurable: true});
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: originalIsTTY,
+        configurable: true,
+      });
     }
   });
 
   it('should not call outro when deployment fails even if isTTY is true', async () => {
     const originalIsTTY = process.stdout.isTTY;
-    Object.defineProperty(process.stdout, 'isTTY', {value: true, configurable: true});
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
 
     spawnMock.mockReturnValue({
       on: vi.fn((event: string, cb: (code: number) => void) => {
@@ -386,14 +401,19 @@ describe('deployToCloudRun', () => {
         expect.stringContaining('Command failed with exit code 1'),
       );
     } finally {
-      Object.defineProperty(process.stdout, 'isTTY', {value: originalIsTTY, configurable: true});
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: originalIsTTY,
+        configurable: true,
+      });
     }
   });
 
   it('should call log.step at each deployment phase', async () => {
     await deployToCloudRun(defaultOptions);
 
-    expect(log.step).toHaveBeenCalledWith('Starting deployment to Cloud Run...');
+    expect(log.step).toHaveBeenCalledWith(
+      'Starting deployment to Cloud Run...',
+    );
     expect(log.step).toHaveBeenCalledWith('Copying agent source files...');
     expect(log.step).toHaveBeenCalledWith('Creating package.json...');
     expect(log.step).toHaveBeenCalledWith('Creating Dockerfile...');
