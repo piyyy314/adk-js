@@ -24,6 +24,16 @@ import {loadFileData, saveToFile} from '../utils/file_utils.js';
 
 const dirname = process.cwd();
 
+function handleCancellation(value: unknown): value is symbol {
+  if (isCancel(value)) {
+    if (process.stdout.isTTY) {
+      outro('Operation cancelled');
+    }
+    return true;
+  }
+  return false;
+}
+
 interface InputFile {
   state: Record<string, unknown>;
   queries: string[];
@@ -118,7 +128,7 @@ interface RunInteractivelyOptions {
  */
 async function runInteractively(
   options: RunInteractivelyOptions,
-): Promise<void> {
+): Promise<boolean> {
   const runner = new Runner({
     appName: options.rootAgent.name,
     agent: options.rootAgent,
@@ -126,6 +136,12 @@ async function runInteractively(
     sessionService: options.sessionService,
     memoryService: options.memoryService,
   });
+
+  let nonTtyIterator: AsyncIterableIterator<string> | undefined;
+  if (!process.stdin.isTTY) {
+    const rl = createInterface({input: process.stdin, terminal: false});
+    nonTtyIterator = rl[Symbol.asyncIterator]();
+  }
 
   while (true) {
     let query: string;
@@ -135,24 +151,20 @@ async function runInteractively(
         message: 'Message',
         placeholder: 'Type your message here (or "exit" to quit)...',
       });
-      if (isCancel(input) || input === 'exit') {
-        break;
+      if (handleCancellation(input)) {
+        return true;
+      }
+      if (input === 'exit') {
+        return false;
       }
       query = input as string;
     } else {
-      // Non-interactive mode (piped stdin): read a line directly via readline.
-      const line = await new Promise<string | null>((resolve) => {
-        const rl = createInterface({input: process.stdin, terminal: false});
-        rl.once('line', (l) => {
-          rl.close();
-          resolve(l);
-        });
-        rl.once('close', () => resolve(null));
-      });
-      if (line === null || line === 'exit') {
-        break;
+      // Non-interactive mode (piped stdin): read a line directly via async iterator.
+      const result = await nonTtyIterator!.next();
+      if (result.done || result.value === 'exit') {
+        return false;
       }
-      query = line;
+      query = result.value;
     }
 
     if (!query || !query.trim()) {
@@ -273,13 +285,14 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
         }
       }
 
-      await runInteractively({
+      const cancelled = await runInteractively({
         rootAgent,
         artifactService,
         sessionService,
         memoryService,
         session,
       });
+      if (cancelled) return;
     }
 
     if (options.saveSession) {
@@ -299,9 +312,7 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
           },
         }));
 
-      if (isCancel(sessionId)) {
-        if (process.stdout.isTTY && !options.inputFile)
-          outro('Operation cancelled');
+      if (handleCancellation(sessionId)) {
         return;
       }
 
