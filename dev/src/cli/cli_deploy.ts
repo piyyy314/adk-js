@@ -315,7 +315,6 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
       : path.basename(options.agentPath);
 
   log.step('Starting deployment to Cloud Run...');
-  if (process.stdout.isTTY) intro('Cloud Run Deployment');
 
   if (await isFolderExists(options.tempFolder)) {
     await fs.rm(options.tempFolder, {recursive: true, force: true});
