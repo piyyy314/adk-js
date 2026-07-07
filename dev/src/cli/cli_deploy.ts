@@ -178,7 +178,7 @@ async function createPackageJson(sourceFolder: string, targetFolder: string) {
       dependencies: packageJson.dependencies,
     }),
   ]);
-  log.info(`Creating package.json complete ${targetPackageJsonPath}`);
+  log.info(`Creating package.json complete: ${targetPackageJsonPath}`);
 }
 
 export function createDockerFileContent(
