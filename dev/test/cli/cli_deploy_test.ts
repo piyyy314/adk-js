@@ -78,15 +78,6 @@ vi.mock('../../src/utils/file_utils.js', () => ({
   tryToFindFileRecursively: vi.fn(),
 }));
 
-vi.mock('@clack/prompts', () => ({
-  intro: vi.fn(),
-  outro: vi.fn(),
-  log: {
-    info: vi.fn(),
-    step: vi.fn(),
-    error: vi.fn(),
-  },
-}));
 
 describe('createDockerFileContent', () => {
   const defaultOptions: CreateDockerFileContentOptions = {
