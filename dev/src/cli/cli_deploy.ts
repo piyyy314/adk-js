@@ -371,6 +371,5 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
       await fs.rm(options.tempFolder, {recursive: true, force: true});
     }
     await agentLoader.disposeAll();
-    if (process.stdout.isTTY) outro('Happy Agent Building!');
   }
 }
