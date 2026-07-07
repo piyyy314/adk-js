@@ -40,7 +40,7 @@
 ### Bug Fixes
 
 - a2a integration: use right enum values for agent card transport types. ([#212](https://github.com/piyyy314/adk-js/issues/212)) ([b00cef7](https://github.com/piyyy314/adk-js/commit/b00cef76734c9730fb186dfd8e57ca22d357411a))
-- a2a support videometadata during part convertion ([#198](https://github.com/piyyy314/adk-js/issues/198)) ([7b36f48](https://github.com/piyyy314/adk-js/commit/7b36f4809fc5f46fbb1bbdf1a164eb6e6691edfd))
+- a2a support video metadata during part conversion ([#198](https://github.com/piyyy314/adk-js/issues/198)) ([7b36f48](https://github.com/piyyy314/adk-js/commit/7b36f4809fc5f46fbb1bbdf1a164eb6e6691edfd))
 - add missing invocation id when creating new ADK event while merging parallel tool responses. ([#253](https://github.com/piyyy314/adk-js/issues/253)) ([7739bd8](https://github.com/piyyy314/adk-js/commit/7739bd8b79ef38fc65fb06495043318c3f287f40))
 - add support for MCP type array instead of string only in gemini_schema_util ([#199](https://github.com/piyyy314/adk-js/issues/199)) ([9cb4a33](https://github.com/piyyy314/adk-js/commit/9cb4a33b9a15718e97cbda532a04f1e91c45389e))
 - Lazy load MikroORM drivers to avoid errors when not used. ([#183](https://github.com/piyyy314/adk-js/issues/183)) ([9cb726f](https://github.com/piyyy314/adk-js/commit/9cb726ffc23d5da79f46605af11e3a4765dec3c0))
