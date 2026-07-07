@@ -306,7 +306,6 @@ describe('deployToCloudRun', () => {
     await deployToCloudRun(defaultOptions);
 
     expect(log.error).toHaveBeenCalledWith(
-    expect(logErrorMock).toHaveBeenCalledWith(
       expect.stringContaining('Failed to deploy to Cloud Run:'),
     );
     expect(logErrorMock).toHaveBeenCalledWith(
