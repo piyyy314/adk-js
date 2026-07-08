@@ -68,6 +68,14 @@ vi.mock('@clack/prompts', () => ({
   })),
 }));
 
+vi.mock('node:readline', () => ({
+  createInterface: vi.fn().mockReturnValue({
+    [Symbol.asyncIterator]: vi.fn().mockReturnValue({
+      next: vi.fn(),
+    }),
+  }),
+}));
+
 describe('cli_run', () => {
   let mockAgentFile: AgentFile;
   let mockRootAgent: BaseAgent;
@@ -216,7 +224,7 @@ describe('cli_run', () => {
     );
   });
 
-  it('should still save session if interaction is cancelled', async () => {
+  it('should NOT save session if interaction is cancelled', async () => {
     const mockSessionService = createMockSessionService();
     (text as Mock).mockResolvedValueOnce(Symbol('cancel'));
     (isCancel as unknown as Mock).mockReturnValueOnce(true);
@@ -228,10 +236,8 @@ describe('cli_run', () => {
       sessionService: mockSessionService,
     });
 
-    expect(saveToFile).toHaveBeenCalledWith(
-      expect.stringContaining('my-session.session.json'),
-      expect.anything(),
-    );
+    expect(saveToFile).not.toHaveBeenCalled();
+    expect(outro).toHaveBeenCalledWith('Operation cancelled');
   });
 
   it('should prompt for session id if not provided when saving', async () => {
@@ -290,7 +296,7 @@ describe('cli_run', () => {
 
     // runAsync should not have been called because cancel breaks the loop immediately
     expect(mockRunAsync).not.toHaveBeenCalled();
-    expect(outro).toHaveBeenCalledWith('Happy Agent Building!');
+    expect(outro).toHaveBeenCalledWith('Operation cancelled');
   });
 
   it('should continue loop on empty input without processing', async () => {
