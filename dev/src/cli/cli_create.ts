@@ -412,7 +412,9 @@ export async function createAgent(options: AgentCreationOptions) {
           : `  npm install  # Install dependencies first\n` +
             `  npm run web  # Then start the web interface\n` +
             `  npm run cli  # Or interact via CLI`),
-      installSuccess ? 'Agent Created Successfully' : 'Agent Created with Warnings',
+      installSuccess
+        ? 'Agent Created Successfully'
+        : 'Agent Created with Warnings',
     );
 
     if (process.stdout.isTTY) outro('Happy Agent Building!');
