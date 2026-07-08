@@ -306,10 +306,6 @@ export async function createAgent(options: AgentCreationOptions) {
             message: 'Enter the Google Cloud Project ID',
             initialValue: defaultProject,
             placeholder: 'my-project-id',
-            validate: (value) => {
-              if (!value) return 'Project ID is required';
-              return;
-            },
           });
 
       if (isCancel(projectResponse)) {
@@ -323,10 +319,6 @@ export async function createAgent(options: AgentCreationOptions) {
             message: 'Enter the Google Cloud Region',
             initialValue: defaultRegion,
             placeholder: 'us-central1',
-            validate: (value) => {
-              if (!value) return 'Region is required';
-              return;
-            },
           });
 
       if (isCancel(regionResponse)) {
@@ -338,10 +330,6 @@ export async function createAgent(options: AgentCreationOptions) {
         ? ''
         : await password({
             message: 'Enter the Google API Key',
-            validate: (value) => {
-              if (!value) return 'API Key is required';
-              return;
-            },
           });
 
       if (isCancel(apiKeyResponse)) {
@@ -378,10 +366,7 @@ export async function createAgent(options: AgentCreationOptions) {
     note(
       `Created the following files in ${agentDir}:\n` +
         files.map((file) => `  - ${file}`).join('\n') +
-        `\n\nTo get started, run:\n` +
-        `  cd ${options.agentName}\n` +
-        `  npm run web  # Start the agent in a web interface\n` +
-        `  npm run cli  # Interact with the agent in the terminal`,
+        `\n\nRun 'cd ${options.agentName} && npm run web' to start the agent in a web interface`,
       'Agent Created Successfully',
     );
 
