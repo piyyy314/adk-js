@@ -169,6 +169,24 @@ describe('createAgent', () => {
     });
   });
 
+  describe('Agent Name Validation', () => {
+    it('should fail if agent name is "user"', async () => {
+      const {log} = await import('@clack/prompts');
+      await createAgent({...getFreshOptions(), agentName: 'user'});
+      expect(log.error).toHaveBeenCalledWith("Agent name cannot be 'user'.");
+      expect(saveToFile).not.toHaveBeenCalled();
+    });
+
+    it('should fail if agent name is invalid identifier', async () => {
+      const {log} = await import('@clack/prompts');
+      await createAgent({...getFreshOptions(), agentName: '123-invalid'});
+      expect(log.error).toHaveBeenCalledWith(
+        expect.stringContaining('Invalid agent name'),
+      );
+      expect(saveToFile).not.toHaveBeenCalled();
+    });
+  });
+
   describe('Interactive Mode', () => {
     it('should prompt for model if not provided', async () => {
       (select as Mock).mockResolvedValueOnce('gemini-2.5-pro'); // Model
@@ -182,6 +200,10 @@ describe('createAgent', () => {
         expect.objectContaining({
           message: 'Choose a model for the root agent',
         }),
+      );
+      expect(saveToFile).toHaveBeenCalledWith(
+        expect.stringContaining('agent.ts'),
+        expect.stringContaining("name: 'test-agent'"),
       );
       expect(saveToFile).toHaveBeenCalledWith(
         expect.stringContaining('agent.ts'),
@@ -341,6 +363,28 @@ describe('createAgent', () => {
       expect(mockSpinnerInstance.stop).toHaveBeenCalledWith(
         'Failed to install dependencies.',
         1,
+      );
+    });
+
+    it('should show "Agent Created with Warnings" in note if npm install fails', async () => {
+      const {note} = await import('@clack/prompts');
+      const {exec: execMock} = await import('node:child_process');
+      (execMock as unknown as Mock).mockImplementation(
+        (
+          _cmd: string,
+          _opts: unknown,
+          callback: (err: Error | null) => void,
+        ) => {
+          callback(new Error('npm install failed'));
+          return {on: vi.fn()};
+        },
+      );
+
+      await createAgent(getFreshOptions());
+
+      expect(note).toHaveBeenCalledWith(
+        expect.stringContaining('npm install  # Install dependencies first'),
+        'Agent Created with Warnings',
       );
     });
   });

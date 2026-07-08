@@ -71,7 +71,7 @@ const PACKAGE_JSON = (agentName: string, language: string) =>
 }
 `.trim();
 
-const AGENT_TEMPLATE = (model: string) =>
+const AGENT_TEMPLATE = (agentName: string, model: string) =>
   `
 import {FunctionTool, LlmAgent} from '@google/adk';
 import {z} from 'zod';
@@ -84,7 +84,7 @@ const getCurrentTime = new FunctionTool({
   name: 'get_current_time',
   description: 'Returns the current time in a specified city.',
   parameters: z.object({
-    city: z.string().describe("The name of the city for which to retrieve the current time."),
+    city: z.string().describe('The name of the city for which to retrieve the current time.'),
   }),
   execute: ({city}) => {
     return {status: 'success', report: \`The current time in \${city} is 10:30 AM\`};
@@ -92,11 +92,12 @@ const getCurrentTime = new FunctionTool({
 });
 
 export const rootAgent = new LlmAgent({
-  name: 'hello_time_agent',
+  name: '${agentName}',
   model: '${model}',
   description: 'Tells the current time in a specified city.',
-  instruction: \`You are a helpful assistant that tells the current time in a city.
-                Use the 'getCurrentTime' tool for this purpose.\`,
+  instruction:
+    'You are a helpful assistant that tells the current time in a city. ' +
+    "Use the 'getCurrentTime' tool for this purpose.",
   tools: [getCurrentTime],
 });
 `.trim();
@@ -193,7 +194,7 @@ async function generateFiles(options: AgentCreationOptions) {
 
   await saveToFile(
     path.join(agentDir, `agent.${options.language}`),
-    AGENT_TEMPLATE(options.model || 'gemini-2.5-flash'),
+    AGENT_TEMPLATE(options.agentName, options.model || 'gemini-2.5-flash'),
   );
   await saveToFile(path.join(agentDir, '.env'), generateEnvFile(options));
   await saveToFile(
@@ -207,6 +208,21 @@ async function generateFiles(options: AgentCreationOptions) {
 
 export async function createAgent(options: AgentCreationOptions) {
   if (!options.forceYes && process.stdout.isTTY) intro('Agent Creation');
+
+  if (options.agentName === 'user') {
+    log.error("Agent name cannot be 'user'.");
+    if (process.stdout.isTTY) outro('Operation cancelled');
+    return;
+  }
+
+  if (!/^[\p{ID_Start}$_][\p{ID_Continue}$_-]*$/u.test(options.agentName)) {
+    log.error(
+      `Invalid agent name: "${options.agentName}". Agent name must start with a letter or underscore, and can only contain letters, digits, underscores, and hyphens.`,
+    );
+    if (process.stdout.isTTY) outro('Operation cancelled');
+    return;
+  }
+
   const agentDir = path.join(dirname, options.agentName);
   const folderReady = await generateAgentFolder(agentDir, options.forceYes);
   if (!folderReady) {
@@ -360,6 +376,7 @@ export async function createAgent(options: AgentCreationOptions) {
   await generateFiles(options);
 
   const s = !options.forceYes ? spinner() : null;
+  let installSuccess = true;
   s?.start('Installing dependencies...');
   try {
     if (options.language === 'ts') {
@@ -373,7 +390,11 @@ export async function createAgent(options: AgentCreationOptions) {
     );
     s?.stop('Dependencies installed successfully.');
   } catch (e) {
+    installSuccess = false;
     s?.stop('Failed to install dependencies.', 1);
+    log.warn(
+      'Some dependencies failed to install automatically. You may need to run "npm install" manually in the agent directory.',
+    );
     if (!options.forceYes) log.error(`Error: ${(e as Error).message}`);
   }
 
@@ -385,9 +406,13 @@ export async function createAgent(options: AgentCreationOptions) {
         files.map((file) => `  - ${file}`).join('\n') +
         `\n\nTo get started, run:\n` +
         `  cd ${options.agentName}\n` +
-        `  npm run web  # Start the agent in a web interface\n` +
-        `  npm run cli  # Interact with the agent in the terminal`,
-      'Agent Created Successfully',
+        (installSuccess
+          ? `  npm run web  # Start the agent in a web interface\n` +
+            `  npm run cli  # Interact with the agent in the terminal`
+          : `  npm install  # Install dependencies first\n` +
+            `  npm run web  # Then start the web interface\n` +
+            `  npm run cli  # Or interact via CLI`),
+      installSuccess ? 'Agent Created Successfully' : 'Agent Created with Warnings',
     );
 
     if (process.stdout.isTTY) outro('Happy Agent Building!');
