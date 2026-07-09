@@ -266,8 +266,6 @@ async function createDockerFile(
 }
 
 export async function deployToCloudRun(options: DeployToCloudRunOptions) {
-  if (process.stdout.isTTY) intro('Agent Deployment');
-
   const project =
     options.project || (await resolveDefaultFromGcloudConfig('project'));
   if (!project || project === '(unset)') {
@@ -314,6 +312,7 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
       ? path.parse(options.agentPath).name
       : path.basename(options.agentPath);
 
+  if (process.stdout.isTTY) intro('Agent Deployment');
   log.step('Starting deployment to Cloud Run...');
 
   if (await isFolderExists(options.tempFolder)) {
@@ -363,6 +362,7 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
     if (process.stdout.isTTY) outro('Happy Agent Building!');
   } catch (e: unknown) {
     s?.stop('Failed to prepare deployment files.', 1);
+    if (process.stdout.isTTY) outro('Deployment failed');
     log.error(`Failed to deploy to Cloud Run: ${(e as Error).message}`);
   } finally {
     if (await isFolderExists(options.tempFolder)) {

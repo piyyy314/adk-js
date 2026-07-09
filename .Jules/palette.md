@@ -33,3 +33,8 @@
 ## 2025-06-15 - Enhancing CLI Onboarding and Error Prevention
 **Learning:** Adding validation to mandatory CLI inputs (like API keys and Project IDs) prevents downstream runtime errors and improves the robust feel of the tool. Providing copy-pasteable commands for common follow-up actions (like resuming a session or starting different interface modes) significantly lowers the barrier to entry for new users.
 **Action:** Always include 'validate' functions for required fields and provide actionable, copy-pasteable next steps in 'note' and 'log.info' outputs.
+
+## 2025-06-22 - Graceful CLI Session Termination
+
+**Learning:** Leaving a `@clack/prompts` session "hanging" (by calling `intro` but not `outro`) when an early exit or error occurs creates a disjointed and unprofessional terminal experience. Deferring the session start until after mandatory environment validations also prevents premature UI commitments.
+**Action:** Always ensure `outro` is called in `catch` blocks and early exit paths if `intro` was displayed. Defer `intro` until the command has successfully passed initial validation checks.
