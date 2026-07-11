@@ -4,7 +4,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {confirm, isCancel, password, select, text} from '@clack/prompts';
+import {
+  confirm,
+  isCancel,
+  note,
+  outro,
+  password,
+  select,
+  text,
+} from '@clack/prompts';
 import {execSync} from 'node:child_process';
 import {
   afterEach,
@@ -169,6 +177,28 @@ describe('createAgent', () => {
     });
   });
 
+  describe('Agent Name Validation', () => {
+    it('should log error and return if agent name is invalid', async () => {
+      const {log} = await import('@clack/prompts');
+      await createAgent({...getFreshOptions(), agentName: 'invalid name'});
+
+      expect(log.error).toHaveBeenCalledWith(
+        expect.stringContaining('Found invalid agent name'),
+      );
+      expect(isFolderExists).not.toHaveBeenCalled();
+    });
+
+    it('should log error and return if agent name is "user"', async () => {
+      const {log} = await import('@clack/prompts');
+      await createAgent({...getFreshOptions(), agentName: 'user'});
+
+      expect(log.error).toHaveBeenCalledWith(
+        expect.stringContaining("Agent name cannot be 'user'"),
+      );
+      expect(isFolderExists).not.toHaveBeenCalled();
+    });
+  });
+
   describe('Interactive Mode', () => {
     it('should prompt for model if not provided', async () => {
       (select as Mock).mockResolvedValueOnce('gemini-2.5-pro'); // Model
@@ -268,12 +298,17 @@ describe('createAgent', () => {
       expect(removeFolder).toHaveBeenCalled();
     });
 
-    it('should return without modifying files if user declines overwrite', async () => {
+    it('should return and call outro if user declines overwrite', async () => {
       (isFolderExists as Mock).mockResolvedValue(true);
       (confirm as unknown as Mock).mockResolvedValueOnce(false); // Overwrite = No
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: true,
+        configurable: true,
+      });
 
       await expect(createAgent(getFreshOptions())).resolves.toBeUndefined();
       expect(removeFolder).not.toHaveBeenCalled();
+      expect(outro).toHaveBeenCalledWith('Agent creation aborted.');
     });
 
     it('should return without modifying files if overwrite confirm is cancelled', async () => {
@@ -301,6 +336,14 @@ describe('createAgent', () => {
       );
       expect(mockSpinnerInstance.stop).toHaveBeenCalledWith(
         'Dependencies installed successfully.',
+      );
+      expect(note).toHaveBeenCalledWith(
+        expect.stringContaining('cd test-agent'),
+        'Agent Created Successfully',
+      );
+      expect(note).not.toHaveBeenCalledWith(
+        expect.stringContaining('npm install  # Install missing dependencies'),
+        expect.anything(),
       );
     });
 
@@ -341,6 +384,10 @@ describe('createAgent', () => {
       expect(mockSpinnerInstance.stop).toHaveBeenCalledWith(
         'Failed to install dependencies.',
         1,
+      );
+      expect(note).toHaveBeenCalledWith(
+        expect.stringContaining('npm install  # Install missing dependencies'),
+        'Agent Created with Warnings',
       );
     });
   });
