@@ -231,7 +231,8 @@ export async function createAgent(options: AgentCreationOptions) {
   const agentDir = path.join(dirname, options.agentName);
   const folderReady = await generateAgentFolder(agentDir, options.forceYes);
   if (!folderReady) {
-    if (!options.forceYes && process.stdout.isTTY) outro('Agent creation aborted.');
+    if (!options.forceYes && process.stdout.isTTY)
+      outro('Agent creation aborted.');
     return;
   }
 
