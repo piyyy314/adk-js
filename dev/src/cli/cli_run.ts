@@ -341,6 +341,7 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
     if (process.stdout.isTTY && !options.inputFile)
       outro('Happy Agent Building!');
   } catch (e) {
+    if (process.stdout.isTTY && !options.inputFile) outro('Run failed');
     log.error(e instanceof Error ? e.message : String(e));
   }
 }

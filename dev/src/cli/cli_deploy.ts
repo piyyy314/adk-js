@@ -266,8 +266,6 @@ async function createDockerFile(
 }
 
 export async function deployToCloudRun(options: DeployToCloudRunOptions) {
-  if (process.stdout.isTTY) intro('Agent Deployment');
-
   const project =
     options.project || (await resolveDefaultFromGcloudConfig('project'));
   if (!project || project === '(unset)') {
@@ -296,6 +294,8 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
     );
   }
 
+  if (process.stdout.isTTY) intro('Agent Deployment');
+
   const gcloudCommands = prepareGCloudArguments(options);
 
   // Request to bundle any js or ts file into a single cjs file to be able to
@@ -314,55 +314,60 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
       ? path.parse(options.agentPath).name
       : path.basename(options.agentPath);
 
-  log.step('Starting deployment to Cloud Run...');
-
-  if (await isFolderExists(options.tempFolder)) {
-    await fs.rm(options.tempFolder, {recursive: true, force: true});
-  }
-
-  const s = process.stdout.isTTY ? spinner() : null;
   try {
-    if (s) {
-      s.start('Copying agent source files...');
-    } else {
-      log.step('Copying agent source files...');
+    log.step('Starting deployment to Cloud Run...');
+
+    if (await isFolderExists(options.tempFolder)) {
+      await fs.rm(options.tempFolder, {recursive: true, force: true});
     }
-    await copyAgentFiles(
-      agentLoader,
-      path.join(options.tempFolder, 'agents', appName),
-    );
 
-    if (s) {
-      s.message('Creating package.json...');
-    } else {
-      log.step('Creating package.json...');
+    const s = process.stdout.isTTY ? spinner() : null;
+    try {
+      if (s) {
+        s.start('Copying agent source files...');
+      } else {
+        log.step('Copying agent source files...');
+      }
+      await copyAgentFiles(
+        agentLoader,
+        path.join(options.tempFolder, 'agents', appName),
+      );
+
+      if (s) {
+        s.message('Creating package.json...');
+      } else {
+        log.step('Creating package.json...');
+      }
+      await createPackageJson(agentDir, options.tempFolder);
+
+      if (s) {
+        s.message('Creating Dockerfile...');
+      } else {
+        log.step('Creating Dockerfile...');
+      }
+      await createDockerFile(options.tempFolder, {
+        appName,
+        project: options.project,
+        region: options.region,
+        port: options.port,
+        withUi: options.withUi,
+        logLevel: options.logLevel,
+        allowOrigins: options.allowOrigins,
+        otelToCloud: options.otelToCloud,
+        a2a: options.a2a,
+      });
+      s?.stop('Deployment files prepared.');
+
+      log.step('Deploying to Cloud Run...');
+      await spawnAsync('gcloud', gcloudCommands, {stdio: 'inherit'});
+
+      if (process.stdout.isTTY) outro('Happy Agent Building!');
+    } catch (e: unknown) {
+      s?.stop('Failed to prepare deployment files.', 1);
+      throw e;
     }
-    await createPackageJson(agentDir, options.tempFolder);
-
-    if (s) {
-      s.message('Creating Dockerfile...');
-    } else {
-      log.step('Creating Dockerfile...');
-    }
-    await createDockerFile(options.tempFolder, {
-      appName,
-      project: options.project,
-      region: options.region,
-      port: options.port,
-      withUi: options.withUi,
-      logLevel: options.logLevel,
-      allowOrigins: options.allowOrigins,
-      otelToCloud: options.otelToCloud,
-      a2a: options.a2a,
-    });
-    s?.stop('Deployment files prepared.');
-
-    log.step('Deploying to Cloud Run...');
-    await spawnAsync('gcloud', gcloudCommands, {stdio: 'inherit'});
-
-    if (process.stdout.isTTY) outro('Happy Agent Building!');
   } catch (e: unknown) {
-    s?.stop('Failed to prepare deployment files.', 1);
+    if (process.stdout.isTTY) outro('Deployment failed');
     log.error(`Failed to deploy to Cloud Run: ${(e as Error).message}`);
   } finally {
     if (await isFolderExists(options.tempFolder)) {

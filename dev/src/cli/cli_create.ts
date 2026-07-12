@@ -161,6 +161,7 @@ async function generateAgentFolder(
   }
 
   if (!overwriteFolderResponse) {
+    if (process.stdout.isTTY) outro('Agent creation failed');
     log.error(`Agent directory ${agentDir} already exists.`);
     return false;
   }
@@ -206,6 +207,19 @@ async function generateFiles(options: AgentCreationOptions) {
 }
 
 export async function createAgent(options: AgentCreationOptions) {
+  if (options.agentName === 'user') {
+    log.error(
+      "Agent name cannot be 'user'. 'user' is reserved for end-user's input.",
+    );
+    return;
+  }
+  if (!/^[\p{ID_Start}$_][\p{ID_Continue}$_-]*$/u.test(options.agentName)) {
+    log.error(
+      `Found invalid agent name: "${options.agentName}". Agent name must be a valid identifier. It should start with a letter (a-z, A-Z) or an underscore (_), and can only contain letters, digits (0-9), underscores, and hyphens.`,
+    );
+    return;
+  }
+
   if (!options.forceYes && process.stdout.isTTY) intro('Agent Creation');
   const agentDir = path.join(dirname, options.agentName);
   const folderReady = await generateAgentFolder(agentDir, options.forceYes);
@@ -359,6 +373,7 @@ export async function createAgent(options: AgentCreationOptions) {
   if (!options.forceYes) log.step('Generating files...');
   await generateFiles(options);
 
+  let dependenciesInstalled = true;
   const s = !options.forceYes ? spinner() : null;
   s?.start('Installing dependencies...');
   try {
@@ -373,6 +388,7 @@ export async function createAgent(options: AgentCreationOptions) {
     );
     s?.stop('Dependencies installed successfully.');
   } catch (e) {
+    dependenciesInstalled = false;
     s?.stop('Failed to install dependencies.', 1);
     if (!options.forceYes) log.error(`Error: ${(e as Error).message}`);
   }
@@ -380,13 +396,18 @@ export async function createAgent(options: AgentCreationOptions) {
   const files = await listFiles(agentDir);
 
   if (!options.forceYes) {
+    let nextSteps = `  cd ${options.agentName}\n`;
+    if (!dependenciesInstalled) {
+      nextSteps += `  npm install\n`;
+    }
+    nextSteps += `  npm run web  # Start the agent in a web interface\n`;
+    nextSteps += `  npm run cli  # Interact with the agent in the terminal`;
+
     note(
       `Created the following files in ${agentDir}:\n` +
         files.map((file) => `  - ${file}`).join('\n') +
         `\n\nTo get started, run:\n` +
-        `  cd ${options.agentName}\n` +
-        `  npm run web  # Start the agent in a web interface\n` +
-        `  npm run cli  # Interact with the agent in the terminal`,
+        nextSteps,
       'Agent Created Successfully',
     );
 

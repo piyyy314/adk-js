@@ -272,8 +272,23 @@ describe('createAgent', () => {
       (isFolderExists as Mock).mockResolvedValue(true);
       (confirm as unknown as Mock).mockResolvedValueOnce(false); // Overwrite = No
 
-      await expect(createAgent(getFreshOptions())).resolves.toBeUndefined();
-      expect(removeFolder).not.toHaveBeenCalled();
+      const originalIsTTY = process.stdout.isTTY;
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: true,
+        configurable: true,
+      });
+
+      try {
+        await expect(createAgent(getFreshOptions())).resolves.toBeUndefined();
+        const {outro} = await import('@clack/prompts');
+        expect(outro).toHaveBeenCalledWith('Agent creation failed');
+        expect(removeFolder).not.toHaveBeenCalled();
+      } finally {
+        Object.defineProperty(process.stdout, 'isTTY', {
+          value: originalIsTTY,
+          configurable: true,
+        });
+      }
     });
 
     it('should return without modifying files if overwrite confirm is cancelled', async () => {
@@ -341,6 +356,12 @@ describe('createAgent', () => {
       expect(mockSpinnerInstance.stop).toHaveBeenCalledWith(
         'Failed to install dependencies.',
         1,
+      );
+
+      const {note} = await import('@clack/prompts');
+      expect(note).toHaveBeenCalledWith(
+        expect.stringContaining('npm install'),
+        expect.any(String),
       );
     });
   });
