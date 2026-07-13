@@ -582,6 +582,16 @@ describe('cli_run', () => {
     });
   });
 
+  it('should call outro("Run failed") when an error occurs and isTTY is true', async () => {
+    (AgentFile as unknown as Mock).mockImplementationOnce(() => {
+      throw new Error('Load failed');
+    });
+
+    await runAgent({agentPath: 'agent.ts'});
+
+    expect(outro).toHaveBeenCalledWith('Run failed');
+  });
+
   describe('spinner behavior in input file mode', () => {
     it('should create and start spinner with "Thinking..." for each query when stdout is TTY', async () => {
       const spinnerInstances: Array<{start: Mock; stop: Mock}> = [];

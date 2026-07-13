@@ -33,3 +33,7 @@
 ## 2025-06-15 - Enhancing CLI Onboarding and Error Prevention
 **Learning:** Adding validation to mandatory CLI inputs (like API keys and Project IDs) prevents downstream runtime errors and improves the robust feel of the tool. Providing copy-pasteable commands for common follow-up actions (like resuming a session or starting different interface modes) significantly lowers the barrier to entry for new users.
 **Action:** Always include 'validate' functions for required fields and provide actionable, copy-pasteable next steps in 'note' and 'log.info' outputs.
+
+## 2025-06-20 - Validation-First CLI Orchestration
+**Learning:** Moving the CLI `intro()` call after mandatory environment or input validations (e.g., gcloud config checks) avoids starting a visual terminal session that is immediately abandoned. Pairing every `intro()` with a corresponding `outro()` in the `catch` block provides professional visual closure even on failure.
+**Action:** Always defer visual initialization until after critical pre-checks and ensure all exit paths (success and failure) include terminal closure signals.
