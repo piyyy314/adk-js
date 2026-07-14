@@ -344,4 +344,30 @@ describe('createAgent', () => {
       );
     });
   });
+
+  describe('Graceful termination on folder error', () => {
+    it('should call outro when folder overwrite is declined and isTTY is true', async () => {
+      const originalIsTTY = process.stdout.isTTY;
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: true,
+        configurable: true,
+      });
+
+      try {
+        (isFolderExists as Mock).mockResolvedValue(true);
+        (confirm as unknown as Mock).mockResolvedValueOnce(false); // Overwrite = No
+
+        const {outro} = await import('@clack/prompts');
+
+        await createAgent(getFreshOptions());
+
+        expect(outro).toHaveBeenCalledWith('Agent creation failed');
+      } finally {
+        Object.defineProperty(process.stdout, 'isTTY', {
+          value: originalIsTTY,
+          configurable: true,
+        });
+      }
+    });
+  });
 });

@@ -379,7 +379,7 @@ describe('deployToCloudRun', () => {
     }
   });
 
-  it('should not call outro when deployment fails even if isTTY is true', async () => {
+  it('should call outro with failure message when deployment fails and isTTY is true', async () => {
     const originalIsTTY = process.stdout.isTTY;
     Object.defineProperty(process.stdout, 'isTTY', {
       value: true,
@@ -396,7 +396,7 @@ describe('deployToCloudRun', () => {
 
     try {
       await deployToCloudRun(defaultOptions);
-      expect(outro).not.toHaveBeenCalled();
+      expect(outro).toHaveBeenCalledWith('Deployment failed');
       expect(log.error).toHaveBeenCalledWith(
         expect.stringContaining('Command failed with exit code 1'),
       );
