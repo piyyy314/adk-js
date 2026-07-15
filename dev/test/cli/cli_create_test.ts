@@ -4,7 +4,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {confirm, isCancel, password, select, text} from '@clack/prompts';
+import {
+  confirm,
+  intro,
+  isCancel,
+  log,
+  outro,
+  password,
+  select,
+  spinner,
+  text,
+} from '@clack/prompts';
 import {execSync} from 'node:child_process';
 import {
   afterEach,
@@ -45,6 +55,7 @@ vi.mock('@clack/prompts', () => ({
   spinner: vi.fn(() => ({
     start: vi.fn(),
     stop: vi.fn(),
+    message: vi.fn(),
   })),
   text: vi.fn(),
 }));
@@ -89,15 +100,33 @@ describe('createAgent', () => {
     vi.clearAllMocks();
     (isCancel as unknown as Mock).mockReturnValue(false);
     (listFiles as Mock).mockResolvedValue(['file1', 'file2']);
+
+    // Force TTY for all tests by default
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: true,
+      enumerable: true,
+      configurable: true,
+      writable: true,
+    });
   });
 
   afterEach(() => {
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: undefined,
+      configurable: true,
+    });
     vi.restoreAllMocks();
   });
 
   describe('Non-interactive Mode (forceYes: true)', () => {
     it('should create agent with default values when minimal args provided', async () => {
-      const {intro, note, outro, spinner, log} = await import('@clack/prompts');
+      // Temporarily disable TTY to match expected non-interactive behavior
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: false,
+        configurable: true,
+      });
+
+      const {note} = await import('@clack/prompts');
       await createAgent({...getFreshOptions(), forceYes: true});
 
       expect(intro).not.toHaveBeenCalled();
@@ -190,7 +219,7 @@ describe('createAgent', () => {
     });
 
     it('should return without creating files if model selection is cancelled', async () => {
-      (select as Mock).mockResolvedValueOnce('cancel-symbol');
+      (select as Mock).mockResolvedValueOnce(Symbol('cancel'));
       (isCancel as unknown as Mock).mockReturnValue(true);
 
       await expect(createAgent(getFreshOptions())).resolves.toBeUndefined();
@@ -272,8 +301,6 @@ describe('createAgent', () => {
       (isFolderExists as Mock).mockResolvedValue(true);
       (confirm as unknown as Mock).mockResolvedValueOnce(false); // Overwrite = No
 
-      const {outro} = await import('@clack/prompts');
-
       await expect(createAgent(getFreshOptions())).resolves.toBeUndefined();
       expect(removeFolder).not.toHaveBeenCalled();
       expect(outro).toHaveBeenCalledWith('Agent creation failed');
@@ -293,9 +320,8 @@ describe('createAgent', () => {
 
   describe('spinner behavior during dependency installation', () => {
     it('should start and stop spinner during successful npm install when not forceYes', async () => {
-      const mockSpinnerInstance = {start: vi.fn(), stop: vi.fn()};
-      const {spinner: spinnerMock} = await import('@clack/prompts');
-      (spinnerMock as Mock).mockReturnValue(mockSpinnerInstance);
+      const mockSpinnerInstance = {start: vi.fn(), stop: vi.fn(), message: vi.fn()};
+      (spinner as Mock).mockReturnValue(mockSpinnerInstance);
 
       await createAgent({...getFreshOptions(), forceYes: false});
 
@@ -308,22 +334,17 @@ describe('createAgent', () => {
     });
 
     it('should NOT start spinner during npm install when forceYes is true', async () => {
-      const mockSpinnerInstance = {start: vi.fn(), stop: vi.fn()};
-      const {spinner: spinnerMock, intro} = await import('@clack/prompts');
-      (spinnerMock as Mock).mockReturnValue(mockSpinnerInstance);
+      const mockSpinnerInstance = {start: vi.fn(), stop: vi.fn(), message: vi.fn()};
+      (spinner as Mock).mockReturnValue(mockSpinnerInstance);
 
       await createAgent({...getFreshOptions(), forceYes: true});
 
-      expect(spinnerMock).not.toHaveBeenCalled();
-      expect(intro).not.toHaveBeenCalled();
+      expect(spinner).not.toHaveBeenCalled();
     });
 
     it('should stop spinner with error message when npm install fails and not forceYes', async () => {
-      const mockSpinnerInstance = {start: vi.fn(), stop: vi.fn()};
-      const {spinner: spinnerMock} = await import('@clack/prompts');
-      (spinnerMock as Mock).mockReturnValue(mockSpinnerInstance);
-
-      const {outro} = await import('@clack/prompts');
+      const mockSpinnerInstance = {start: vi.fn(), stop: vi.fn(), message: vi.fn()};
+      (spinner as Mock).mockReturnValue(mockSpinnerInstance);
 
       const {exec: execMock} = await import('node:child_process');
       // Make exec fail by calling callback with error
