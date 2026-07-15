@@ -320,7 +320,11 @@ describe('createAgent', () => {
 
   describe('spinner behavior during dependency installation', () => {
     it('should start and stop spinner during successful npm install when not forceYes', async () => {
-      const mockSpinnerInstance = {start: vi.fn(), stop: vi.fn(), message: vi.fn()};
+      const mockSpinnerInstance = {
+        start: vi.fn(),
+        stop: vi.fn(),
+        message: vi.fn(),
+      };
       (spinner as Mock).mockReturnValue(mockSpinnerInstance);
 
       await createAgent({...getFreshOptions(), forceYes: false});
@@ -334,7 +338,11 @@ describe('createAgent', () => {
     });
 
     it('should NOT start spinner during npm install when forceYes is true', async () => {
-      const mockSpinnerInstance = {start: vi.fn(), stop: vi.fn(), message: vi.fn()};
+      const mockSpinnerInstance = {
+        start: vi.fn(),
+        stop: vi.fn(),
+        message: vi.fn(),
+      };
       (spinner as Mock).mockReturnValue(mockSpinnerInstance);
 
       await createAgent({...getFreshOptions(), forceYes: true});
@@ -343,7 +351,11 @@ describe('createAgent', () => {
     });
 
     it('should stop spinner with error message when npm install fails and not forceYes', async () => {
-      const mockSpinnerInstance = {start: vi.fn(), stop: vi.fn(), message: vi.fn()};
+      const mockSpinnerInstance = {
+        start: vi.fn(),
+        stop: vi.fn(),
+        message: vi.fn(),
+      };
       (spinner as Mock).mockReturnValue(mockSpinnerInstance);
 
       const {exec: execMock} = await import('node:child_process');
