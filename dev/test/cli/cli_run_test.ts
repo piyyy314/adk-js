@@ -339,6 +339,16 @@ describe('cli_run', () => {
     expect(outro).not.toHaveBeenCalled();
   });
 
+  it('should call outro with failure message when an error occurs in runAgent', async () => {
+    (AgentFile as unknown as Mock).mockImplementationOnce(() => {
+      throw new Error('Load failed');
+    });
+
+    await runAgent({agentPath: 'agent.ts'});
+
+    expect(outro).toHaveBeenCalledWith('Run failed');
+  });
+
   it('should process user query before exiting', async () => {
     (text as Mock)
       .mockResolvedValueOnce('Hello agent') // First query

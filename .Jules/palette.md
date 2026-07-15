@@ -33,3 +33,7 @@
 ## 2025-06-15 - Enhancing CLI Onboarding and Error Prevention
 **Learning:** Adding validation to mandatory CLI inputs (like API keys and Project IDs) prevents downstream runtime errors and improves the robust feel of the tool. Providing copy-pasteable commands for common follow-up actions (like resuming a session or starting different interface modes) significantly lowers the barrier to entry for new users.
 **Action:** Always include 'validate' functions for required fields and provide actionable, copy-pasteable next steps in 'note' and 'log.info' outputs.
+
+## 2025-06-16 - Unified Graceful CLI Termination
+**Learning:** Consistently using 'outro' on all failure paths (declined folder overwrite, dependency install failure, runtime errors) provides a unified and professional closure to the CLI lifecycle, preventing "hanging" UI blocks and ensuring the terminal state is correctly restored.
+**Action:** Pair every 'intro' with a corresponding 'outro' in both success and all possible failure paths, especially those involving user interaction or external process execution.

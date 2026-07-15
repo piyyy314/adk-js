@@ -162,6 +162,7 @@ async function generateAgentFolder(
 
   if (!overwriteFolderResponse) {
     log.error(`Agent directory ${agentDir} already exists.`);
+    if (process.stdout.isTTY) outro('Agent creation failed');
     return false;
   }
 
@@ -218,6 +219,7 @@ export async function createAgent(options: AgentCreationOptions) {
       ? 'gemini-2.5-flash'
       : await select({
           message: 'Choose a model for the root agent',
+          initialValue: 'gemini-2.5-flash',
           options: [
             {
               label: 'gemini-2.5-flash',
@@ -253,6 +255,7 @@ export async function createAgent(options: AgentCreationOptions) {
       ? 'ts'
       : await select({
           message: 'Choose a language for the agent',
+          initialValue: 'ts',
           options: [
             {
               label: 'TypeScript',
@@ -278,6 +281,7 @@ export async function createAgent(options: AgentCreationOptions) {
       ? 'googleai'
       : await select({
           message: 'Choose a backend',
+          initialValue: 'googleai',
           options: [
             {
               label: 'Google AI',
@@ -374,7 +378,11 @@ export async function createAgent(options: AgentCreationOptions) {
     s?.stop('Dependencies installed successfully.');
   } catch (e) {
     s?.stop('Failed to install dependencies.', 1);
-    if (!options.forceYes) log.error(`Error: ${(e as Error).message}`);
+    if (!options.forceYes) {
+      log.error(`Error: ${(e as Error).message}`);
+      if (process.stdout.isTTY) outro('Agent creation failed');
+    }
+    return;
   }
 
   const files = await listFiles(agentDir);

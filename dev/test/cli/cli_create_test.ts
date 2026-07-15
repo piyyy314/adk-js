@@ -272,8 +272,11 @@ describe('createAgent', () => {
       (isFolderExists as Mock).mockResolvedValue(true);
       (confirm as unknown as Mock).mockResolvedValueOnce(false); // Overwrite = No
 
+      const {outro} = await import('@clack/prompts');
+
       await expect(createAgent(getFreshOptions())).resolves.toBeUndefined();
       expect(removeFolder).not.toHaveBeenCalled();
+      expect(outro).toHaveBeenCalledWith('Agent creation failed');
     });
 
     it('should return without modifying files if overwrite confirm is cancelled', async () => {
@@ -320,6 +323,8 @@ describe('createAgent', () => {
       const {spinner: spinnerMock} = await import('@clack/prompts');
       (spinnerMock as Mock).mockReturnValue(mockSpinnerInstance);
 
+      const {outro} = await import('@clack/prompts');
+
       const {exec: execMock} = await import('node:child_process');
       // Make exec fail by calling callback with error
       (execMock as unknown as Mock).mockImplementation(
@@ -342,6 +347,7 @@ describe('createAgent', () => {
         'Failed to install dependencies.',
         1,
       );
+      expect(outro).toHaveBeenCalledWith('Agent creation failed');
     });
   });
 });
