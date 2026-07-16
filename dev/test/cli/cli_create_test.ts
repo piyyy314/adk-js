@@ -276,6 +276,29 @@ describe('createAgent', () => {
       expect(removeFolder).not.toHaveBeenCalled();
     });
 
+    it('should call outro on folder overwrite decline when process.stdout.isTTY is true', async () => {
+      const originalIsTTY = process.stdout.isTTY;
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: true,
+        configurable: true,
+      });
+
+      const {outro} = await import('@clack/prompts');
+
+      try {
+        (isFolderExists as Mock).mockResolvedValue(true);
+        (confirm as unknown as Mock).mockResolvedValueOnce(false); // Overwrite = No
+
+        await expect(createAgent(getFreshOptions())).resolves.toBeUndefined();
+        expect(outro).toHaveBeenCalledWith('Agent creation failed');
+      } finally {
+        Object.defineProperty(process.stdout, 'isTTY', {
+          value: originalIsTTY,
+          configurable: true,
+        });
+      }
+    });
+
     it('should return without modifying files if overwrite confirm is cancelled', async () => {
       (isFolderExists as Mock).mockResolvedValue(true);
       const cancelSymbol = Symbol('cancel');
@@ -317,7 +340,7 @@ describe('createAgent', () => {
 
     it('should stop spinner with error message when npm install fails and not forceYes', async () => {
       const mockSpinnerInstance = {start: vi.fn(), stop: vi.fn()};
-      const {spinner: spinnerMock} = await import('@clack/prompts');
+      const {spinner: spinnerMock, outro} = await import('@clack/prompts');
       (spinnerMock as Mock).mockReturnValue(mockSpinnerInstance);
 
       const {exec: execMock} = await import('node:child_process');
@@ -342,6 +365,7 @@ describe('createAgent', () => {
         'Failed to install dependencies.',
         1,
       );
+      expect(outro).toHaveBeenCalledWith('Agent creation failed');
     });
   });
 });
