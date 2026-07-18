@@ -268,32 +268,39 @@ async function createDockerFile(
 export async function deployToCloudRun(options: DeployToCloudRunOptions) {
   if (process.stdout.isTTY) intro('Agent Deployment');
 
-  const project =
-    options.project || (await resolveDefaultFromGcloudConfig('project'));
-  if (!project || project === '(unset)') {
-    throw new Error(
-      'Project is not specified and default value for "project" is not set in gcloud config. Please specify project with --project option or set default value running "gcloud config set project YOUR_PROJECT_ID"',
-    );
-  }
-  if (!options.project) {
-    options.project = project;
-    log.info(
-      `--project option is not provided, using default project from gcloud config: ${project}`,
-    );
-  }
+  try {
+    const project =
+      options.project || (await resolveDefaultFromGcloudConfig('project'));
+    if (!project || project === '(unset)') {
+      throw new Error(
+        'Project is not specified and default value for "project" is not set in gcloud config. Please specify project with --project option or set default value running "gcloud config set project YOUR_PROJECT_ID"',
+      );
+    }
+    if (!options.project) {
+      options.project = project;
+      log.info(
+        `--project option is not provided, using default project from gcloud config: ${project}`,
+      );
+    }
 
-  const region =
-    options.region || (await resolveDefaultFromGcloudConfig('run/region'));
-  if (!region) {
-    throw new Error(
-      'Region is not specified and default value for "run/region" is not set in gcloud config. Please specify region with --region option or set default value running "gcloud config set run/region YOUR_REGION_NAME"',
-    );
-  }
-  if (!options.region) {
-    options.region = region;
-    log.info(
-      `--region option is not provided, using default region from gcloud config: ${region}`,
-    );
+    const region =
+      options.region || (await resolveDefaultFromGcloudConfig('run/region'));
+    if (!region) {
+      throw new Error(
+        'Region is not specified and default value for "run/region" is not set in gcloud config. Please specify region with --region option or set default value running "gcloud config set run/region YOUR_REGION_NAME"',
+      );
+    }
+    if (!options.region) {
+      options.region = region;
+      log.info(
+        `--region option is not provided, using default region from gcloud config: ${region}`,
+      );
+    }
+  } catch (e: unknown) {
+    if (process.stdout.isTTY) {
+      outro('Deployment failed');
+    }
+    throw e;
   }
 
   const gcloudCommands = prepareGCloudArguments(options);
@@ -364,6 +371,9 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
   } catch (e: unknown) {
     s?.stop('Failed to prepare deployment files.', 1);
     log.error(`Failed to deploy to Cloud Run: ${(e as Error).message}`);
+    if (process.stdout.isTTY) {
+      outro('Deployment failed');
+    }
   } finally {
     if (await isFolderExists(options.tempFolder)) {
       await fs.rm(options.tempFolder, {recursive: true, force: true});
