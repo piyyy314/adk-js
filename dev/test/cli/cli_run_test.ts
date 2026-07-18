@@ -340,7 +340,9 @@ describe('cli_run', () => {
   });
 
   it('should call outro with "Run failed" when run fails and isTTY is true', async () => {
-    mockAgentFile.load = vi.fn().mockRejectedValue(new Error('Load agent failed'));
+    mockAgentFile.load = vi
+      .fn()
+      .mockRejectedValue(new Error('Load agent failed'));
     const mockSessionService = createMockSessionService();
 
     await runAgent({

@@ -332,7 +332,11 @@ describe('createAgent', () => {
 
     it('should stop spinner with error message and call outro and return early when npm install fails and not forceYes', async () => {
       const mockSpinnerInstance = {start: vi.fn(), stop: vi.fn()};
-      const {spinner: spinnerMock, note, outro} = await import('@clack/prompts');
+      const {
+        spinner: spinnerMock,
+        note,
+        outro,
+      } = await import('@clack/prompts');
       (spinnerMock as Mock).mockReturnValue(mockSpinnerInstance);
 
       const {exec: execMock} = await import('node:child_process');
