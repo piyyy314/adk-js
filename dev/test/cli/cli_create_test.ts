@@ -181,6 +181,7 @@ describe('createAgent', () => {
       expect(select).toHaveBeenCalledWith(
         expect.objectContaining({
           message: 'Choose a model for the root agent',
+          initialValue: 'gemini-2.5-flash',
         }),
       );
       expect(saveToFile).toHaveBeenCalledWith(
@@ -208,9 +209,16 @@ describe('createAgent', () => {
       expect(select).toHaveBeenCalledWith(
         expect.objectContaining({
           message: 'Choose a language for the agent',
+          initialValue: 'ts',
           options: expect.arrayContaining([
             expect.objectContaining({label: 'JavaScript', value: 'js'}),
           ]),
+        }),
+      );
+      expect(select).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Choose a backend',
+          initialValue: 'googleai',
         }),
       );
       expect(saveToFile).toHaveBeenCalledWith(

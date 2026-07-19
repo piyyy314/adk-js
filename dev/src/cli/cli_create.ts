@@ -221,6 +221,7 @@ export async function createAgent(options: AgentCreationOptions) {
       ? 'gemini-2.5-flash'
       : await select({
           message: 'Choose a model for the root agent',
+          initialValue: 'gemini-2.5-flash',
           options: [
             {
               label: 'gemini-2.5-flash',
@@ -256,6 +257,7 @@ export async function createAgent(options: AgentCreationOptions) {
       ? 'ts'
       : await select({
           message: 'Choose a language for the agent',
+          initialValue: 'ts',
           options: [
             {
               label: 'TypeScript',
@@ -281,6 +283,7 @@ export async function createAgent(options: AgentCreationOptions) {
       ? 'googleai'
       : await select({
           message: 'Choose a backend',
+          initialValue: 'googleai',
           options: [
             {
               label: 'Google AI',
