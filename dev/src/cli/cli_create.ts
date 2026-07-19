@@ -7,6 +7,7 @@
 import {
   confirm,
   intro,
+  isCancel,
   log,
   note,
   outro,
@@ -18,7 +19,6 @@ import {
 import {exec, execSync} from 'node:child_process';
 import * as path from 'node:path';
 import {promisify} from 'node:util';
-import {handleCancellation} from '../utils/cli_utils.js';
 import {
   createFolder,
   isFolderExists,
@@ -156,15 +156,12 @@ async function generateAgentFolder(
         message: `Folder ${agentDir} already exists. Would you like to overwrite existing folder?`,
       });
 
-  if (handleCancellation(overwriteFolderResponse)) {
+  if (isCancel(overwriteFolderResponse)) {
     return false;
   }
 
   if (!overwriteFolderResponse) {
     log.error(`Agent directory ${agentDir} already exists.`);
-    if (process.stdout.isTTY) {
-      outro('Agent creation failed');
-    }
     return false;
   }
 
@@ -245,7 +242,7 @@ export async function createAgent(options: AgentCreationOptions) {
           ],
         });
 
-    if (handleCancellation(model)) {
+    if (isCancel(model)) {
       return;
     }
     options.model = model;
@@ -270,7 +267,7 @@ export async function createAgent(options: AgentCreationOptions) {
           ],
         });
 
-    if (handleCancellation(language)) {
+    if (isCancel(language)) {
       return;
     }
     options.language = language;
@@ -295,7 +292,7 @@ export async function createAgent(options: AgentCreationOptions) {
           ],
         });
 
-    if (handleCancellation(backend)) {
+    if (isCancel(backend)) {
       return;
     }
 
@@ -309,13 +306,9 @@ export async function createAgent(options: AgentCreationOptions) {
             message: 'Enter the Google Cloud Project ID',
             initialValue: defaultProject,
             placeholder: 'my-project-id',
-            validate: (value) => {
-              if (!value) return 'Project ID is required';
-              return;
-            },
           });
 
-      if (handleCancellation(projectResponse)) {
+      if (isCancel(projectResponse)) {
         return;
       }
       options.project = projectResponse;
@@ -326,33 +319,20 @@ export async function createAgent(options: AgentCreationOptions) {
             message: 'Enter the Google Cloud Region',
             initialValue: defaultRegion,
             placeholder: 'us-central1',
-            validate: (value) => {
-              if (!value) return 'Region is required';
-              return;
-            },
           });
 
-      if (handleCancellation(regionResponse)) {
+      if (isCancel(regionResponse)) {
         return;
       }
       options.region = regionResponse;
     } else {
-      if (!options.forceYes) {
-        log.info(
-          'You can get a Google API Key at https://aistudio.google.com/',
-        );
-      }
       const apiKeyResponse: symbol | string = options.forceYes
         ? ''
         : await password({
             message: 'Enter the Google API Key',
-            validate: (value) => {
-              if (!value) return 'API Key is required';
-              return;
-            },
           });
 
-      if (handleCancellation(apiKeyResponse)) {
+      if (isCancel(apiKeyResponse)) {
         return;
       }
       options.apiKey = apiKeyResponse;
@@ -377,11 +357,7 @@ export async function createAgent(options: AgentCreationOptions) {
     s?.stop('Dependencies installed successfully.');
   } catch (e) {
     s?.stop('Failed to install dependencies.', 1);
-    if (!options.forceYes) {
-      log.error(`Error: ${(e as Error).message}`);
-      outro('Agent creation failed');
-    }
-    return;
+    if (!options.forceYes) log.error(`Error: ${(e as Error).message}`);
   }
 
   const files = await listFiles(agentDir);
@@ -390,10 +366,7 @@ export async function createAgent(options: AgentCreationOptions) {
     note(
       `Created the following files in ${agentDir}:\n` +
         files.map((file) => `  - ${file}`).join('\n') +
-        `\n\nTo get started, run:\n` +
-        `  cd ${options.agentName}\n` +
-        `  npm run web  # Start the agent in a web interface\n` +
-        `  npm run cli  # Interact with the agent in the terminal`,
+        `\n\nRun 'cd ${options.agentName} && npm run web' to start the agent in a web interface`,
       'Agent Created Successfully',
     );
 
