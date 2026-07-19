@@ -339,6 +339,20 @@ describe('cli_run', () => {
     expect(outro).not.toHaveBeenCalled();
   });
 
+  it('should call outro with "Run failed" when run fails and isTTY is true', async () => {
+    mockAgentFile.load = vi
+      .fn()
+      .mockRejectedValue(new Error('Load agent failed'));
+    const mockSessionService = createMockSessionService();
+
+    await runAgent({
+      agentPath: 'agent.ts',
+      sessionService: mockSessionService,
+    });
+
+    expect(outro).toHaveBeenCalledWith('Run failed');
+  });
+
   it('should process user query before exiting', async () => {
     (text as Mock)
       .mockResolvedValueOnce('Hello agent') // First query
