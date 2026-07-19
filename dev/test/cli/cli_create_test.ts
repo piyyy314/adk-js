@@ -291,6 +291,29 @@ describe('createAgent', () => {
       }
     });
 
+    it('should not call outro when user declines overwrite and isTTY is false', async () => {
+      const originalIsTTY = process.stdout.isTTY;
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: false,
+        configurable: true,
+      });
+
+      try {
+        const {outro} = await import('@clack/prompts');
+        (isFolderExists as Mock).mockResolvedValue(true);
+        (confirm as unknown as Mock).mockResolvedValueOnce(false); // Overwrite = No
+
+        await expect(createAgent(getFreshOptions())).resolves.toBeUndefined();
+        expect(removeFolder).not.toHaveBeenCalled();
+        expect(outro).not.toHaveBeenCalled();
+      } finally {
+        Object.defineProperty(process.stdout, 'isTTY', {
+          value: originalIsTTY,
+          configurable: true,
+        });
+      }
+    });
+
     it('should return without modifying files if overwrite confirm is cancelled', async () => {
       (isFolderExists as Mock).mockResolvedValue(true);
       const cancelSymbol = Symbol('cancel');
@@ -363,6 +386,43 @@ describe('createAgent', () => {
       );
       expect(outro).toHaveBeenCalledWith('Agent creation failed');
       expect(note).not.toHaveBeenCalled();
+    });
+
+    it('should stop early without calling outro, log.error or listFiles when npm install fails and forceYes is true', async () => {
+      const mockSpinnerInstance = {start: vi.fn(), stop: vi.fn()};
+      const {
+        spinner: spinnerMock,
+        note,
+        outro,
+        log,
+      } = await import('@clack/prompts');
+      (spinnerMock as Mock).mockReturnValue(mockSpinnerInstance);
+
+      const {exec: execMock} = await import('node:child_process');
+      // Make exec fail by calling callback with error
+      (execMock as unknown as Mock).mockImplementation(
+        (
+          _cmd: string,
+          _opts: unknown,
+          callback: (err: Error | null) => void,
+        ) => {
+          callback(new Error('npm install failed'));
+          return {on: vi.fn()};
+        },
+      );
+
+      await expect(
+        createAgent({...getFreshOptions(), forceYes: true}),
+      ).resolves.toBeUndefined();
+
+      // Spinner is never created when forceYes is true, so no spinner calls.
+      expect(spinnerMock).not.toHaveBeenCalled();
+      // The error is only logged/announced in the interactive (!forceYes) path.
+      expect(log.error).not.toHaveBeenCalled();
+      expect(outro).not.toHaveBeenCalled();
+      expect(note).not.toHaveBeenCalled();
+      // The function must return before reaching the file-listing/note step.
+      expect(listFiles).not.toHaveBeenCalled();
     });
   });
 });
