@@ -24,3 +24,16 @@
 
 **Learning:** Rich terminal UI elements (intro, outro, spinner) from `@clack/prompts` can emit ANSI escape codes that pollute logs and disrupt integration tests in non-TTY environments. Furthermore, creating multiple `readline` interfaces on the same stdin stream in a loop causes "MaxListenersExceededWarning" and breaks input consumption.
 **Action:** Wrap terminal-only UI elements in `process.stdout.isTTY` checks and use a single `readline` interface with an asynchronous iterator for non-TTY input processing.
+
+## 2025-05-31 - Consolidating CLI Lifecycle and Validation
+
+**Learning:** Placing `outro` before conditional final interactions (like session saving) creates a "zombie interaction" feel. Also, providing immediate validation feedback for session identifiers prevents runtime errors and file-system pollution.
+**Action:** Always place `outro` at the absolute end of the command lifecycle and use `validate` in `@clack/prompts` to ensure identifiers conform to expected patterns (e.g., filename-safe).
+
+## 2025-06-15 - Enhancing CLI Onboarding and Error Prevention
+**Learning:** Adding validation to mandatory CLI inputs (like API keys and Project IDs) prevents downstream runtime errors and improves the robust feel of the tool. Providing copy-pasteable commands for common follow-up actions (like resuming a session or starting different interface modes) significantly lowers the barrier to entry for new users.
+**Action:** Always include 'validate' functions for required fields and provide actionable, copy-pasteable next steps in 'note' and 'log.info' outputs.
+
+## 2026-03-02 - Preventing Terminal UI Pollution on CLI Command Failures
+**Learning:** In interactive CLI applications using `@clack/prompts`, failing to call `outro` on error/early exit paths leaves "zombie" open terminal panels (incomplete borders), resulting in a messy and broken user interface. This is especially prominent when handling asynchronous task failures or config validation errors.
+**Action:** Always pair `intro` with a corresponding `outro` in both the success path and all `catch` or early-return blocks (guarded by `process.stdout.isTTY`).

@@ -178,7 +178,6 @@ async function createPackageJson(sourceFolder: string, targetFolder: string) {
       dependencies: packageJson.dependencies,
     }),
   ]);
-  console.info('Creating package.json complete', targetPackageJsonPath);
 }
 
 export function createDockerFileContent(
@@ -264,8 +263,6 @@ async function createDockerFile(
 ) {
   const dockerFilePath = path.join(targetFolder, 'Dockerfile');
   await saveToFile(dockerFilePath, createDockerFileContent(options));
-
-  console.info('Creating Dockerfile complete:', dockerFilePath);
 }
 
 export async function deployToCloudRun(options: DeployToCloudRunOptions) {
@@ -315,24 +312,36 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
       ? path.parse(options.agentPath).name
       : path.basename(options.agentPath);
 
-  console.info('Starting deployment to Cloud Run...');
+  log.step('Starting deployment to Cloud Run...');
 
   if (await isFolderExists(options.tempFolder)) {
-    console.info('Cleaning up existing temporary files...');
     await fs.rm(options.tempFolder, {recursive: true, force: true});
   }
 
+  const s = process.stdout.isTTY ? spinner() : null;
   try {
-    console.info('Copying agent source files...');
+    if (s) {
+      s.start('Copying agent source files...');
+    } else {
+      log.step('Copying agent source files...');
+    }
     await copyAgentFiles(
       agentLoader,
       path.join(options.tempFolder, 'agents', appName),
     );
 
-    console.info('Creating package.json...');
+    if (s) {
+      s.message('Creating package.json...');
+    } else {
+      log.step('Creating package.json...');
+    }
     await createPackageJson(agentDir, options.tempFolder);
 
-    console.info('Creating Dockerfile...');
+    if (s) {
+      s.message('Creating Dockerfile...');
+    } else {
+      log.step('Creating Dockerfile...');
+    }
     await createDockerFile(options.tempFolder, {
       appName,
       project: options.project,
@@ -344,19 +353,22 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
       otelToCloud: options.otelToCloud,
       a2a: options.a2a,
     });
+    s?.stop('Deployment files prepared.');
 
-    console.info('Deploying to Cloud Run...');
+    log.step('Deploying to Cloud Run...');
     await spawnAsync('gcloud', gcloudCommands, {stdio: 'inherit'});
+
+    if (process.stdout.isTTY) outro('Happy Agent Building!');
   } catch (e: unknown) {
-    console.error(
-      '\x1b[31mFailed to deploy to Cloud Run:',
-      (e as Error).message,
-      '\x1b[0m',
-    );
+    s?.stop('Failed to prepare deployment files.', 1);
+    log.error(`Failed to deploy to Cloud Run: ${(e as Error).message}`);
+    if (process.stdout.isTTY) {
+      outro('Deployment failed');
+    }
   } finally {
-    console.info('Cleaning up temporary files...');
-    await fs.rm(options.tempFolder, {recursive: true, force: true});
+    if (await isFolderExists(options.tempFolder)) {
+      await fs.rm(options.tempFolder, {recursive: true, force: true});
+    }
     await agentLoader.disposeAll();
-    console.info('Temporary files cleaned up.');
   }
 }
