@@ -623,7 +623,7 @@ describe('deployToCloudRun', () => {
     try {
       await deployToCloudRun(conflictingOptions);
       expect(log.error).toHaveBeenCalledWith(
-        expect.stringContaining('conflict with ADK\'s automatic configuration'),
+        expect.stringContaining("conflict with ADK's automatic configuration"),
       );
       expect(outro).toHaveBeenCalledWith('Deployment failed');
     } finally {
