@@ -303,32 +303,34 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
     throw e;
   }
 
-  const gcloudCommands = prepareGCloudArguments(options);
-
-  // Request to bundle any js or ts file into a single cjs file to be able to
-  // copy file with all it's dependencies correctly.
-  const agentLoader = new AgentLoader(
-    options.agentPath,
-    options.agentFileLoadOptions,
-  );
-
-  const isFileProvided = await isFile(options.agentPath);
-  const agentDir = isFileProvided
-    ? path.dirname(options.agentPath)
-    : options.agentPath;
-  const appName =
-    options.appName || isFileProvided
-      ? path.parse(options.agentPath).name
-      : path.basename(options.agentPath);
-
-  log.step('Starting deployment to Cloud Run...');
-
-  if (await isFolderExists(options.tempFolder)) {
-    await fs.rm(options.tempFolder, {recursive: true, force: true});
-  }
-
+  let agentLoader: AgentLoader | undefined;
   const s = process.stdout.isTTY ? spinner() : null;
+
   try {
+    const gcloudCommands = prepareGCloudArguments(options);
+
+    // Request to bundle any js or ts file into a single cjs file to be able to
+    // copy file with all it's dependencies correctly.
+    agentLoader = new AgentLoader(
+      options.agentPath,
+      options.agentFileLoadOptions,
+    );
+
+    const isFileProvided = await isFile(options.agentPath);
+    const agentDir = isFileProvided
+      ? path.dirname(options.agentPath)
+      : options.agentPath;
+    const appName =
+      options.appName || isFileProvided
+        ? path.parse(options.agentPath).name
+        : path.basename(options.agentPath);
+
+    log.step('Starting deployment to Cloud Run...');
+
+    if (await isFolderExists(options.tempFolder)) {
+      await fs.rm(options.tempFolder, {recursive: true, force: true});
+    }
+
     if (s) {
       s.start('Copying agent source files...');
     } else {
@@ -369,7 +371,9 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
 
     if (process.stdout.isTTY) outro('Happy Agent Building!');
   } catch (e: unknown) {
-    s?.stop('Failed to prepare deployment files.', 1);
+    if (s) {
+      s.stop('Failed to prepare deployment files.', 1);
+    }
     log.error(`Failed to deploy to Cloud Run: ${(e as Error).message}`);
     if (process.stdout.isTTY) {
       outro('Deployment failed');
@@ -378,6 +382,8 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
     if (await isFolderExists(options.tempFolder)) {
       await fs.rm(options.tempFolder, {recursive: true, force: true});
     }
-    await agentLoader.disposeAll();
+    if (agentLoader) {
+      await agentLoader.disposeAll();
+    }
   }
 }

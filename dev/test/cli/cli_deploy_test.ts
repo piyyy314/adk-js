@@ -607,4 +607,30 @@ describe('deployToCloudRun', () => {
       force: true,
     });
   });
+
+  it('should gracefully catch and handle errors during the preparation phase', async () => {
+    const originalIsTTY = process.stdout.isTTY;
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
+
+    const conflictingOptions = {
+      ...defaultOptions,
+      extraGcloudArgs: ['--source=conflicting-value'],
+    };
+
+    try {
+      await deployToCloudRun(conflictingOptions);
+      expect(log.error).toHaveBeenCalledWith(
+        expect.stringContaining('conflict with ADK\'s automatic configuration'),
+      );
+      expect(outro).toHaveBeenCalledWith('Deployment failed');
+    } finally {
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: originalIsTTY,
+        configurable: true,
+      });
+    }
+  });
 });
