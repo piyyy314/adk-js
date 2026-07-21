@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {intro, isCancel, log, outro, spinner, text} from '@clack/prompts';
+import {intro, log, outro, spinner, text} from '@clack/prompts';
 import {
   BaseAgent,
   BaseArtifactService,
@@ -20,6 +20,7 @@ import * as path from 'node:path';
 import {createInterface} from 'node:readline';
 
 import {AgentFile, AgentFileOptions} from '../utils/agent_loader.js';
+import {handleCancellation} from '../utils/cli_utils.js';
 import {loadFileData, saveToFile} from '../utils/file_utils.js';
 
 const dirname = process.cwd();
@@ -69,18 +70,31 @@ async function runFromInputFile(
 
     const s = process.stdout.isTTY ? spinner() : null;
     s?.start('Thinking...');
+    let spinnerStopped = false;
     for await (const event of runner.runAsync(runOptions)) {
       if (event.content && event.content.parts) {
         const text = event.content.parts
           .map((part) => part.text || '')
           .join('');
         if (text) {
-          s?.stop();
-          console.log(`[${event.author}]: ${text}`);
+          if (process.stdout.isTTY) {
+            if (!spinnerStopped) {
+              s?.stop();
+              spinnerStopped = true;
+              process.stdout.write(`[${event.author}]: `);
+            }
+            process.stdout.write(text);
+          } else {
+            console.log(`[${event.author}]: ${text}`);
+          }
         }
       }
     }
-    s?.stop();
+    if (process.stdout.isTTY && spinnerStopped) {
+      process.stdout.write('\n');
+    } else {
+      s?.stop();
+    }
   }
 
   return session;
@@ -130,10 +144,11 @@ async function* getQueries(): AsyncGenerator<string, void, unknown> {
  *   - `rootAgent`: the agent implementation to drive.
  *   - `session`: the current session (provides `userId` and `id`).
  *   - `artifactService`, `sessionService`, `memoryService` (optional): services passed to the runner.
+ * @returns `true` when cancelled from the interactive prompt, otherwise `false`.
  */
 async function runInteractively(
   options: RunInteractivelyOptions,
-): Promise<void> {
+): Promise<boolean> {
   const runner = new Runner({
     appName: options.rootAgent.name,
     agent: options.rootAgent,
@@ -162,9 +177,12 @@ async function runInteractively(
           s?.stop();
           console.log(`[${event.author}]: ${text}`);
         }
+        await processQuery(line, runner, options);
       }
+      return false;
     }
-    s?.stop();
+  } finally {
+    rl?.close();
   }
 }
 
@@ -210,7 +228,9 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
     });
 
     if (process.stdout.isTTY && !options.inputFile) {
-      const mode = options.savedSessionFile ? 'Resuming session' : 'Running agent';
+      const mode = options.savedSessionFile
+        ? 'Resuming session'
+        : 'Running agent';
       intro(`${mode}: ${rootAgent.name}`);
     }
 
@@ -246,13 +266,14 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
         }
       }
 
-      await runInteractively({
+      const cancelled = await runInteractively({
         rootAgent,
         artifactService,
         sessionService,
         memoryService,
         session,
       });
+      if (cancelled) return;
     }
 
     if (options.saveSession) {
@@ -260,7 +281,7 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
       const sessionId =
         options.sessionId ||
         (await text({
-          message: 'Session ID to save',
+          message: 'Session ID to save (will be used as filename)',
           initialValue: defaultSessionId,
           placeholder: 'e.g. my-session',
           validate: (value) => {
@@ -272,8 +293,7 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
           },
         }));
 
-      if (isCancel(sessionId)) {
-        if (process.stdout.isTTY && !options.inputFile) outro('Operation cancelled');
+      if (handleCancellation(sessionId)) {
         return;
       }
 
@@ -293,8 +313,12 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
       );
     }
 
-    if (process.stdout.isTTY && !options.inputFile) outro('Happy Agent Building!');
+    if (process.stdout.isTTY && !options.inputFile)
+      outro('Happy Agent Building!');
   } catch (e) {
     log.error(e instanceof Error ? e.message : String(e));
+    if (process.stdout.isTTY && !options.inputFile) {
+      outro('Run failed');
+    }
   }
 }
