@@ -280,39 +280,39 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
     );
   }
 
-  const region =
-    options.region || (await resolveDefaultFromGcloudConfig('run/region'));
-  if (!region) {
-    throw new Error(
-      'Region is not specified and default value for "run/region" is not set in gcloud config. Please specify region with --region option or set default value running "gcloud config set run/region YOUR_REGION_NAME"',
-    );
-  }
-  if (!options.region) {
-    options.region = region;
-    log.info(
-      `--region option is not provided, using default region from gcloud config: ${region}`,
-    );
+    const region =
+      options.region || (await resolveDefaultFromGcloudConfig('run/region'));
+    if (!region) {
+      throw new Error(
+        'Region is not specified and default value for "run/region" is not set in gcloud config. Please specify region with --region option or set default value running "gcloud config set run/region YOUR_REGION_NAME"',
+      );
+    }
+    if (!options.region) {
+      options.region = region;
+      log.info(
+        `--region option is not provided, using default region from gcloud config: ${region}`,
+      );
+    }
+  } catch (e: unknown) {
+    if (process.stdout.isTTY) {
+      outro('Deployment failed');
+    }
+    throw e;
   }
 
   if (process.stdout.isTTY) intro('Agent Deployment');
 
   const gcloudCommands = prepareGCloudArguments(options);
 
-  // Request to bundle any js or ts file into a single cjs file to be able to
-  // copy file with all it's dependencies correctly.
-  const agentLoader = new AgentLoader(
-    options.agentPath,
-    options.agentFileLoadOptions,
-  );
+  try {
+    const gcloudCommands = prepareGCloudArguments(options);
 
-  const isFileProvided = await isFile(options.agentPath);
-  const agentDir = isFileProvided
-    ? path.dirname(options.agentPath)
-    : options.agentPath;
-  const appName =
-    options.appName || isFileProvided
-      ? path.parse(options.agentPath).name
-      : path.basename(options.agentPath);
+    // Request to bundle any js or ts file into a single cjs file to be able to
+    // copy file with all it's dependencies correctly.
+    agentLoader = new AgentLoader(
+      options.agentPath,
+      options.agentFileLoadOptions,
+    );
 
   try {
     log.step('Starting deployment to Cloud Run...');
@@ -369,10 +369,15 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
   } catch (e: unknown) {
     if (process.stdout.isTTY) outro('Deployment failed');
     log.error(`Failed to deploy to Cloud Run: ${(e as Error).message}`);
+    if (process.stdout.isTTY) {
+      outro('Deployment failed');
+    }
   } finally {
     if (await isFolderExists(options.tempFolder)) {
       await fs.rm(options.tempFolder, {recursive: true, force: true});
     }
-    await agentLoader.disposeAll();
+    if (agentLoader) {
+      await agentLoader.disposeAll();
+    }
   }
 }

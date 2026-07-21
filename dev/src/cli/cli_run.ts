@@ -343,5 +343,8 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
   } catch (e) {
     if (process.stdout.isTTY && !options.inputFile) outro('Run failed');
     log.error(e instanceof Error ? e.message : String(e));
+    if (process.stdout.isTTY && !options.inputFile) {
+      outro('Run failed');
+    }
   }
 }
