@@ -122,6 +122,7 @@ describe('cli_run', () => {
   });
 
   it('should run interactively by default', async () => {
+    const {text} = await import('@clack/prompts');
     await runAgent({agentPath: 'agent.ts'});
 
     expect(AgentFile).toHaveBeenCalledWith(
@@ -184,6 +185,7 @@ describe('cli_run', () => {
   });
 
   it('should run from saved session', async () => {
+    const {text} = await import('@clack/prompts');
     const sessionContent = {
       id: 'old-session',
       appName: 'test-agent',

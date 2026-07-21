@@ -209,6 +209,8 @@ async function runInteractively(
   } finally {
     rl?.close();
   }
+
+  outro('Session ended.');
 }
 
 /**
