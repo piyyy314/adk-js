@@ -6,6 +6,7 @@
 
 import {intro, isCancel, outro, spinner, text} from '@clack/prompts';
 import {BaseAgent, BaseSessionService, Runner} from '@google/adk';
+import {createInterface} from 'node:readline';
 import {afterEach, beforeEach, describe, expect, it, Mock, vi} from 'vitest';
 import {runAgent} from '../../src/cli/cli_run.js';
 import {AgentFile} from '../../src/utils/agent_loader.js';
@@ -784,6 +785,144 @@ describe('cli_run', () => {
       expect(mockSpinner.stop).toHaveBeenCalled();
       // start() should only be called once per query
       expect(mockSpinner.start).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('non-TTY interactive mode (piped stdin)', () => {
+    beforeEach(() => {
+      (process.stdin as unknown as {isTTY: boolean}).isTTY = false;
+    });
+
+    const mockReadlineQueue = (
+      values: Array<{value?: string; done: boolean}>,
+    ) => {
+      const nextMock = vi.fn();
+      for (const result of values) {
+        nextMock.mockResolvedValueOnce(result);
+      }
+      (createInterface as unknown as Mock).mockReturnValue({
+        [Symbol.asyncIterator]: () => ({next: nextMock}),
+      });
+      return nextMock;
+    };
+
+    it('should read queries via the readline async iterator until "exit"', async () => {
+      mockReadlineQueue([
+        {value: 'Hello from pipe', done: false},
+        {value: 'exit', done: false},
+      ]);
+      const mockRunAsync = vi.fn().mockImplementation(async function* () {
+        yield {author: 'model', content: {parts: [{text: 'Response'}]}};
+      });
+      (Runner as unknown as Mock).mockImplementation(() => ({
+        runAsync: mockRunAsync,
+      }));
+      const mockSessionService = createMockSessionService();
+
+      await runAgent({
+        agentPath: 'agent.ts',
+        sessionService: mockSessionService,
+      });
+
+      expect(createInterface).toHaveBeenCalledWith({
+        input: process.stdin,
+        terminal: false,
+      });
+      expect(mockRunAsync).toHaveBeenCalledTimes(1);
+      expect(mockRunAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          newMessage: {role: 'user', parts: [{text: 'Hello from pipe'}]},
+        }),
+      );
+    });
+
+    it('should stop reading and exit the loop when the iterator reports done', async () => {
+      mockReadlineQueue([{value: undefined, done: true}]);
+      const mockRunAsync = vi.fn().mockImplementation(async function* () {});
+      (Runner as unknown as Mock).mockImplementation(() => ({
+        runAsync: mockRunAsync,
+      }));
+      const mockSessionService = createMockSessionService();
+
+      await runAgent({
+        agentPath: 'agent.ts',
+        sessionService: mockSessionService,
+      });
+
+      expect(mockRunAsync).not.toHaveBeenCalled();
+      // Loop was not cancelled, so the "Happy Agent Building!" outro still runs.
+      expect(outro).toHaveBeenCalledWith('Happy Agent Building!');
+    });
+
+    it('should skip empty and whitespace-only lines read from piped input', async () => {
+      const nextMock = mockReadlineQueue([
+        {value: '', done: false},
+        {value: '   ', done: false},
+        {value: 'exit', done: false},
+      ]);
+      const mockRunAsync = vi.fn().mockImplementation(async function* () {});
+      (Runner as unknown as Mock).mockImplementation(() => ({
+        runAsync: mockRunAsync,
+      }));
+      const mockSessionService = createMockSessionService();
+
+      await runAgent({
+        agentPath: 'agent.ts',
+        sessionService: mockSessionService,
+      });
+
+      expect(mockRunAsync).not.toHaveBeenCalled();
+      expect(nextMock).toHaveBeenCalledTimes(3);
+    });
+
+    it('should create the readline interface only once for multiple piped queries', async () => {
+      mockReadlineQueue([
+        {value: 'query1', done: false},
+        {value: 'query2', done: false},
+        {value: 'exit', done: false},
+      ]);
+      const mockRunAsync = vi.fn().mockImplementation(async function* () {});
+      (Runner as unknown as Mock).mockImplementation(() => ({
+        runAsync: mockRunAsync,
+      }));
+      const mockSessionService = createMockSessionService();
+
+      await runAgent({
+        agentPath: 'agent.ts',
+        sessionService: mockSessionService,
+      });
+
+      expect(createInterface).toHaveBeenCalledTimes(1);
+      expect(mockRunAsync).toHaveBeenCalledTimes(2);
+    });
+
+    it('should not use the clack text() prompt when stdin is not a TTY', async () => {
+      mockReadlineQueue([{value: 'exit', done: false}]);
+      const mockSessionService = createMockSessionService();
+
+      await runAgent({
+        agentPath: 'agent.ts',
+        sessionService: mockSessionService,
+      });
+
+      expect(text).not.toHaveBeenCalled();
+    });
+
+    it('should still save the session when piped input immediately ends and a sessionId is provided', async () => {
+      mockReadlineQueue([{value: undefined, done: true}]);
+      const mockSessionService = createMockSessionService();
+
+      await runAgent({
+        agentPath: 'agent.ts',
+        saveSession: true,
+        sessionId: 'piped-session',
+        sessionService: mockSessionService,
+      });
+
+      expect(saveToFile).toHaveBeenCalledWith(
+        expect.stringContaining('piped-session.session.json'),
+        expect.anything(),
+      );
     });
   });
 });

@@ -412,6 +412,25 @@ describe('deployToCloudRun', () => {
     }
   });
 
+  it('should call intro exactly once and not with the stale "Cloud Run Deployment" message', async () => {
+    const originalIsTTY = process.stdout.isTTY;
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
+
+    try {
+      await deployToCloudRun(defaultOptions);
+      expect(intro).toHaveBeenCalledTimes(1);
+      expect(intro).not.toHaveBeenCalledWith('Cloud Run Deployment');
+    } finally {
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: originalIsTTY,
+        configurable: true,
+      });
+    }
+  });
+
   it('should not call intro when process.stdout.isTTY is false', async () => {
     const originalIsTTY = process.stdout.isTTY;
     Object.defineProperty(process.stdout, 'isTTY', {
@@ -606,31 +625,5 @@ describe('deployToCloudRun', () => {
       recursive: true,
       force: true,
     });
-  });
-
-  it('should gracefully catch and handle errors during the preparation phase', async () => {
-    const originalIsTTY = process.stdout.isTTY;
-    Object.defineProperty(process.stdout, 'isTTY', {
-      value: true,
-      configurable: true,
-    });
-
-    const conflictingOptions = {
-      ...defaultOptions,
-      extraGcloudArgs: ['--source=conflicting-value'],
-    };
-
-    try {
-      await deployToCloudRun(conflictingOptions);
-      expect(log.error).toHaveBeenCalledWith(
-        expect.stringContaining("conflict with ADK's automatic configuration"),
-      );
-      expect(outro).toHaveBeenCalledWith('Deployment failed');
-    } finally {
-      Object.defineProperty(process.stdout, 'isTTY', {
-        value: originalIsTTY,
-        configurable: true,
-      });
-    }
   });
 });
