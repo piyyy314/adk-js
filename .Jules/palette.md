@@ -34,12 +34,6 @@
 **Learning:** Adding validation to mandatory CLI inputs (like API keys and Project IDs) prevents downstream runtime errors and improves the robust feel of the tool. Providing copy-pasteable commands for common follow-up actions (like resuming a session or starting different interface modes) significantly lowers the barrier to entry for new users.
 **Action:** Always include 'validate' functions for required fields and provide actionable, copy-pasteable next steps in 'note' and 'log.info' outputs.
 
-## 2025-06-16 - Orchestrating Spinners with Inherited Process Output
-
-**Learning:** When a CLI tool spawns an external process (like `gcloud`) that inherits `stdio`, any active `@clack/prompts` spinner must be stopped first. If left running, the external process output can interleave with the spinner's control sequences, leading to a corrupted and unreadable terminal state.
-**Action:** Always stop spinners before starting inherited subprocesses and use a 'success' flag to manage the final 'outro' message in complex `try-finally` blocks to ensure the terminal state remains clean and predictable.
-
-## 2025-06-17 - Reliable CLI Input in Non-TTY Environments
-
-**Learning:** Recreating `readline` interfaces for every prompt in a loop (piped stdin/CI) leads to `MaxListenersExceededWarning` and broken input consumption. Using a single `readline` interface with an async iterator for the entire lifecycle ensures all input chunks are correctly processed and prevents test timeouts.
-**Action:** In non-interactive CLI loops, initialize a single `readline` async iterator and consume it continuously instead of creating one-off interfaces for each user query.
+## 2026-03-02 - Preventing Terminal UI Pollution on CLI Command Failures
+**Learning:** In interactive CLI applications using `@clack/prompts`, failing to call `outro` on error/early exit paths leaves "zombie" open terminal panels (incomplete borders), resulting in a messy and broken user interface. This is especially prominent when handling asynchronous task failures or config validation errors.
+**Action:** Always pair `intro` with a corresponding `outro` in both the success path and all `catch` or early-return blocks (guarded by `process.stdout.isTTY`).
