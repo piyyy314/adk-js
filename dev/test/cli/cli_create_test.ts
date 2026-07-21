@@ -268,12 +268,50 @@ describe('createAgent', () => {
       expect(removeFolder).toHaveBeenCalled();
     });
 
-    it('should return without modifying files if user declines overwrite', async () => {
-      (isFolderExists as Mock).mockResolvedValue(true);
-      (confirm as unknown as Mock).mockResolvedValueOnce(false); // Overwrite = No
+    it('should return without modifying files and call outro when user declines overwrite', async () => {
+      const originalIsTTY = process.stdout.isTTY;
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: true,
+        configurable: true,
+      });
 
-      await expect(createAgent(getFreshOptions())).resolves.toBeUndefined();
-      expect(removeFolder).not.toHaveBeenCalled();
+      try {
+        const {outro} = await import('@clack/prompts');
+        (isFolderExists as Mock).mockResolvedValue(true);
+        (confirm as unknown as Mock).mockResolvedValueOnce(false); // Overwrite = No
+
+        await expect(createAgent(getFreshOptions())).resolves.toBeUndefined();
+        expect(removeFolder).not.toHaveBeenCalled();
+        expect(outro).toHaveBeenCalledWith('Agent creation failed');
+      } finally {
+        Object.defineProperty(process.stdout, 'isTTY', {
+          value: originalIsTTY,
+          configurable: true,
+        });
+      }
+    });
+
+    it('should not call outro when user declines overwrite and isTTY is false', async () => {
+      const originalIsTTY = process.stdout.isTTY;
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: false,
+        configurable: true,
+      });
+
+      try {
+        const {outro} = await import('@clack/prompts');
+        (isFolderExists as Mock).mockResolvedValue(true);
+        (confirm as unknown as Mock).mockResolvedValueOnce(false); // Overwrite = No
+
+        await expect(createAgent(getFreshOptions())).resolves.toBeUndefined();
+        expect(removeFolder).not.toHaveBeenCalled();
+        expect(outro).not.toHaveBeenCalled();
+      } finally {
+        Object.defineProperty(process.stdout, 'isTTY', {
+          value: originalIsTTY,
+          configurable: true,
+        });
+      }
     });
 
     it('should call outro on folder overwrite decline when process.stdout.isTTY is true', async () => {
@@ -338,7 +376,7 @@ describe('createAgent', () => {
       expect(intro).not.toHaveBeenCalled();
     });
 
-    it('should stop spinner with error message when npm install fails and not forceYes', async () => {
+    it('should stop spinner with error message and call outro and return early when npm install fails and not forceYes', async () => {
       const mockSpinnerInstance = {start: vi.fn(), stop: vi.fn()};
       const {spinner: spinnerMock, outro} = await import('@clack/prompts');
       (spinnerMock as Mock).mockReturnValue(mockSpinnerInstance);
