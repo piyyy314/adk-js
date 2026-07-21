@@ -1,20 +1,5 @@
 # Changelog
 
-## [0.2.7](https://github.com/piyyy314/adk-js/compare/devtools-v0.2.6...devtools-v0.2.7) (2026-07-18)
-
-
-### Bug Fixes
-
-* explicitly finalize readline async iterator on exit/EOF in non-TTY mode ([f2f7524](https://github.com/piyyy314/adk-js/commit/f2f7524e632e742daf40055109072379a57869ab))
-* harden cli_run interactive loop typing/docs ([6220f98](https://github.com/piyyy314/adk-js/commit/6220f98c7b66db189e34de539bc3e01464fd94a3))
-
-
-### Dependencies
-
-* The following workspace dependencies were updated
-  * dependencies
-    * @google/adk bumped from ^0.2.6 to ^0.2.7
-
 ## [0.2.6](https://github.com/piyyy314/adk-js/compare/devtools-v0.2.5...devtools-v0.2.6) (2026-06-25)
 
 

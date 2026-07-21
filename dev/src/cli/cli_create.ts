@@ -163,9 +163,6 @@ async function generateAgentFolder(
   if (!overwriteFolderResponse) {
     if (process.stdout.isTTY) outro('Agent creation failed');
     log.error(`Agent directory ${agentDir} already exists.`);
-    if (process.stdout.isTTY) {
-      outro('Agent creation failed');
-    }
     return false;
   }
 
@@ -393,11 +390,7 @@ export async function createAgent(options: AgentCreationOptions) {
   } catch (e) {
     dependenciesInstalled = false;
     s?.stop('Failed to install dependencies.', 1);
-    if (!options.forceYes) {
-      log.error(`Error: ${(e as Error).message}`);
-      outro('Agent creation failed');
-    }
-    return;
+    if (!options.forceYes) log.error(`Error: ${(e as Error).message}`);
   }
 
   const files = await listFiles(agentDir);

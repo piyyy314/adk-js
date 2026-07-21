@@ -268,12 +268,9 @@ describe('createAgent', () => {
       expect(removeFolder).toHaveBeenCalled();
     });
 
-    it('should return without modifying files and call outro when user declines overwrite', async () => {
-      const originalIsTTY = process.stdout.isTTY;
-      Object.defineProperty(process.stdout, 'isTTY', {
-        value: true,
-        configurable: true,
-      });
+    it('should return without modifying files if user declines overwrite', async () => {
+      (isFolderExists as Mock).mockResolvedValue(true);
+      (confirm as unknown as Mock).mockResolvedValueOnce(false); // Overwrite = No
 
       const originalIsTTY = process.stdout.isTTY;
       Object.defineProperty(process.stdout, 'isTTY', {
@@ -333,13 +330,9 @@ describe('createAgent', () => {
       expect(intro).not.toHaveBeenCalled();
     });
 
-    it('should stop spinner with error message and call outro and return early when npm install fails and not forceYes', async () => {
+    it('should stop spinner with error message when npm install fails and not forceYes', async () => {
       const mockSpinnerInstance = {start: vi.fn(), stop: vi.fn()};
-      const {
-        spinner: spinnerMock,
-        note,
-        outro,
-      } = await import('@clack/prompts');
+      const {spinner: spinnerMock} = await import('@clack/prompts');
       (spinnerMock as Mock).mockReturnValue(mockSpinnerInstance);
 
       const {exec: execMock} = await import('node:child_process');
