@@ -189,6 +189,32 @@ describe('createAgent', () => {
       );
     });
 
+    it('should pass correct initial values to select prompts', async () => {
+      (select as Mock).mockResolvedValue('gemini-2.5-flash');
+      (password as Mock).mockResolvedValue('test-key');
+
+      await createAgent(getFreshOptions());
+
+      expect(select).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Choose a model for the root agent',
+          initialValue: 'gemini-2.5-flash',
+        }),
+      );
+      expect(select).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Choose a language for the agent',
+          initialValue: 'ts',
+        }),
+      );
+      expect(select).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Choose a backend',
+          initialValue: 'googleai',
+        }),
+      );
+    });
+
     it('should return without creating files if model selection is cancelled', async () => {
       (select as Mock).mockResolvedValueOnce('cancel-symbol');
       (isCancel as unknown as Mock).mockReturnValue(true);
