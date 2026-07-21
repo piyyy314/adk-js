@@ -34,6 +34,6 @@
 **Learning:** Adding validation to mandatory CLI inputs (like API keys and Project IDs) prevents downstream runtime errors and improves the robust feel of the tool. Providing copy-pasteable commands for common follow-up actions (like resuming a session or starting different interface modes) significantly lowers the barrier to entry for new users.
 **Action:** Always include 'validate' functions for required fields and provide actionable, copy-pasteable next steps in 'note' and 'log.info' outputs.
 
-## 2025-07-11 - Resilient CLI Feedback Loops
-**Learning:** When a CLI command performs a mandatory but potentially flaky step (like `npm install`), catching errors and dynamically adjusting the post-execution guidance (e.g., updating the success message to a warning and adding manual recovery steps) prevents user frustration and ensures the tool remains helpful even in partial failure states.
-**Action:** Always wrap external command executions in try/catch blocks, track their success, and use that state to customize final user feedback and "next steps".
+## 2026-03-02 - Preventing Terminal UI Pollution on CLI Command Failures
+**Learning:** In interactive CLI applications using `@clack/prompts`, failing to call `outro` on error/early exit paths leaves "zombie" open terminal panels (incomplete borders), resulting in a messy and broken user interface. This is especially prominent when handling asynchronous task failures or config validation errors.
+**Action:** Always pair `intro` with a corresponding `outro` in both the success path and all `catch` or early-return blocks (guarded by `process.stdout.isTTY`).

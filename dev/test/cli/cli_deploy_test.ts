@@ -254,6 +254,93 @@ describe('deployToCloudRun', () => {
     );
   });
 
+  it('should call outro with "Deployment failed" and still rethrow when project resolution fails and isTTY is true', async () => {
+    const originalIsTTY = process.stdout.isTTY;
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
+
+    const optionsWithoutProject = {...defaultOptions, project: ''};
+    execMock.mockImplementation((cmd: string, callback: Callback) => {
+      if (cmd.includes('config get-value project')) {
+        callback(null, {stdout: '(unset)\n'});
+      } else if (cmd.includes('config get-value run/region')) {
+        callback(null, {stdout: 'gcloud-region\n'});
+      }
+    });
+
+    try {
+      await expect(deployToCloudRun(optionsWithoutProject)).rejects.toThrow(
+        /Project is not specified/,
+      );
+      expect(outro).toHaveBeenCalledWith('Deployment failed');
+    } finally {
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: originalIsTTY,
+        configurable: true,
+      });
+    }
+  });
+
+  it('should not call outro when project resolution fails and isTTY is false', async () => {
+    const originalIsTTY = process.stdout.isTTY;
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: false,
+      configurable: true,
+    });
+
+    const optionsWithoutProject = {...defaultOptions, project: ''};
+    execMock.mockImplementation((cmd: string, callback: Callback) => {
+      if (cmd.includes('config get-value project')) {
+        callback(null, {stdout: '(unset)\n'});
+      } else if (cmd.includes('config get-value run/region')) {
+        callback(null, {stdout: 'gcloud-region\n'});
+      }
+    });
+
+    try {
+      await expect(deployToCloudRun(optionsWithoutProject)).rejects.toThrow(
+        /Project is not specified/,
+      );
+      expect(outro).not.toHaveBeenCalled();
+    } finally {
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: originalIsTTY,
+        configurable: true,
+      });
+    }
+  });
+
+  it('should throw error and call outro with "Deployment failed" when region resolution fails and isTTY is true', async () => {
+    const originalIsTTY = process.stdout.isTTY;
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
+
+    const optionsWithoutRegion = {...defaultOptions, region: ''};
+    execMock.mockImplementation((cmd: string, callback: Callback) => {
+      if (cmd.includes('config get-value project')) {
+        callback(null, {stdout: 'gcloud-project\n'});
+      } else if (cmd.includes('config get-value run/region')) {
+        callback(null, {stdout: '\n'});
+      }
+    });
+
+    try {
+      await expect(deployToCloudRun(optionsWithoutRegion)).rejects.toThrow(
+        /Region is not specified/,
+      );
+      expect(outro).toHaveBeenCalledWith('Deployment failed');
+    } finally {
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: originalIsTTY,
+        configurable: true,
+      });
+    }
+  });
+
   it('should clean up existing temp folder before deploying', async () => {
     (isFolderExists as Mock).mockResolvedValue(true);
 
@@ -379,7 +466,7 @@ describe('deployToCloudRun', () => {
     }
   });
 
-  it('should not call outro when deployment fails even if isTTY is true', async () => {
+  it('should call outro with "Deployment failed" when deployment fails and isTTY is true', async () => {
     const originalIsTTY = process.stdout.isTTY;
     Object.defineProperty(process.stdout, 'isTTY', {
       value: true,
@@ -396,7 +483,7 @@ describe('deployToCloudRun', () => {
 
     try {
       await deployToCloudRun(defaultOptions);
-      expect(outro).not.toHaveBeenCalled();
+      expect(outro).toHaveBeenCalledWith('Deployment failed');
       expect(log.error).toHaveBeenCalledWith(
         expect.stringContaining('Command failed with exit code 1'),
       );
@@ -519,5 +606,31 @@ describe('deployToCloudRun', () => {
       recursive: true,
       force: true,
     });
+  });
+
+  it('should gracefully catch and handle errors during the preparation phase', async () => {
+    const originalIsTTY = process.stdout.isTTY;
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
+
+    const conflictingOptions = {
+      ...defaultOptions,
+      extraGcloudArgs: ['--source=conflicting-value'],
+    };
+
+    try {
+      await deployToCloudRun(conflictingOptions);
+      expect(log.error).toHaveBeenCalledWith(
+        expect.stringContaining("conflict with ADK's automatic configuration"),
+      );
+      expect(outro).toHaveBeenCalledWith('Deployment failed');
+    } finally {
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: originalIsTTY,
+        configurable: true,
+      });
+    }
   });
 });
