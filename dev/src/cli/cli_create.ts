@@ -7,7 +7,6 @@
 import {
   confirm,
   intro,
-  isCancel,
   log,
   note,
   outro,
@@ -19,6 +18,7 @@ import {
 import {exec, execSync} from 'node:child_process';
 import * as path from 'node:path';
 import {promisify} from 'node:util';
+import {handleCancellation} from '../utils/cli_utils.js';
 import {
   createFolder,
   isFolderExists,
@@ -177,6 +177,9 @@ async function generateAgentFolder(
 
   if (!overwriteFolderResponse) {
     log.error(`Agent directory ${agentDir} already exists.`);
+    if (process.stdout.isTTY) {
+      outro('Agent creation failed');
+    }
     return false;
   }
 
@@ -389,7 +392,11 @@ export async function createAgent(options: AgentCreationOptions) {
     s?.stop('Dependencies installed successfully.');
   } catch (e) {
     s?.stop('Failed to install dependencies.', 1);
-    if (!options.forceYes) log.error(`Error: ${(e as Error).message}`);
+    if (!options.forceYes) {
+      log.error(`Error: ${(e as Error).message}`);
+      outro('Agent creation failed');
+    }
+    return;
   }
 
   const files = await listFiles(agentDir);
