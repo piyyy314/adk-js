@@ -37,3 +37,7 @@
 ## 2026-03-02 - Preventing Terminal UI Pollution on CLI Command Failures
 **Learning:** In interactive CLI applications using `@clack/prompts`, failing to call `outro` on error/early exit paths leaves "zombie" open terminal panels (incomplete borders), resulting in a messy and broken user interface. This is especially prominent when handling asynchronous task failures or config validation errors.
 **Action:** Always pair `intro` with a corresponding `outro` in both the success path and all `catch` or early-return blocks (guarded by `process.stdout.isTTY`).
+
+## 2026-03-03 - Interactive CLI Fallbacks for Missing Configurations
+**Learning:** Hard-crashing or throwing errors for missing parameters (e.g. project/region) during interactive TTY sessions degrades the CLI onboarding experience. Providing text prompt fallbacks with inline input validation resolves configuration omissions gracefully.
+**Action:** Gate missing config errors behind TTY checks and offer interactive `@clack/prompts` fallbacks to rescue failing setups on the fly.
