@@ -266,98 +266,86 @@ async function createDockerFile(
 }
 
 export async function deployToCloudRun(options: DeployToCloudRunOptions) {
-  if (process.stdout.isTTY) intro('Cloud Run Deployment');
+  if (process.stdout.isTTY) intro('Agent Deployment');
 
-  try {
-    const project =
-      options.project || (await resolveDefaultFromGcloudConfig('project'));
-    if (!project || project === '(unset)') {
-      throw new Error(
-        'Project is not specified and default value for "project" is not set in gcloud config. Please specify project with --project option or set default value running "gcloud config set project YOUR_PROJECT_ID"',
-      );
-    }
-    if (!options.project) {
-      options.project = project;
-      log.info(
-        `--project option is not provided, using default project from gcloud config: ${project}`,
-      );
-    }
-
-    const region =
-      options.region || (await resolveDefaultFromGcloudConfig('run/region'));
-    if (!region) {
-      throw new Error(
-        'Region is not specified and default value for "run/region" is not set in gcloud config. Please specify region with --region option or set default value running "gcloud config set run/region YOUR_REGION_NAME"',
-      );
-    }
-    if (!options.region) {
-      options.region = region;
-      log.info(
-        `--region option is not provided, using default region from gcloud config: ${region}`,
-      );
-    }
-  } catch (e: unknown) {
-    if (process.stdout.isTTY) {
-      outro('Deployment failed');
-    }
-    throw e;
+  const project =
+    options.project || (await resolveDefaultFromGcloudConfig('project'));
+  if (!project || project === '(unset)') {
+    throw new Error(
+      'Project is not specified and default value for "project" is not set in gcloud config. Please specify project with --project option or set default value running "gcloud config set project YOUR_PROJECT".',
+    );
+  }
+  if (!options.project) {
+    options.project = project;
+    log.info(
+      `--project option is not provided, using default project from gcloud config: ${project}`,
+    );
   }
 
-  let agentLoader: AgentLoader | undefined;
-  const s = process.stdout.isTTY ? spinner() : null;
+  const region =
+    options.region || (await resolveDefaultFromGcloudConfig('run/region'));
+  if (!region) {
+    throw new Error(
+      'Region is not specified and default value for "run/region" is not set in gcloud config. Please specify region with --region option or set default value running "gcloud config set run/region YOUR_REGION".',
+    );
+  }
+  if (!options.region) {
+    options.region = region;
+    log.info(
+      `--region option is not provided, using default region from gcloud config: ${region}`,
+    );
+  }
 
-  try {
-    const gcloudCommands = prepareGCloudArguments(options);
+  const gcloudCommands = prepareGCloudArguments(options);
+
+  // Request to bundle any js or ts file into a single cjs file to be able to
+  // copy file with all it's dependencies correctly.
+  const agentLoader = new AgentLoader(
+    options.agentPath,
+    options.agentFileLoadOptions,
+  );
 
   const isFileProvided = await isFile(options.agentPath);
   const agentDir = isFileProvided
     ? path.dirname(options.agentPath)
     : options.agentPath;
   const appName =
-    options.appName ||
-    (isFileProvided
+    options.appName || isFileProvided
       ? path.parse(options.agentPath).name
       : path.basename(options.agentPath);
 
-    const isFileProvided = await isFile(options.agentPath);
-    const agentDir = isFileProvided
-      ? path.dirname(options.agentPath)
-      : options.agentPath;
-    const appName =
-      options.appName || isFileProvided
-        ? path.parse(options.agentPath).name
-        : path.basename(options.agentPath);
-
+  if (process.stdout.isTTY) {
+    intro('Cloud Run Deployment');
+  } else {
     log.step('Starting deployment to Cloud Run...');
+  }
 
-    if (await isFolderExists(options.tempFolder)) {
-      await fs.rm(options.tempFolder, {recursive: true, force: true});
-    }
+  if (await isFolderExists(options.tempFolder)) {
+    await fs.rm(options.tempFolder, {recursive: true, force: true});
+  }
 
   const s = process.stdout.isTTY ? spinner() : null;
-  let success = false;
   let spinnerActive = false;
+
   try {
-    if (s) {
-      s.start('Copying agent source files...');
+    if (process.stdout.isTTY) {
+      s?.start('Preparing deployment files...');
+      spinnerActive = true;
     } else {
       log.step('Copying agent source files...');
     }
+
     await copyAgentFiles(
       agentLoader,
       path.join(options.tempFolder, 'agents', appName),
     );
 
-    if (s) {
-      s.message('Creating package.json...');
-    } else {
+    if (!process.stdout.isTTY) {
       log.step('Creating package.json...');
     }
     await createPackageJson(agentDir, options.tempFolder);
 
-    if (s) {
-      s.message('Creating Dockerfile...');
-    } else {
+    if (!process.stdout.isTTY) {
       log.step('Creating Dockerfile...');
     }
     await createDockerFile(options.tempFolder, {
@@ -371,26 +359,31 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
       otelToCloud: options.otelToCloud,
       a2a: options.a2a,
     });
-    s?.stop('Deployment files prepared.');
-    spinnerActive = false;
 
-    log.step('Deploying to Cloud Run...');
+    if (spinnerActive) {
+      s?.stop('Deployment files prepared.');
+      spinnerActive = false;
+    }
+
+    if (!process.stdout.isTTY) {
+      log.step('Deploying to Cloud Run...');
+    }
     await spawnAsync('gcloud', gcloudCommands, {stdio: 'inherit'});
-    success = true;
+
+    if (process.stdout.isTTY) {
+      outro('Happy Agent Building!');
+    }
   } catch (e: unknown) {
-    if (s) {
-      s.stop('Failed to prepare deployment files.', 1);
+    if (spinnerActive) {
+      s?.stop('Failed to prepare deployment files.', 1);
+      spinnerActive = false;
     }
     log.error(`Failed to deploy to Cloud Run: ${(e as Error).message}`);
-    if (process.stdout.isTTY) {
-      outro('Deployment failed');
-    }
+    throw e;
   } finally {
     if (await isFolderExists(options.tempFolder)) {
       await fs.rm(options.tempFolder, {recursive: true, force: true});
     }
-    if (agentLoader) {
-      await agentLoader.disposeAll();
-    }
+    await agentLoader.disposeAll();
   }
 }

@@ -34,6 +34,6 @@
 **Learning:** Adding validation to mandatory CLI inputs (like API keys and Project IDs) prevents downstream runtime errors and improves the robust feel of the tool. Providing copy-pasteable commands for common follow-up actions (like resuming a session or starting different interface modes) significantly lowers the barrier to entry for new users.
 **Action:** Always include 'validate' functions for required fields and provide actionable, copy-pasteable next steps in 'note' and 'log.info' outputs.
 
-## 2026-03-02 - Preventing Terminal UI Pollution on CLI Command Failures
-**Learning:** In interactive CLI applications using `@clack/prompts`, failing to call `outro` on error/early exit paths leaves "zombie" open terminal panels (incomplete borders), resulting in a messy and broken user interface. This is especially prominent when handling asynchronous task failures or config validation errors.
-**Action:** Always pair `intro` with a corresponding `outro` in both the success path and all `catch` or early-return blocks (guarded by `process.stdout.isTTY`).
+## 2025-06-20 - Robust CLI Spinner and Scoping in Long-Running Commands
+**Learning:** Consolidating duplicate finally blocks and avoiding redeclarations of outer-scope variables in CLI deployment flows prevents syntax/runtime crashes and guarantees reliable temporary directory cleanup. Standardizing the spinner to start/stop under exact TTY flags keeps the visual layout of interactive sessions pristine without polluting non-interactive/CI environments.
+**Action:** Always wrap multi-stage async preparations inside a single try-finally block with an active spinner tracking state, and ensure no variables are redeclared or accessed improperly within error/cleanup handlers.
