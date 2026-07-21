@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.2.8](https://github.com/piyyy314/adk-js/compare/devtools-v0.2.7...devtools-v0.2.8) (2026-07-21)
+
+
+### Bug Fixes
+
+* **cli:** graceful session termination on deployment failure ([a276469](https://github.com/piyyy314/adk-js/commit/a27646965f5be99f13958cb6efd1bcb6cac6a0c9))
+* **cli:** graceful session termination on deployment failure ([4b641eb](https://github.com/piyyy314/adk-js/commit/4b641eb96d0b4d1ab9039d036c2f6e4436d6c178))
+* **cli:** graceful session termination on deployment failure ([711eb41](https://github.com/piyyy314/adk-js/commit/711eb41c35bb2493951d3f1e6c138f963cb6ba44))
+* **cli:** gracefully call outro on error and early exits ([fb0b857](https://github.com/piyyy314/adk-js/commit/fb0b8573eaed1238ea7a772c66afcc93cdd4bd34))
+* **cli:** gracefully call outro on error and early exits ([41608d9](https://github.com/piyyy314/adk-js/commit/41608d94f60d699ace6c737bea044ce677312a0f))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @google/adk bumped from ^0.2.7 to ^0.2.8
+
 ## [0.2.7](https://github.com/piyyy314/adk-js/compare/devtools-v0.2.6...devtools-v0.2.7) (2026-07-18)
 
 

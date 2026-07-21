@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.8](https://github.com/piyyy314/adk-js/compare/adk-v0.2.7...adk-v0.2.8) (2026-07-21)
+
+
+### Bug Fixes
+
+* **cli:** graceful session termination on deployment failure ([a276469](https://github.com/piyyy314/adk-js/commit/a27646965f5be99f13958cb6efd1bcb6cac6a0c9))
+
 ## [0.2.7](https://github.com/piyyy314/adk-js/compare/adk-v0.2.6...adk-v0.2.7) (2026-07-18)
 
 
