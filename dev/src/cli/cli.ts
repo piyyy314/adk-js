@@ -119,10 +119,12 @@ const LOG_LEVEL_OPTION = new Option(
   'Optional. The log level of the server',
 ).default('info');
 const SESSION_SERVICE_URI_OPTION = new Option(
-  '--session_service_uri <string>, Optional. The URI of the session service. Supported URIs: memory:// for in-memory session service.',
+  '--session_service_uri <string>',
+  'Optional. The URI of the session service. Supported URIs: memory:// for in-memory session service.',
 );
 const ARTIFACT_SERVICE_URI_OPTION = new Option(
-  '--artifact_service_uri <string>, Optional. The URI of the artifact service. Supported URIs: gs://<bucket name> for GCS artifact service.',
+  '--artifact_service_uri <string>',
+  'Optional. The URI of the artifact service. Supported URIs: gs://<bucket name> for GCS artifact service.',
 );
 const OTEL_TO_CLOUD_OPTION = new Option(
   '--otel_to_cloud [boolean]',
@@ -250,7 +252,7 @@ export function createProgram(): Command {
     .description('Creates a new agent')
     .argument('[agent]', 'Name to give the new agent', 'adk_agent')
     .option('-y, --yes', 'Optional. Skip confirmation prompts.')
-    .option('--model <string>', 'Optional. THe model used for the root_agent')
+    .option('--model <string>', 'Optional. The model used for the root_agent')
     .option(
       '--api_key <string>',
       'Optional. The API Key needed to access the model, e.g. Google AI API Key.',

@@ -7,7 +7,6 @@
 import {
   confirm,
   intro,
-  isCancel,
   log,
   note,
   outro,
@@ -19,6 +18,7 @@ import {
 import {exec, execSync} from 'node:child_process';
 import * as path from 'node:path';
 import {promisify} from 'node:util';
+import {handleCancellation} from '../utils/cli_utils.js';
 import {
   createFolder,
   isFolderExists,
@@ -156,12 +156,15 @@ async function generateAgentFolder(
         message: `Folder ${agentDir} already exists. Would you like to overwrite existing folder?`,
       });
 
-  if (isCancel(overwriteFolderResponse)) {
+  if (handleCancellation(overwriteFolderResponse)) {
     return false;
   }
 
   if (!overwriteFolderResponse) {
     log.error(`Agent directory ${agentDir} already exists.`);
+    if (process.stdout.isTTY) {
+      outro('Agent creation failed');
+    }
     return false;
   }
 
@@ -206,9 +209,7 @@ async function generateFiles(options: AgentCreationOptions) {
 }
 
 export async function createAgent(options: AgentCreationOptions) {
-  if (!options.forceYes) {
-    intro('Agent Creation');
-  }
+  if (!options.forceYes && process.stdout.isTTY) intro('Agent Creation');
   const agentDir = path.join(dirname, options.agentName);
   const folderReady = await generateAgentFolder(agentDir, options.forceYes);
   if (!folderReady) {
@@ -224,27 +225,27 @@ export async function createAgent(options: AgentCreationOptions) {
             {
               label: 'gemini-2.5-flash',
               value: 'gemini-2.5-flash',
-              hint: 'Fast and cost-effective',
+              hint: 'optimized for speed and efficiency',
             },
             {
               label: 'gemini-2.5-pro',
               value: 'gemini-2.5-pro',
-              hint: 'Most capable stable model',
+              hint: 'complex reasoning and large context',
             },
             {
               label: 'gemini-3-flash-preview',
               value: 'gemini-3-flash-preview',
-              hint: 'Next generation, fast',
+              hint: 'next-gen speed and efficiency (preview)',
             },
             {
               label: 'gemini-3-pro-preview',
               value: 'gemini-3-pro-preview',
-              hint: 'Next generation, most capable',
+              hint: 'next-gen complex reasoning (preview)',
             },
           ],
         });
 
-    if (isCancel(model)) {
+    if (handleCancellation(model)) {
       return;
     }
     options.model = model;
@@ -259,13 +260,17 @@ export async function createAgent(options: AgentCreationOptions) {
             {
               label: 'TypeScript',
               value: 'ts',
-              hint: 'Recommended for better developer experience',
+              hint: 'strongly typed, recommended',
             },
-            {label: 'JavaScript', value: 'js'},
+            {
+              label: 'JavaScript',
+              value: 'js',
+              hint: 'flexible, no compilation',
+            },
           ],
         });
 
-    if (isCancel(language)) {
+    if (handleCancellation(language)) {
       return;
     }
     options.language = language;
@@ -277,12 +282,20 @@ export async function createAgent(options: AgentCreationOptions) {
       : await select({
           message: 'Choose a backend',
           options: [
-            {label: 'Google AI', value: 'googleai'},
-            {label: 'Vertex AI', value: 'vertex'},
+            {
+              label: 'Google AI',
+              value: 'googleai',
+              hint: 'requires API key (easiest to start)',
+            },
+            {
+              label: 'Vertex AI',
+              value: 'vertex',
+              hint: 'requires GCP project (enterprise-grade)',
+            },
           ],
         });
 
-    if (isCancel(backend)) {
+    if (handleCancellation(backend)) {
       return;
     }
 
@@ -296,9 +309,13 @@ export async function createAgent(options: AgentCreationOptions) {
             message: 'Enter the Google Cloud Project ID',
             initialValue: defaultProject,
             placeholder: 'my-project-id',
+            validate: (value) => {
+              if (!value) return 'Project ID is required';
+              return;
+            },
           });
 
-      if (isCancel(projectResponse)) {
+      if (handleCancellation(projectResponse)) {
         return;
       }
       options.project = projectResponse;
@@ -309,42 +326,62 @@ export async function createAgent(options: AgentCreationOptions) {
             message: 'Enter the Google Cloud Region',
             initialValue: defaultRegion,
             placeholder: 'us-central1',
+            validate: (value) => {
+              if (!value) return 'Region is required';
+              return;
+            },
           });
 
-      if (isCancel(regionResponse)) {
+      if (handleCancellation(regionResponse)) {
         return;
       }
       options.region = regionResponse;
     } else {
+      if (!options.forceYes) {
+        log.info(
+          'You can get a Google API Key at https://aistudio.google.com/',
+        );
+      }
       const apiKeyResponse: symbol | string = options.forceYes
         ? ''
         : await password({
             message: 'Enter the Google API Key',
+            validate: (value) => {
+              if (!value) return 'API Key is required';
+              return;
+            },
           });
 
-      if (isCancel(apiKeyResponse)) {
+      if (handleCancellation(apiKeyResponse)) {
         return;
       }
       options.apiKey = apiKeyResponse;
     }
   }
 
-  log.step('Generating files...');
+  if (!options.forceYes) log.step('Generating files...');
   await generateFiles(options);
 
-  const s = spinner();
-  s.start('Installing dependencies...');
+  const s = !options.forceYes ? spinner() : null;
+  s?.start('Installing dependencies...');
   try {
     if (options.language === 'ts') {
       await execPromise(`pnpm add typescript --save-dev`, {cwd: agentDir});
     }
-    await execPromise(`pnpm add @google/adk @google/adk-devtools zod dotenv`, {
-      cwd: agentDir,
-    });
-    s.stop('Dependencies installed successfully.');
+    await execPromise(
+      `npm install @google/adk @google/adk-devtools zod dotenv`,
+      {
+        cwd: agentDir,
+      },
+    );
+    s?.stop('Dependencies installed successfully.');
   } catch (e) {
-    s.stop('Failed to install dependencies.', 1);
-    log.error(`Error: ${(e as Error).message}`);
+    s?.stop('Failed to install dependencies.', 1);
+    if (!options.forceYes) {
+      log.error(`Error: ${(e as Error).message}`);
+      outro('Agent creation failed');
+    }
+    return;
   }
 
   const files = await listFiles(agentDir);
@@ -353,10 +390,13 @@ export async function createAgent(options: AgentCreationOptions) {
     note(
       `Created the following files in ${agentDir}:\n` +
         files.map((file) => `  - ${file}`).join('\n') +
-        `\n\nRun 'cd ${options.agentName} && pnpm run web' to start the agent in a web interface`,
+        `\n\nTo get started, run:\n` +
+        `  cd ${options.agentName}\n` +
+        `  npm run web  # Start the agent in a web interface\n` +
+        `  npm run cli  # Interact with the agent in the terminal`,
       'Agent Created Successfully',
     );
 
-    outro('Happy Agent Building!');
+    if (process.stdout.isTTY) outro('Happy Agent Building!');
   }
 }

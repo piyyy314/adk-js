@@ -68,6 +68,14 @@ vi.mock('@clack/prompts', () => ({
   })),
 }));
 
+vi.mock('node:readline', () => ({
+  createInterface: vi.fn().mockReturnValue({
+    [Symbol.asyncIterator]: vi.fn().mockReturnValue({
+      next: vi.fn(),
+    }),
+  }),
+}));
+
 describe('cli_run', () => {
   let mockAgentFile: AgentFile;
   let mockRootAgent: BaseAgent;
@@ -76,6 +84,12 @@ describe('cli_run', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(console, 'log').mockImplementation(() => {});
+    // Force TTY path so unit tests use the mocked `text()` from @clack/prompts.
+    (process.stdin as unknown as {isTTY: boolean}).isTTY = true;
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
 
     Object.defineProperty(process.stdout, 'isTTY', {
       value: true,
@@ -93,6 +107,7 @@ describe('cli_run', () => {
 
     (AgentFile as unknown as Mock).mockImplementation(() => mockAgentFile);
 
+    // Restore Runner mock implementation that vi.restoreAllMocks() may have cleared.
     (Runner as unknown as Mock).mockImplementation(() => ({
       runAsync: vi.fn().mockImplementation(async function* () {
         yield {
@@ -107,6 +122,8 @@ describe('cli_run', () => {
   });
 
   afterEach(() => {
+    (process.stdin as unknown as {isTTY: boolean | undefined}).isTTY =
+      undefined;
     vi.restoreAllMocks();
     Object.defineProperty(process.stdout, 'isTTY', {
       value: originalIsTTY,
@@ -122,7 +139,7 @@ describe('cli_run', () => {
       undefined,
     );
     expect(mockAgentFile.load).toHaveBeenCalled();
-    expect(intro).toHaveBeenCalledWith('Running agent test-agent');
+    expect(intro).toHaveBeenCalledWith('Running agent: test-agent');
     expect(text).toHaveBeenCalled();
     expect(outro).toHaveBeenCalledWith('Happy Agent Building!');
   });
@@ -196,7 +213,7 @@ describe('cli_run', () => {
     });
 
     expect(loadFileData).toHaveBeenCalledWith('session.json');
-    expect(intro).toHaveBeenCalledWith('Resuming agent test-agent');
+    expect(intro).toHaveBeenCalledWith('Resuming session: test-agent');
     expect(text).toHaveBeenCalled();
     expect(outro).toHaveBeenCalledWith('Happy Agent Building!');
   });
@@ -217,7 +234,7 @@ describe('cli_run', () => {
     );
   });
 
-  it('should still save session if interaction is cancelled', async () => {
+  it('should NOT save session if interaction is cancelled', async () => {
     const mockSessionService = createMockSessionService();
     (text as Mock).mockResolvedValueOnce(Symbol('cancel'));
     (isCancel as unknown as Mock).mockReturnValueOnce(true);
@@ -229,10 +246,8 @@ describe('cli_run', () => {
       sessionService: mockSessionService,
     });
 
-    expect(saveToFile).toHaveBeenCalledWith(
-      expect.stringContaining('my-session.session.json'),
-      expect.anything(),
-    );
+    expect(saveToFile).not.toHaveBeenCalled();
+    expect(outro).toHaveBeenCalledWith('Operation cancelled');
   });
 
   it('should prompt for session id if not provided when saving', async () => {
@@ -291,7 +306,7 @@ describe('cli_run', () => {
 
     // runAsync should not have been called because cancel breaks the loop immediately
     expect(mockRunAsync).not.toHaveBeenCalled();
-    expect(outro).toHaveBeenCalledWith('Happy Agent Building!');
+    expect(outro).toHaveBeenCalledWith('Operation cancelled');
   });
 
   it('should continue loop on empty input without processing', async () => {
@@ -332,6 +347,90 @@ describe('cli_run', () => {
 
     expect(intro).not.toHaveBeenCalled();
     expect(outro).not.toHaveBeenCalled();
+  });
+
+  it('should call outro with "Run failed" when run fails and isTTY is true', async () => {
+    mockAgentFile.load = vi
+      .fn()
+      .mockRejectedValue(new Error('Load agent failed'));
+    const mockSessionService = createMockSessionService();
+
+    await runAgent({
+      agentPath: 'agent.ts',
+      sessionService: mockSessionService,
+    });
+
+    expect(outro).toHaveBeenCalledWith('Run failed');
+  });
+
+  it('should still log the error message when run fails', async () => {
+    const {log} = await import('@clack/prompts');
+    mockAgentFile.load = vi
+      .fn()
+      .mockRejectedValue(new Error('Load agent failed'));
+    const mockSessionService = createMockSessionService();
+
+    await runAgent({
+      agentPath: 'agent.ts',
+      sessionService: mockSessionService,
+    });
+
+    expect(log.error).toHaveBeenCalledWith('Load agent failed');
+  });
+
+  it('should NOT call outro when run fails and an inputFile is provided', async () => {
+    mockAgentFile.load = vi
+      .fn()
+      .mockRejectedValue(new Error('Load agent failed'));
+    const mockSessionService = createMockSessionService();
+
+    await runAgent({
+      agentPath: 'agent.ts',
+      inputFile: 'input.json',
+      sessionService: mockSessionService,
+    });
+
+    expect(outro).not.toHaveBeenCalled();
+  });
+
+  it('should NOT call outro when run fails and isTTY is false', async () => {
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: false,
+      configurable: true,
+    });
+
+    try {
+      mockAgentFile.load = vi
+        .fn()
+        .mockRejectedValue(new Error('Load agent failed'));
+      const mockSessionService = createMockSessionService();
+
+      await runAgent({
+        agentPath: 'agent.ts',
+        sessionService: mockSessionService,
+      });
+
+      expect(outro).not.toHaveBeenCalled();
+    } finally {
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: true,
+        configurable: true,
+      });
+    }
+  });
+
+  it('should handle non-Error thrown values by logging their string representation', async () => {
+    mockAgentFile.load = vi.fn().mockRejectedValue('a plain string failure');
+    const mockSessionService = createMockSessionService();
+    const {log} = await import('@clack/prompts');
+
+    await runAgent({
+      agentPath: 'agent.ts',
+      sessionService: mockSessionService,
+    });
+
+    expect(log.error).toHaveBeenCalledWith('a plain string failure');
+    expect(outro).toHaveBeenCalledWith('Run failed');
   });
 
   it('should process user query before exiting', async () => {
@@ -401,7 +500,7 @@ describe('cli_run', () => {
 
     expect(text).toHaveBeenCalledWith(
       expect.objectContaining({
-        message: 'Session ID to save: ',
+        message: 'Session ID to save (will be used as filename)',
         initialValue: expect.any(String),
         placeholder: 'e.g. my-session',
       }),
@@ -409,7 +508,8 @@ describe('cli_run', () => {
   });
 
   describe('spinner behavior in interactive mode', () => {
-    it('should create and start spinner with "Thinking..." when user submits a query', async () => {
+    it('should create and start spinner with "Thinking..." when user submits a query and stdout is TTY', async () => {
+      // isTTY is set to true in beforeEach
       const mockSpinner = {start: vi.fn(), stop: vi.fn()};
       (spinner as Mock).mockReturnValue(mockSpinner);
       (text as Mock)
@@ -547,10 +647,37 @@ describe('cli_run', () => {
 
       expect(spinner).not.toHaveBeenCalled();
     });
+
+    it('should not create spinner when stdout is not TTY', async () => {
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: false,
+        configurable: true,
+      });
+      const mockSpinner = {start: vi.fn(), stop: vi.fn()};
+      (spinner as Mock).mockReturnValue(mockSpinner);
+      (text as Mock)
+        .mockResolvedValueOnce('Hello agent')
+        .mockResolvedValueOnce('exit');
+      (isCancel as unknown as Mock).mockReturnValue(false);
+      const mockSessionService = createMockSessionService();
+
+      await runAgent({
+        agentPath: 'agent.ts',
+        sessionService: mockSessionService,
+      });
+
+      expect(spinner).not.toHaveBeenCalled();
+
+      // Reset isTTY for other tests
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: true,
+        configurable: true,
+      });
+    });
   });
 
   describe('spinner behavior in input file mode', () => {
-    it('should create and start spinner with "Thinking..." for each query', async () => {
+    it('should create and start spinner with "Thinking..." for each query when stdout is TTY', async () => {
       const spinnerInstances: Array<{start: Mock; stop: Mock}> = [];
       (spinner as Mock).mockImplementation(() => {
         const instance = {start: vi.fn(), stop: vi.fn()};

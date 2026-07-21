@@ -97,8 +97,14 @@ describe('createAgent', () => {
 
   describe('Non-interactive Mode (forceYes: true)', () => {
     it('should create agent with default values when minimal args provided', async () => {
+      const {intro, note, outro, spinner, log} = await import('@clack/prompts');
       await createAgent({...getFreshOptions(), forceYes: true});
 
+      expect(intro).not.toHaveBeenCalled();
+      expect(note).not.toHaveBeenCalled();
+      expect(outro).not.toHaveBeenCalled();
+      expect(spinner).not.toHaveBeenCalled();
+      expect(log.step).not.toHaveBeenCalled();
       expect(isFolderExists).toHaveBeenCalled();
       expect(createFolder).toHaveBeenCalled();
 
@@ -202,7 +208,9 @@ describe('createAgent', () => {
       expect(select).toHaveBeenCalledWith(
         expect.objectContaining({
           message: 'Choose a language for the agent',
-          options: expect.arrayContaining([{label: 'JavaScript', value: 'js'}]),
+          options: expect.arrayContaining([
+            expect.objectContaining({label: 'JavaScript', value: 'js'}),
+          ]),
         }),
       );
       expect(saveToFile).toHaveBeenCalledWith(
@@ -260,12 +268,50 @@ describe('createAgent', () => {
       expect(removeFolder).toHaveBeenCalled();
     });
 
-    it('should return without modifying files if user declines overwrite', async () => {
-      (isFolderExists as Mock).mockResolvedValue(true);
-      (confirm as unknown as Mock).mockResolvedValueOnce(false); // Overwrite = No
+    it('should return without modifying files and call outro when user declines overwrite', async () => {
+      const originalIsTTY = process.stdout.isTTY;
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: true,
+        configurable: true,
+      });
 
-      await expect(createAgent(getFreshOptions())).resolves.toBeUndefined();
-      expect(removeFolder).not.toHaveBeenCalled();
+      try {
+        const {outro} = await import('@clack/prompts');
+        (isFolderExists as Mock).mockResolvedValue(true);
+        (confirm as unknown as Mock).mockResolvedValueOnce(false); // Overwrite = No
+
+        await expect(createAgent(getFreshOptions())).resolves.toBeUndefined();
+        expect(removeFolder).not.toHaveBeenCalled();
+        expect(outro).toHaveBeenCalledWith('Agent creation failed');
+      } finally {
+        Object.defineProperty(process.stdout, 'isTTY', {
+          value: originalIsTTY,
+          configurable: true,
+        });
+      }
+    });
+
+    it('should not call outro when user declines overwrite and isTTY is false', async () => {
+      const originalIsTTY = process.stdout.isTTY;
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: false,
+        configurable: true,
+      });
+
+      try {
+        const {outro} = await import('@clack/prompts');
+        (isFolderExists as Mock).mockResolvedValue(true);
+        (confirm as unknown as Mock).mockResolvedValueOnce(false); // Overwrite = No
+
+        await expect(createAgent(getFreshOptions())).resolves.toBeUndefined();
+        expect(removeFolder).not.toHaveBeenCalled();
+        expect(outro).not.toHaveBeenCalled();
+      } finally {
+        Object.defineProperty(process.stdout, 'isTTY', {
+          value: originalIsTTY,
+          configurable: true,
+        });
+      }
     });
 
     it('should return without modifying files if overwrite confirm is cancelled', async () => {
@@ -281,13 +327,12 @@ describe('createAgent', () => {
   });
 
   describe('spinner behavior during dependency installation', () => {
-    it('should start and stop spinner during successful npm install', async () => {
+    it('should start and stop spinner during successful npm install when not forceYes', async () => {
       const mockSpinnerInstance = {start: vi.fn(), stop: vi.fn()};
-      // The spinner mock is already set up in the module mock, but we override for this test
       const {spinner: spinnerMock} = await import('@clack/prompts');
       (spinnerMock as Mock).mockReturnValue(mockSpinnerInstance);
 
-      await createAgent({...getFreshOptions(), forceYes: true});
+      await createAgent({...getFreshOptions(), forceYes: false});
 
       expect(mockSpinnerInstance.start).toHaveBeenCalledWith(
         'Installing dependencies...',
@@ -297,9 +342,24 @@ describe('createAgent', () => {
       );
     });
 
-    it('should stop spinner with error message when npm install fails', async () => {
+    it('should NOT start spinner during npm install when forceYes is true', async () => {
       const mockSpinnerInstance = {start: vi.fn(), stop: vi.fn()};
-      const {spinner: spinnerMock} = await import('@clack/prompts');
+      const {spinner: spinnerMock, intro} = await import('@clack/prompts');
+      (spinnerMock as Mock).mockReturnValue(mockSpinnerInstance);
+
+      await createAgent({...getFreshOptions(), forceYes: true});
+
+      expect(spinnerMock).not.toHaveBeenCalled();
+      expect(intro).not.toHaveBeenCalled();
+    });
+
+    it('should stop spinner with error message and call outro and return early when npm install fails and not forceYes', async () => {
+      const mockSpinnerInstance = {start: vi.fn(), stop: vi.fn()};
+      const {
+        spinner: spinnerMock,
+        note,
+        outro,
+      } = await import('@clack/prompts');
       (spinnerMock as Mock).mockReturnValue(mockSpinnerInstance);
 
       const {exec: execMock} = await import('node:child_process');
@@ -315,7 +375,7 @@ describe('createAgent', () => {
         },
       );
 
-      await createAgent({...getFreshOptions(), forceYes: true});
+      await createAgent({...getFreshOptions(), forceYes: false});
 
       expect(mockSpinnerInstance.start).toHaveBeenCalledWith(
         'Installing dependencies...',
@@ -324,6 +384,45 @@ describe('createAgent', () => {
         'Failed to install dependencies.',
         1,
       );
+      expect(outro).toHaveBeenCalledWith('Agent creation failed');
+      expect(note).not.toHaveBeenCalled();
+    });
+
+    it('should stop early without calling outro, log.error or listFiles when npm install fails and forceYes is true', async () => {
+      const mockSpinnerInstance = {start: vi.fn(), stop: vi.fn()};
+      const {
+        spinner: spinnerMock,
+        note,
+        outro,
+        log,
+      } = await import('@clack/prompts');
+      (spinnerMock as Mock).mockReturnValue(mockSpinnerInstance);
+
+      const {exec: execMock} = await import('node:child_process');
+      // Make exec fail by calling callback with error
+      (execMock as unknown as Mock).mockImplementation(
+        (
+          _cmd: string,
+          _opts: unknown,
+          callback: (err: Error | null) => void,
+        ) => {
+          callback(new Error('npm install failed'));
+          return {on: vi.fn()};
+        },
+      );
+
+      await expect(
+        createAgent({...getFreshOptions(), forceYes: true}),
+      ).resolves.toBeUndefined();
+
+      // Spinner is never created when forceYes is true, so no spinner calls.
+      expect(spinnerMock).not.toHaveBeenCalled();
+      // The error is only logged/announced in the interactive (!forceYes) path.
+      expect(log.error).not.toHaveBeenCalled();
+      expect(outro).not.toHaveBeenCalled();
+      expect(note).not.toHaveBeenCalled();
+      // The function must return before reaching the file-listing/note step.
+      expect(listFiles).not.toHaveBeenCalled();
     });
   });
 });
