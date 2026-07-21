@@ -68,6 +68,14 @@ vi.mock('@clack/prompts', () => ({
   })),
 }));
 
+vi.mock('node:readline', () => ({
+  createInterface: vi.fn().mockReturnValue({
+    [Symbol.asyncIterator]: vi.fn().mockReturnValue({
+      next: vi.fn(),
+    }),
+  }),
+}));
+
 describe('cli_run', () => {
   let mockAgentFile: AgentFile;
   let mockRootAgent: BaseAgent;
@@ -121,7 +129,7 @@ describe('cli_run', () => {
       undefined,
     );
     expect(mockAgentFile.load).toHaveBeenCalled();
-    expect(intro).toHaveBeenCalledWith('Running agent test-agent');
+    expect(intro).toHaveBeenCalledWith('Running agent: test-agent');
     expect(text).toHaveBeenCalled();
     expect(outro).toHaveBeenCalledWith('Happy Agent Building!');
   });
@@ -195,7 +203,7 @@ describe('cli_run', () => {
     });
 
     expect(loadFileData).toHaveBeenCalledWith('session.json');
-    expect(intro).toHaveBeenCalledWith('Resuming agent test-agent');
+    expect(intro).toHaveBeenCalledWith('Resuming session: test-agent');
     expect(text).toHaveBeenCalled();
     expect(outro).toHaveBeenCalledWith('Happy Agent Building!');
   });
@@ -216,7 +224,7 @@ describe('cli_run', () => {
     );
   });
 
-  it('should still save session if interaction is cancelled', async () => {
+  it('should NOT save session if interaction is cancelled', async () => {
     const mockSessionService = createMockSessionService();
     (text as Mock).mockResolvedValueOnce(Symbol('cancel'));
     (isCancel as unknown as Mock).mockReturnValueOnce(true);
@@ -228,10 +236,8 @@ describe('cli_run', () => {
       sessionService: mockSessionService,
     });
 
-    expect(saveToFile).toHaveBeenCalledWith(
-      expect.stringContaining('my-session.session.json'),
-      expect.anything(),
-    );
+    expect(saveToFile).not.toHaveBeenCalled();
+    expect(outro).toHaveBeenCalledWith('Operation cancelled');
   });
 
   it('should prompt for session id if not provided when saving', async () => {
@@ -290,7 +296,7 @@ describe('cli_run', () => {
 
     // runAsync should not have been called because cancel breaks the loop immediately
     expect(mockRunAsync).not.toHaveBeenCalled();
-    expect(outro).toHaveBeenCalledWith('Happy Agent Building!');
+    expect(outro).toHaveBeenCalledWith('Operation cancelled');
   });
 
   it('should continue loop on empty input without processing', async () => {
@@ -331,6 +337,90 @@ describe('cli_run', () => {
 
     expect(intro).not.toHaveBeenCalled();
     expect(outro).not.toHaveBeenCalled();
+  });
+
+  it('should call outro with "Run failed" when run fails and isTTY is true', async () => {
+    mockAgentFile.load = vi
+      .fn()
+      .mockRejectedValue(new Error('Load agent failed'));
+    const mockSessionService = createMockSessionService();
+
+    await runAgent({
+      agentPath: 'agent.ts',
+      sessionService: mockSessionService,
+    });
+
+    expect(outro).toHaveBeenCalledWith('Run failed');
+  });
+
+  it('should still log the error message when run fails', async () => {
+    const {log} = await import('@clack/prompts');
+    mockAgentFile.load = vi
+      .fn()
+      .mockRejectedValue(new Error('Load agent failed'));
+    const mockSessionService = createMockSessionService();
+
+    await runAgent({
+      agentPath: 'agent.ts',
+      sessionService: mockSessionService,
+    });
+
+    expect(log.error).toHaveBeenCalledWith('Load agent failed');
+  });
+
+  it('should NOT call outro when run fails and an inputFile is provided', async () => {
+    mockAgentFile.load = vi
+      .fn()
+      .mockRejectedValue(new Error('Load agent failed'));
+    const mockSessionService = createMockSessionService();
+
+    await runAgent({
+      agentPath: 'agent.ts',
+      inputFile: 'input.json',
+      sessionService: mockSessionService,
+    });
+
+    expect(outro).not.toHaveBeenCalled();
+  });
+
+  it('should NOT call outro when run fails and isTTY is false', async () => {
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: false,
+      configurable: true,
+    });
+
+    try {
+      mockAgentFile.load = vi
+        .fn()
+        .mockRejectedValue(new Error('Load agent failed'));
+      const mockSessionService = createMockSessionService();
+
+      await runAgent({
+        agentPath: 'agent.ts',
+        sessionService: mockSessionService,
+      });
+
+      expect(outro).not.toHaveBeenCalled();
+    } finally {
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: true,
+        configurable: true,
+      });
+    }
+  });
+
+  it('should handle non-Error thrown values by logging their string representation', async () => {
+    mockAgentFile.load = vi.fn().mockRejectedValue('a plain string failure');
+    const mockSessionService = createMockSessionService();
+    const {log} = await import('@clack/prompts');
+
+    await runAgent({
+      agentPath: 'agent.ts',
+      sessionService: mockSessionService,
+    });
+
+    expect(log.error).toHaveBeenCalledWith('a plain string failure');
+    expect(outro).toHaveBeenCalledWith('Run failed');
   });
 
   it('should process user query before exiting', async () => {
@@ -400,7 +490,7 @@ describe('cli_run', () => {
 
     expect(text).toHaveBeenCalledWith(
       expect.objectContaining({
-        message: 'Session ID to save: ',
+        message: 'Session ID to save (will be used as filename)',
         initialValue: expect.any(String),
         placeholder: 'e.g. my-session',
       }),

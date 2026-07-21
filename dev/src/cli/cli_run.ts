@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {intro, isCancel, log, outro, spinner, text} from '@clack/prompts';
+import {intro, log, outro, spinner, text} from '@clack/prompts';
 import {
   BaseAgent,
   BaseArtifactService,
@@ -20,6 +20,7 @@ import * as path from 'node:path';
 import {createInterface} from 'node:readline';
 
 import {AgentFile, AgentFileOptions} from '../utils/agent_loader.js';
+import {handleCancellation} from '../utils/cli_utils.js';
 import {loadFileData, saveToFile} from '../utils/file_utils.js';
 
 const dirname = process.cwd();
@@ -99,6 +100,43 @@ interface RunInteractivelyOptions {
   sessionService: BaseSessionService;
   memoryService?: BaseMemoryService;
 }
+
+async function processQuery(
+  query: string,
+  runner: Runner,
+  options: RunInteractivelyOptions,
+): Promise<void> {
+  const s = process.stdout.isTTY ? spinner() : null;
+  s?.start('Thinking...');
+  let spinnerStopped = false;
+  for await (const event of runner.runAsync({
+    userId: options.session.userId,
+    sessionId: options.session.id,
+    newMessage: {role: 'user', parts: [{text: query}]},
+  })) {
+    if (event.content && event.content.parts) {
+      const text = event.content.parts.map((part) => part.text || '').join('');
+      if (text) {
+        if (process.stdout.isTTY) {
+          if (!spinnerStopped) {
+            s?.stop();
+            spinnerStopped = true;
+            process.stdout.write(`[${event.author}]: `);
+          }
+          process.stdout.write(text);
+        } else {
+          console.log(`[${event.author}]: ${text}`);
+        }
+      }
+    }
+  }
+  if (process.stdout.isTTY && spinnerStopped) {
+    process.stdout.write('\n');
+  } else {
+    s?.stop();
+  }
+}
+
 /**
  * Runs an agent in an interactive CLI loop, sending each user input to the agent runner and printing emitted events.
  *
@@ -108,10 +146,11 @@ interface RunInteractivelyOptions {
  *   - `rootAgent`: the agent implementation to drive.
  *   - `session`: the current session (provides `userId` and `id`).
  *   - `artifactService`, `sessionService`, `memoryService` (optional): services passed to the runner.
+ * @returns `true` when cancelled from the interactive prompt, otherwise `false`.
  */
 async function runInteractively(
   options: RunInteractivelyOptions,
-): Promise<void> {
+): Promise<boolean> {
   const runner = new Runner({
     appName: options.rootAgent.name,
     agent: options.rootAgent,
@@ -170,6 +209,10 @@ async function runInteractively(
             console.log(`[${event.author}]: ${text}`);
           }
         }
+        if (!line || !line.trim()) {
+          continue;
+        }
+        await processQuery(line, runner, options);
       }
       if (!isSpinnerStopped) {
         s?.stop();
@@ -292,7 +335,7 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
         log.info(`Using provided session ID: ${sessionId}`);
       }
 
-      if (isCancel(sessionId)) {
+      if (handleCancellation(sessionId)) {
         return;
       }
 
@@ -307,7 +350,9 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
       });
       await saveToFile(path.join(dirname, sessionPath), sessionToStore);
 
-      log.info(`Session saved to ${sessionPath}`);
+      log.info(
+        `Session saved to ${sessionPath}. To resume, run: adk run ${options.agentPath} --resume ${sessionPath}`,
+      );
     }
 
     if (!options.inputFile && process.stdout.isTTY) {
@@ -315,5 +360,8 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
     }
   } catch (e) {
     log.error(e instanceof Error ? e.message : String(e));
+    if (process.stdout.isTTY && !options.inputFile) {
+      outro('Run failed');
+    }
   }
 }
