@@ -254,6 +254,93 @@ describe('deployToCloudRun', () => {
     );
   });
 
+  it('should call outro with "Deployment failed" and still rethrow when project resolution fails and isTTY is true', async () => {
+    const originalIsTTY = process.stdout.isTTY;
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
+
+    const optionsWithoutProject = {...defaultOptions, project: ''};
+    execMock.mockImplementation((cmd: string, callback: Callback) => {
+      if (cmd.includes('config get-value project')) {
+        callback(null, {stdout: '(unset)\n'});
+      } else if (cmd.includes('config get-value run/region')) {
+        callback(null, {stdout: 'gcloud-region\n'});
+      }
+    });
+
+    try {
+      await expect(deployToCloudRun(optionsWithoutProject)).rejects.toThrow(
+        /Project is not specified/,
+      );
+      expect(outro).toHaveBeenCalledWith('Deployment failed');
+    } finally {
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: originalIsTTY,
+        configurable: true,
+      });
+    }
+  });
+
+  it('should not call outro when project resolution fails and isTTY is false', async () => {
+    const originalIsTTY = process.stdout.isTTY;
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: false,
+      configurable: true,
+    });
+
+    const optionsWithoutProject = {...defaultOptions, project: ''};
+    execMock.mockImplementation((cmd: string, callback: Callback) => {
+      if (cmd.includes('config get-value project')) {
+        callback(null, {stdout: '(unset)\n'});
+      } else if (cmd.includes('config get-value run/region')) {
+        callback(null, {stdout: 'gcloud-region\n'});
+      }
+    });
+
+    try {
+      await expect(deployToCloudRun(optionsWithoutProject)).rejects.toThrow(
+        /Project is not specified/,
+      );
+      expect(outro).not.toHaveBeenCalled();
+    } finally {
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: originalIsTTY,
+        configurable: true,
+      });
+    }
+  });
+
+  it('should throw error and call outro with "Deployment failed" when region resolution fails and isTTY is true', async () => {
+    const originalIsTTY = process.stdout.isTTY;
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
+
+    const optionsWithoutRegion = {...defaultOptions, region: ''};
+    execMock.mockImplementation((cmd: string, callback: Callback) => {
+      if (cmd.includes('config get-value project')) {
+        callback(null, {stdout: 'gcloud-project\n'});
+      } else if (cmd.includes('config get-value run/region')) {
+        callback(null, {stdout: '\n'});
+      }
+    });
+
+    try {
+      await expect(deployToCloudRun(optionsWithoutRegion)).rejects.toThrow(
+        /Region is not specified/,
+      );
+      expect(outro).toHaveBeenCalledWith('Deployment failed');
+    } finally {
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: originalIsTTY,
+        configurable: true,
+      });
+    }
+  });
+
   it('should clean up existing temp folder before deploying', async () => {
     (isFolderExists as Mock).mockResolvedValue(true);
 
@@ -346,13 +433,19 @@ describe('deployToCloudRun', () => {
 
   it('should not call intro when process.stdout.isTTY is false', async () => {
     const originalIsTTY = process.stdout.isTTY;
-    Object.defineProperty(process.stdout, 'isTTY', {value: false, configurable: true});
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: false,
+      configurable: true,
+    });
 
     try {
       await deployToCloudRun(defaultOptions);
       expect(intro).not.toHaveBeenCalled();
     } finally {
-      Object.defineProperty(process.stdout, 'isTTY', {value: originalIsTTY, configurable: true});
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: originalIsTTY,
+        configurable: true,
+      });
     }
   });
 
@@ -376,19 +469,28 @@ describe('deployToCloudRun', () => {
 
   it('should not call outro when process.stdout.isTTY is false', async () => {
     const originalIsTTY = process.stdout.isTTY;
-    Object.defineProperty(process.stdout, 'isTTY', {value: false, configurable: true});
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: false,
+      configurable: true,
+    });
 
     try {
       await deployToCloudRun(defaultOptions);
       expect(outro).not.toHaveBeenCalled();
     } finally {
-      Object.defineProperty(process.stdout, 'isTTY', {value: originalIsTTY, configurable: true});
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: originalIsTTY,
+        configurable: true,
+      });
     }
   });
 
-  it('should not call outro when deployment fails even if isTTY is true', async () => {
+  it('should call outro with "Deployment failed" when deployment fails and isTTY is true', async () => {
     const originalIsTTY = process.stdout.isTTY;
-    Object.defineProperty(process.stdout, 'isTTY', {value: true, configurable: true});
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
 
     spawnMock.mockReturnValue({
       on: vi.fn((event: string, cb: (code: number) => void) => {
@@ -400,19 +502,24 @@ describe('deployToCloudRun', () => {
 
     try {
       await deployToCloudRun(defaultOptions);
-      expect(outro).not.toHaveBeenCalled();
+      expect(outro).toHaveBeenCalledWith('Deployment failed');
       expect(log.error).toHaveBeenCalledWith(
         expect.stringContaining('Command failed with exit code 1'),
       );
     } finally {
-      Object.defineProperty(process.stdout, 'isTTY', {value: originalIsTTY, configurable: true});
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: originalIsTTY,
+        configurable: true,
+      });
     }
   });
 
   it('should call log.step at each deployment phase', async () => {
     await deployToCloudRun(defaultOptions);
 
-    expect(log.step).toHaveBeenCalledWith('Starting deployment to Cloud Run...');
+    expect(log.step).toHaveBeenCalledWith(
+      'Starting deployment to Cloud Run...',
+    );
     expect(log.step).toHaveBeenCalledWith('Copying agent source files...');
     expect(log.step).toHaveBeenCalledWith('Creating package.json...');
     expect(log.step).toHaveBeenCalledWith('Creating Dockerfile...');

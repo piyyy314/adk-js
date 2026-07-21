@@ -340,6 +340,90 @@ describe('cli_run', () => {
     expect(outro).not.toHaveBeenCalled();
   });
 
+  it('should call outro with "Run failed" when run fails and isTTY is true', async () => {
+    mockAgentFile.load = vi
+      .fn()
+      .mockRejectedValue(new Error('Load agent failed'));
+    const mockSessionService = createMockSessionService();
+
+    await runAgent({
+      agentPath: 'agent.ts',
+      sessionService: mockSessionService,
+    });
+
+    expect(outro).toHaveBeenCalledWith('Run failed');
+  });
+
+  it('should still log the error message when run fails', async () => {
+    const {log} = await import('@clack/prompts');
+    mockAgentFile.load = vi
+      .fn()
+      .mockRejectedValue(new Error('Load agent failed'));
+    const mockSessionService = createMockSessionService();
+
+    await runAgent({
+      agentPath: 'agent.ts',
+      sessionService: mockSessionService,
+    });
+
+    expect(log.error).toHaveBeenCalledWith('Load agent failed');
+  });
+
+  it('should NOT call outro when run fails and an inputFile is provided', async () => {
+    mockAgentFile.load = vi
+      .fn()
+      .mockRejectedValue(new Error('Load agent failed'));
+    const mockSessionService = createMockSessionService();
+
+    await runAgent({
+      agentPath: 'agent.ts',
+      inputFile: 'input.json',
+      sessionService: mockSessionService,
+    });
+
+    expect(outro).not.toHaveBeenCalled();
+  });
+
+  it('should NOT call outro when run fails and isTTY is false', async () => {
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: false,
+      configurable: true,
+    });
+
+    try {
+      mockAgentFile.load = vi
+        .fn()
+        .mockRejectedValue(new Error('Load agent failed'));
+      const mockSessionService = createMockSessionService();
+
+      await runAgent({
+        agentPath: 'agent.ts',
+        sessionService: mockSessionService,
+      });
+
+      expect(outro).not.toHaveBeenCalled();
+    } finally {
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: true,
+        configurable: true,
+      });
+    }
+  });
+
+  it('should handle non-Error thrown values by logging their string representation', async () => {
+    mockAgentFile.load = vi.fn().mockRejectedValue('a plain string failure');
+    const mockSessionService = createMockSessionService();
+    const {log} = await import('@clack/prompts');
+
+    await runAgent({
+      agentPath: 'agent.ts',
+      sessionService: mockSessionService,
+    });
+
+    expect(log.error).toHaveBeenCalledWith('a plain string failure');
+    expect(outro).toHaveBeenCalledWith('Run failed');
+  });
+
   it('should process user query before exiting', async () => {
     (text as Mock)
       .mockResolvedValueOnce('Hello agent') // First query
