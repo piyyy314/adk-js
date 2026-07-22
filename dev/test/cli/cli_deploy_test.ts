@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {intro, log, outro} from '@clack/prompts';
+import {intro, isCancel, log, outro, text} from '@clack/prompts';
 import * as fs from 'node:fs/promises';
 import {afterEach, beforeEach, describe, expect, it, Mock, vi} from 'vitest';
 import {
@@ -64,6 +64,8 @@ vi.mock('@clack/prompts', () => {
   return {
     intro: vi.fn(),
     outro: vi.fn(),
+    isCancel: vi.fn(),
+    text: vi.fn(),
     spinner: vi.fn(() => spinnerMock),
     log: {
       info: vi.fn(),
@@ -138,6 +140,9 @@ describe('deployToCloudRun', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+
+    (isCancel as unknown as Mock).mockReturnValue(false);
+    (text as Mock).mockResolvedValue('test-input');
 
     // Default mock behavior
     (isFile as Mock).mockResolvedValue(false);
@@ -254,12 +259,14 @@ describe('deployToCloudRun', () => {
     );
   });
 
-  it('should call outro with "Deployment failed" and still rethrow when project resolution fails and isTTY is true', async () => {
+  it('should call outro with "Deployment failed" and still rethrow when project resolution fails and user cancels prompt and isTTY is true', async () => {
     const originalIsTTY = process.stdout.isTTY;
     Object.defineProperty(process.stdout, 'isTTY', {
       value: true,
       configurable: true,
     });
+
+    (isCancel as unknown as Mock).mockReturnValue(true);
 
     const optionsWithoutProject = {...defaultOptions, project: ''};
     execMock.mockImplementation((cmd: string, callback: Callback) => {
@@ -272,7 +279,7 @@ describe('deployToCloudRun', () => {
 
     try {
       await expect(deployToCloudRun(optionsWithoutProject)).rejects.toThrow(
-        /Project is not specified/,
+        /Deployment cancelled/,
       );
       expect(outro).toHaveBeenCalledWith('Deployment failed');
     } finally {
@@ -319,6 +326,8 @@ describe('deployToCloudRun', () => {
       configurable: true,
     });
 
+    (isCancel as unknown as Mock).mockReturnValue(true);
+
     const optionsWithoutRegion = {...defaultOptions, region: ''};
     execMock.mockImplementation((cmd: string, callback: Callback) => {
       if (cmd.includes('config get-value project')) {
@@ -330,9 +339,50 @@ describe('deployToCloudRun', () => {
 
     try {
       await expect(deployToCloudRun(optionsWithoutRegion)).rejects.toThrow(
-        /Region is not specified/,
+        /Deployment cancelled/,
       );
       expect(outro).toHaveBeenCalledWith('Deployment failed');
+    } finally {
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: originalIsTTY,
+        configurable: true,
+      });
+    }
+  });
+
+  it('should prompt user and deploy successfully when project and region are not set and isTTY is true', async () => {
+    const originalIsTTY = process.stdout.isTTY;
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
+
+    (text as Mock)
+      .mockResolvedValueOnce('prompted-project')
+      .mockResolvedValueOnce('prompted-region');
+
+    const optionsWithoutProjReg = {...defaultOptions, project: '', region: ''};
+    execMock.mockImplementation((cmd: string, callback: Callback) => {
+      if (cmd.includes('config get-value project')) {
+        callback(null, {stdout: '(unset)\n'});
+      } else if (cmd.includes('config get-value run/region')) {
+        callback(null, {stdout: '\n'});
+      }
+    });
+
+    try {
+      await deployToCloudRun(optionsWithoutProjReg);
+      expect(text).toHaveBeenCalledTimes(2);
+      expect(spawnMock).toHaveBeenCalledWith(
+        'gcloud',
+        expect.arrayContaining([
+          '--project',
+          'prompted-project',
+          '--region',
+          'prompted-region',
+        ]),
+        expect.any(Object),
+      );
     } finally {
       Object.defineProperty(process.stdout, 'isTTY', {
         value: originalIsTTY,
