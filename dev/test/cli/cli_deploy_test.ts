@@ -25,6 +25,29 @@ type Callback = (error: Error | null, result?: unknown) => void;
 const execMock = vi.fn();
 const spawnMock = vi.fn();
 
+const logInfoMock = vi.fn();
+const logErrorMock = vi.fn();
+const logStepMock = vi.fn();
+const introMock = vi.fn();
+const outroMock = vi.fn();
+const spinnerMock = {
+  start: vi.fn(),
+  stop: vi.fn(),
+};
+
+vi.mock('@clack/prompts', () => ({
+  log: {
+    info: vi.fn((...args: unknown[]) => logInfoMock(...args)),
+    error: vi.fn((...args: unknown[]) => logErrorMock(...args)),
+    step: vi.fn((...args: unknown[]) => logStepMock(...args)),
+    warn: vi.fn(),
+  },
+  intro: vi.fn((...args: unknown[]) => introMock(...args)),
+  outro: vi.fn((...args: unknown[]) => outroMock(...args)),
+  spinner: () => spinnerMock,
+  isCancel: (val: unknown) => typeof val === 'symbol',
+}));
+
 vi.mock('node:child_process', () => ({
   exec: (cmd: string, callback: Callback) => execMock(cmd, callback),
   spawn: (cmd: string, args: string[], opts: unknown) =>
@@ -54,24 +77,6 @@ vi.mock('../../src/utils/file_utils.js', () => ({
   saveToFile: vi.fn(),
   tryToFindFileRecursively: vi.fn(),
 }));
-
-vi.mock('@clack/prompts', () => {
-  const spinnerMock = {
-    start: vi.fn(),
-    stop: vi.fn(),
-    message: vi.fn(),
-  };
-  return {
-    intro: vi.fn(),
-    outro: vi.fn(),
-    spinner: vi.fn(() => spinnerMock),
-    log: {
-      info: vi.fn(),
-      step: vi.fn(),
-      error: vi.fn(),
-    },
-  };
-});
 
 describe('createDockerFileContent', () => {
   const defaultOptions: CreateDockerFileContentOptions = {
@@ -246,6 +251,8 @@ describe('deployToCloudRun', () => {
         callback(null, {stdout: '(unset)\n'});
       } else if (cmd.includes('config get-value run/region')) {
         callback(null, {stdout: 'gcloud-region\n'});
+      } else {
+        callback(null, {stdout: ''});
       }
     });
 
@@ -357,7 +364,10 @@ describe('deployToCloudRun', () => {
 
     await deployToCloudRun(defaultOptions);
 
-    expect(log.error).toHaveBeenCalledWith(
+    expect(logErrorMock).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to deploy to Cloud Run:'),
+    );
+    expect(logErrorMock).toHaveBeenCalledWith(
       expect.stringContaining('No dependencies found in package.json'),
     );
   });
@@ -371,7 +381,10 @@ describe('deployToCloudRun', () => {
 
     await deployToCloudRun(defaultOptions);
 
-    expect(log.error).toHaveBeenCalledWith(
+    expect(logErrorMock).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to deploy to Cloud Run:'),
+    );
+    expect(logErrorMock).toHaveBeenCalledWith(
       expect.stringContaining(
         'Package "@google/adk" is required but not found',
       ),
@@ -389,7 +402,10 @@ describe('deployToCloudRun', () => {
 
     await deployToCloudRun(defaultOptions);
 
-    expect(log.error).toHaveBeenCalledWith(
+    expect(logErrorMock).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to deploy to Cloud Run:'),
+    );
+    expect(logErrorMock).toHaveBeenCalledWith(
       expect.stringContaining('Command failed with exit code 1'),
     );
   });

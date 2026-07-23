@@ -316,14 +316,7 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
       options.agentFileLoadOptions,
     );
 
-    const isFileProvided = await isFile(options.agentPath);
-    const agentDir = isFileProvided
-      ? path.dirname(options.agentPath)
-      : options.agentPath;
-    const appName =
-      options.appName || isFileProvided
-        ? path.parse(options.agentPath).name
-        : path.basename(options.agentPath);
+  log.step('Starting deployment to Cloud Run...');
 
     log.step('Starting deployment to Cloud Run...');
 
@@ -341,18 +334,10 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
       path.join(options.tempFolder, 'agents', appName),
     );
 
-    if (s) {
-      s.message('Creating package.json...');
-    } else {
-      log.step('Creating package.json...');
-    }
+    log.step('Creating package.json...');
     await createPackageJson(agentDir, options.tempFolder);
 
-    if (s) {
-      s.message('Creating Dockerfile...');
-    } else {
-      log.step('Creating Dockerfile...');
-    }
+    log.step('Creating Dockerfile...');
     await createDockerFile(options.tempFolder, {
       appName,
       project: options.project,
@@ -368,16 +353,9 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
 
     log.step('Deploying to Cloud Run...');
     await spawnAsync('gcloud', gcloudCommands, {stdio: 'inherit'});
-
-    if (process.stdout.isTTY) outro('Happy Agent Building!');
   } catch (e: unknown) {
-    if (s) {
-      s.stop('Failed to prepare deployment files.', 1);
-    }
+    s?.stop('Failed to prepare deployment files.', 1);
     log.error(`Failed to deploy to Cloud Run: ${(e as Error).message}`);
-    if (process.stdout.isTTY) {
-      outro('Deployment failed');
-    }
   } finally {
     if (await isFolderExists(options.tempFolder)) {
       await fs.rm(options.tempFolder, {recursive: true, force: true});
