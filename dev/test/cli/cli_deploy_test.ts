@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {intro, log, outro, text, isCancel} from '@clack/prompts';
+import {intro, isCancel, log, outro, text} from '@clack/prompts';
 import * as fs from 'node:fs/promises';
 import {afterEach, beforeEach, describe, expect, it, Mock, vi} from 'vitest';
 import {
@@ -284,10 +284,7 @@ describe('deployToCloudRun', () => {
       );
       expect(spawnMock).toHaveBeenCalledWith(
         'gcloud',
-        expect.arrayContaining([
-          '--project',
-          'interactive-project',
-        ]),
+        expect.arrayContaining(['--project', 'interactive-project']),
         expect.any(Object),
       );
     } finally {
@@ -387,10 +384,7 @@ describe('deployToCloudRun', () => {
       );
       expect(spawnMock).toHaveBeenCalledWith(
         'gcloud',
-        expect.arrayContaining([
-          '--region',
-          'interactive-region',
-        ]),
+        expect.arrayContaining(['--region', 'interactive-region']),
         expect.any(Object),
       );
     } finally {
