@@ -308,6 +308,8 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
 
   try {
     const gcloudCommands = prepareGCloudArguments(options);
+    const appName = options.appName || options.serviceName;
+    const agentDir = options.agentPath;
 
     // Request to bundle any js or ts file into a single cjs file to be able to
     // copy file with all it's dependencies correctly.
@@ -315,8 +317,6 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
       options.agentPath,
       options.agentFileLoadOptions,
     );
-
-  log.step('Starting deployment to Cloud Run...');
 
     log.step('Starting deployment to Cloud Run...');
 
@@ -353,9 +353,15 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
 
     log.step('Deploying to Cloud Run...');
     await spawnAsync('gcloud', gcloudCommands, {stdio: 'inherit'});
+    if (process.stdout.isTTY) {
+      outro('Happy Agent Building!');
+    }
   } catch (e: unknown) {
     s?.stop('Failed to prepare deployment files.', 1);
     log.error(`Failed to deploy to Cloud Run: ${(e as Error).message}`);
+    if (process.stdout.isTTY) {
+      outro('Deployment failed');
+    }
   } finally {
     if (await isFolderExists(options.tempFolder)) {
       await fs.rm(options.tempFolder, {recursive: true, force: true});
