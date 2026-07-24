@@ -16,6 +16,7 @@ import {
   Runner,
   Session,
 } from '@google/adk';
+import {intro, isCancel, outro, text} from '@clack/prompts';
 import * as path from 'node:path';
 import {createInterface} from 'node:readline';
 
@@ -28,6 +29,14 @@ const dirname = process.cwd();
 interface InputFile {
   state: Record<string, unknown>;
   queries: string[];
+}
+
+async function getUserInput(prompt: string): Promise<string | symbol> {
+  const answer = await text({
+    message: prompt,
+  });
+
+  return answer;
 }
 
 interface RunFromInputFileOptions {
@@ -157,6 +166,19 @@ async function runInteractively(
     memoryService: options.memoryService,
   });
 
+  while (true) {
+    const query = await getUserInput(
+      'Enter your message (or type "exit" to quit)',
+    );
+
+    if (isCancel(query) || query === 'exit') {
+      break;
+    }
+
+    if (typeof query !== 'string' || !query.trim()) {
+      continue;
+    }
+
   for await (const query of getQueries()) {
     if (!query || !query.trim()) {
       continue;
@@ -210,6 +232,7 @@ export interface RunAgentOptions {
  */
 export async function runAgent(options: RunAgentOptions): Promise<void> {
   try {
+    intro(`ADK Agent Runner: ${path.basename(options.agentPath)}`);
     const userId = 'test_user';
     const artifactService =
       options.artifactService || new InMemoryArtifactService();
@@ -266,6 +289,15 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
         }
       }
 
+      await runInteractively({
+        rootAgent,
+        artifactService,
+        sessionService,
+        memoryService,
+        session,
+      });
+    } else {
+      await runInteractively({
       const cancelled = await runInteractively({
         rootAgent,
         artifactService,
@@ -277,6 +309,15 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
     }
 
     if (options.saveSession) {
+      let sessionId = options.sessionId;
+      if (!sessionId) {
+        const input = await getUserInput('Session ID to save');
+        if (isCancel(input)) {
+          outro('Agent execution ended without saving session.');
+          return;
+        }
+        sessionId = input as string;
+      }
       const defaultSessionId = new Date().toISOString().replace(/[:.]/g, '-');
       const sessionId =
         options.sessionId ||
@@ -312,6 +353,9 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
         `Session saved to ${sessionPath}. To resume, run: adk run ${options.agentPath} --resume ${sessionPath}`,
       );
     }
+    outro('Agent execution ended.');
+  } catch (e) {
+    console.error(e);
 
     if (process.stdout.isTTY && !options.inputFile)
       outro('Happy Agent Building!');

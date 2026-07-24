@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {intro, isCancel, outro, spinner, text} from '@clack/prompts';
-import {BaseAgent, BaseSessionService, Runner} from '@google/adk';
+import {BaseAgent, BaseSessionService} from '@google/adk';
+import {intro, isCancel, outro, text} from '@clack/prompts';
 import {afterEach, beforeEach, describe, expect, it, Mock, vi} from 'vitest';
 import {runAgent} from '../../src/cli/cli_run.js';
 import {AgentFile} from '../../src/utils/agent_loader.js';
@@ -22,14 +22,16 @@ vi.mock('../../src/utils/file_utils.js', () => ({
 }));
 
 vi.mock('@google/adk', () => {
+  const runAsyncMock = vi.fn().mockImplementation(async function* () {
+    yield {
+      author: 'model',
+      content: {parts: [{text: 'Response from model'}]},
+    };
+  });
+
   return {
     Runner: vi.fn().mockImplementation(() => ({
-      runAsync: vi.fn().mockImplementation(async function* () {
-        yield {
-          author: 'model',
-          content: {parts: [{text: 'Response from model'}]},
-        };
-      }),
+      runAsync: runAsyncMock,
     })),
     InMemoryArtifactService: vi.fn(),
     InMemorySessionService: vi.fn().mockImplementation(() => ({
@@ -54,6 +56,8 @@ vi.mock('@google/adk', () => {
 vi.mock('@clack/prompts', () => ({
   intro: vi.fn(),
   outro: vi.fn(),
+  isCancel: vi.fn(),
+  text: vi.fn(),
   log: {
     error: vi.fn(),
     info: vi.fn(),
@@ -83,6 +87,7 @@ describe('cli_run', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
     // Force TTY path so unit tests use the mocked `text()` from @clack/prompts.
     (process.stdin as unknown as {isTTY: boolean}).isTTY = true;
     Object.defineProperty(process.stdout, 'isTTY', {
@@ -100,6 +105,8 @@ describe('cli_run', () => {
     } as unknown as AgentFile;
 
     (AgentFile as unknown as Mock).mockImplementation(() => mockAgentFile);
+    (isCancel as unknown as Mock).mockReturnValue(false);
+    (text as Mock).mockResolvedValue('exit');
 
     // Restore Runner mock implementation that vi.restoreAllMocks() may have cleared.
     (Runner as unknown as Mock).mockImplementation(() => ({
@@ -129,6 +136,8 @@ describe('cli_run', () => {
       undefined,
     );
     expect(mockAgentFile.load).toHaveBeenCalled();
+    expect(intro).toHaveBeenCalled();
+    expect(text).toHaveBeenCalled();
     expect(intro).toHaveBeenCalledWith('Running agent: test-agent');
     expect(text).toHaveBeenCalled();
     expect(outro).toHaveBeenCalledWith('Happy Agent Building!');
@@ -203,6 +212,7 @@ describe('cli_run', () => {
     });
 
     expect(loadFileData).toHaveBeenCalledWith('session.json');
+    expect(text).toHaveBeenCalled();
     expect(intro).toHaveBeenCalledWith('Resuming session: test-agent');
     expect(text).toHaveBeenCalled();
     expect(outro).toHaveBeenCalledWith('Happy Agent Building!');

@@ -27,6 +27,8 @@ import {
 
 // Mock dependencies
 vi.mock('@clack/prompts', () => ({
+  intro: vi.fn(),
+  outro: vi.fn(),
   confirm: vi.fn(),
   intro: vi.fn(),
   isCancel: vi.fn(),
