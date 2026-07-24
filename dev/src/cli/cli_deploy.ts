@@ -11,7 +11,6 @@ import {promisify} from 'node:util';
 
 import {AgentFileOptions, AgentLoader} from '../utils/agent_loader.js';
 import {
-  isFile,
   isFolderExists,
   loadFileData,
   saveToFile,
