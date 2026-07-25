@@ -361,6 +361,7 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
     if (process.stdout.isTTY) {
       outro('Deployment failed');
     }
+    throw e;
   } finally {
     if (await isFolderExists(options.tempFolder)) {
       await fs.rm(options.tempFolder, {recursive: true, force: true});
