@@ -6,6 +6,7 @@
 
 import {intro, log, outro} from '@clack/prompts';
 import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
 import {afterEach, beforeEach, describe, expect, it, Mock, vi} from 'vitest';
 import {
   createDockerFileContent,
@@ -658,7 +659,7 @@ describe('deployToCloudRun', () => {
 
     expect(fs.cp).toHaveBeenCalledWith(
       'path/to/agent1.ts',
-      expect.stringContaining('agents/test-service/agent1.ts'),
+      expect.stringContaining(path.join('agents', 'test-service', 'agent1.ts')),
     );
   });
 
@@ -667,7 +668,7 @@ describe('deployToCloudRun', () => {
 
     expect(fs.cp).toHaveBeenCalledWith(
       'path/to/agent1.ts',
-      expect.stringContaining('agents/custom-app/agent1.ts'),
+      expect.stringContaining(path.join('agents', 'custom-app', 'agent1.ts')),
     );
   });
 
