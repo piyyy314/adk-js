@@ -6,6 +6,7 @@
 
 import {intro, isCancel, outro, spinner, text} from '@clack/prompts';
 import {BaseAgent, BaseSessionService, Runner} from '@google/adk';
+import {createInterface} from 'node:readline';
 import {afterEach, beforeEach, describe, expect, it, Mock, vi} from 'vitest';
 import {runAgent} from '../../src/cli/cli_run.js';
 import {AgentFile} from '../../src/utils/agent_loader.js';
@@ -150,6 +151,29 @@ describe('cli_run', () => {
         events: [],
       }),
     }) as unknown as BaseSessionService;
+
+  /**
+   * Builds a fake `readline.Interface`-like object that is async-iterable
+   * over the given lines, mirroring what `createInterface` normally returns.
+   */
+  const createMockReadlineInterface = (lines: string[]) => {
+    const closeMock = vi.fn();
+    let index = 0;
+    const mockInterface = {
+      close: closeMock,
+      [Symbol.asyncIterator]() {
+        return {
+          next: async () => {
+            if (index < lines.length) {
+              return {value: lines[index++], done: false};
+            }
+            return {value: undefined, done: true};
+          },
+        };
+      },
+    };
+    return {mockInterface, closeMock};
+  };
 
   it('should run from input file', async () => {
     const inputFileContent = {
@@ -784,6 +808,113 @@ describe('cli_run', () => {
       expect(mockSpinner.stop).toHaveBeenCalled();
       // start() should only be called once per query
       expect(mockSpinner.start).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('non-interactive mode (piped stdin)', () => {
+    beforeEach(() => {
+      // Force the non-TTY branch of getQueries() to read from readline.
+      (process.stdin as unknown as {isTTY: boolean}).isTTY = false;
+    });
+
+    it('should process piped lines and stop at "exit" without prompting via text()', async () => {
+      const {mockInterface, closeMock} = createMockReadlineInterface([
+        'Hello from pipe',
+        'exit',
+      ]);
+      (createInterface as unknown as Mock).mockReturnValue(mockInterface);
+
+      const mockSessionService = createMockSessionService();
+      const mockRunAsync = vi.fn().mockImplementation(async function* () {
+        yield {author: 'model', content: {parts: [{text: 'Reply'}]}};
+      });
+      (Runner as unknown as Mock).mockImplementation(() => ({
+        runAsync: mockRunAsync,
+      }));
+
+      await runAgent({
+        agentPath: 'agent.ts',
+        sessionService: mockSessionService,
+      });
+
+      expect(mockRunAsync).toHaveBeenCalledTimes(1);
+      expect(mockRunAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          newMessage: {role: 'user', parts: [{text: 'Hello from pipe'}]},
+        }),
+      );
+      expect(text).not.toHaveBeenCalled();
+      expect(closeMock).toHaveBeenCalled();
+    });
+
+    it('should skip blank and whitespace-only piped lines without invoking the runner', async () => {
+      const {mockInterface, closeMock} = createMockReadlineInterface([
+        '',
+        '   ',
+        'exit',
+      ]);
+      (createInterface as unknown as Mock).mockReturnValue(mockInterface);
+
+      const mockSessionService = createMockSessionService();
+      const mockRunAsync = vi.fn().mockImplementation(async function* () {});
+      (Runner as unknown as Mock).mockImplementation(() => ({
+        runAsync: mockRunAsync,
+      }));
+
+      await runAgent({
+        agentPath: 'agent.ts',
+        sessionService: mockSessionService,
+      });
+
+      expect(mockRunAsync).not.toHaveBeenCalled();
+      expect(closeMock).toHaveBeenCalled();
+    });
+
+    it('should process multiple piped lines sequentially before exiting on "exit"', async () => {
+      const {mockInterface, closeMock} = createMockReadlineInterface([
+        'first line',
+        'second line',
+        'exit',
+      ]);
+      (createInterface as unknown as Mock).mockReturnValue(mockInterface);
+
+      const mockSessionService = createMockSessionService();
+      const mockRunAsync = vi.fn().mockImplementation(async function* () {});
+      (Runner as unknown as Mock).mockImplementation(() => ({
+        runAsync: mockRunAsync,
+      }));
+
+      await runAgent({
+        agentPath: 'agent.ts',
+        sessionService: mockSessionService,
+      });
+
+      expect(mockRunAsync).toHaveBeenCalledTimes(2);
+      expect(closeMock).toHaveBeenCalled();
+    });
+
+    it('should close the readline interface (finally block) even when the runner throws mid-loop', async () => {
+      const {mockInterface, closeMock} = createMockReadlineInterface([
+        'trigger failure',
+      ]);
+      (createInterface as unknown as Mock).mockReturnValue(mockInterface);
+
+      const mockSessionService = createMockSessionService();
+      const mockRunAsync = vi.fn().mockImplementation(async function* () {
+        throw new Error('runner exploded');
+      });
+      (Runner as unknown as Mock).mockImplementation(() => ({
+        runAsync: mockRunAsync,
+      }));
+      const {log} = await import('@clack/prompts');
+
+      await runAgent({
+        agentPath: 'agent.ts',
+        sessionService: mockSessionService,
+      });
+
+      expect(closeMock).toHaveBeenCalled();
+      expect(log.error).toHaveBeenCalledWith('runner exploded');
     });
   });
 });
