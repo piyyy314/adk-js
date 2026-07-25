@@ -17,6 +17,7 @@ import {
   isFile,
   isFolderExists,
   loadFileData,
+  saveToFile,
   tryToFindFileRecursively,
 } from '../../src/utils/file_utils.js';
 
@@ -642,6 +643,82 @@ describe('deployToCloudRun', () => {
         expect.stringContaining("conflict with ADK's automatic configuration"),
       );
       expect(outro).toHaveBeenCalledWith('Deployment failed');
+    } finally {
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: originalIsTTY,
+        configurable: true,
+      });
+    }
+  });
+
+  it('should fall back to serviceName as appName when appName option is not provided', async () => {
+    await deployToCloudRun(defaultOptions);
+
+    expect(fs.cp).toHaveBeenCalledWith(
+      'path/to/agent1.ts',
+      expect.stringContaining('agents/test-service/agent1.ts'),
+    );
+  });
+
+  it('should use options.appName instead of serviceName when appName is provided', async () => {
+    await deployToCloudRun({...defaultOptions, appName: 'custom-app'});
+
+    expect(fs.cp).toHaveBeenCalledWith(
+      'path/to/agent1.ts',
+      expect.stringContaining('agents/custom-app/agent1.ts'),
+    );
+  });
+
+  it('should embed the resolved appName (serviceName fallback) in the generated Dockerfile content', async () => {
+    await deployToCloudRun(defaultOptions);
+
+    const dockerfileCall = (saveToFile as Mock).mock.calls.find(
+      (call) => typeof call[0] === 'string' && call[0].endsWith('Dockerfile'),
+    );
+    expect(dockerfileCall).toBeDefined();
+    expect(dockerfileCall![1]).toContain('agents/test-service/');
+  });
+
+  it('should embed a custom appName in the generated Dockerfile content when provided', async () => {
+    await deployToCloudRun({...defaultOptions, appName: 'custom-app'});
+
+    const dockerfileCall = (saveToFile as Mock).mock.calls.find(
+      (call) => typeof call[0] === 'string' && call[0].endsWith('Dockerfile'),
+    );
+    expect(dockerfileCall).toBeDefined();
+    expect(dockerfileCall![1]).toContain('agents/custom-app/');
+  });
+
+  it('should look for package.json starting from options.agentPath', async () => {
+    await deployToCloudRun(defaultOptions);
+
+    expect(tryToFindFileRecursively).toHaveBeenCalledWith(
+      defaultOptions.agentPath,
+      'package.json',
+      3,
+    );
+  });
+
+  it('should log "Starting deployment to Cloud Run..." exactly once (no duplicate log.step call)', async () => {
+    await deployToCloudRun(defaultOptions);
+
+    const startCalls = logStepMock.mock.calls.filter(
+      ([msg]) => msg === 'Starting deployment to Cloud Run...',
+    );
+    expect(startCalls).toHaveLength(1);
+  });
+
+  it('should call outro exactly once on successful deployment when isTTY is true', async () => {
+    const originalIsTTY = process.stdout.isTTY;
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
+
+    try {
+      await deployToCloudRun(defaultOptions);
+      expect(outroMock).toHaveBeenCalledTimes(1);
+      expect(outroMock).toHaveBeenCalledWith('Happy Agent Building!');
     } finally {
       Object.defineProperty(process.stdout, 'isTTY', {
         value: originalIsTTY,
