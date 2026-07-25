@@ -37,3 +37,7 @@
 ## 2025-06-18 - Consolidating vs. Removing CLI Lifecycle Elements
 **Learning:** Consolidating redundant `@clack/prompts` lifecycle elements (like multiple `intro` or `outro` calls) improves clarity, but removing them entirely degrades the 'delightful' themed experience; always maintain exactly one `intro` at the start and one `outro` at the end of a command execution. Also, be extremely careful with `pnpm install` in monorepos as it can generate unintended lockfiles that cause massive regressions.
 **Action:** Always verify that only one intro/outro pair remains and ensure all unintended lockfiles are removed before submission.
+
+## 2025-06-19 - Interactive Fallback for CLI Configurations
+**Learning:** Prompting the user interactively when required parameters (like GCP project/region) are missing, instead of directly throwing configuration errors, creates a smoother onboarding flow. Guarding these prompts with `isTTY` checks maintains compatibility with CI/CD non-interactive setups.
+**Action:** Implement interactive fallbacks using `@clack/prompts` `text` or `select` when required properties are missing and the terminal is a TTY.
