@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {intro, log, outro, spinner, text} from '@clack/prompts';
+import {intro, isCancel, log, outro, spinner, text} from '@clack/prompts';
 import {
   BaseAgent,
   BaseArtifactService,
@@ -111,26 +111,24 @@ interface RunInteractivelyOptions {
 /**
  * Provides an async generator of user queries from stdin.
  */
-async function* getQueries(): AsyncGenerator<string, void, unknown> {
+async function* getQueries(): AsyncGenerator<string | symbol, void, unknown> {
   if (process.stdin.isTTY === true) {
     while (true) {
       const input = await text({
         message: 'Message',
         placeholder: 'Type your message here (or "exit" to quit)...',
       });
-      if (isCancel(input) || input === 'exit') {
-        return;
-      }
-      yield input as string;
+      yield input;
     }
   } else {
     // Non-interactive mode (piped stdin): read lines directly via readline.
     const rl = createInterface({input: process.stdin, terminal: false});
-    for await (const line of rl) {
-      if (line === 'exit') {
-        return;
+    try {
+      for await (const line of rl) {
+        yield line;
       }
-      yield line;
+    } finally {
+      rl.close();
     }
   }
 }
@@ -158,32 +156,46 @@ async function runInteractively(
   });
 
   for await (const query of getQueries()) {
-    if (!query || !query.trim()) {
+    if (isCancel(query)) {
+      if (process.stdout.isTTY) {
+        outro('Operation cancelled');
+      }
+      return true;
+    }
+    if (query === 'exit') {
+      return false;
+    }
+    if (typeof query !== 'string' || !query.trim()) {
       continue;
     }
 
     const s = process.stdout.isTTY ? spinner() : null;
     s?.start('Thinking...');
+    let spinnerStopped = false;
     for await (const event of runner.runAsync({
       userId: options.session.userId,
       sessionId: options.session.id,
       newMessage: {role: 'user', parts: [{text: query}]},
     })) {
       if (event.content && event.content.parts) {
-        const text = event.content.parts
+        const textVal = event.content.parts
           .map((part) => part.text || '')
           .join('');
-        if (text) {
-          s?.stop();
-          console.log(`[${event.author}]: ${text}`);
+        if (textVal) {
+          if (!spinnerStopped) {
+            s?.stop();
+            spinnerStopped = true;
+          }
+          console.log(`[${event.author}]: ${textVal}`);
         }
-        await processQuery(line, runner, options);
       }
-      return false;
     }
-  } finally {
-    rl?.close();
+    if (!spinnerStopped) {
+      s?.stop();
+    }
   }
+
+  return false;
 }
 
 /**
