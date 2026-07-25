@@ -6,6 +6,7 @@
 
 import {intro, log, outro} from '@clack/prompts';
 import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
 import {afterEach, beforeEach, describe, expect, it, Mock, vi} from 'vitest';
 import {
   createDockerFileContent,
@@ -31,6 +32,7 @@ const logErrorMock = vi.fn();
 const logStepMock = vi.fn();
 const introMock = vi.fn();
 const outroMock = vi.fn();
+const textMock = vi.fn();
 const spinnerMock = {
   start: vi.fn(),
   stop: vi.fn(),
@@ -47,6 +49,7 @@ vi.mock('@clack/prompts', () => ({
   outro: vi.fn((...args: unknown[]) => outroMock(...args)),
   spinner: () => spinnerMock,
   isCancel: (val: unknown) => typeof val === 'symbol',
+  text: vi.fn((...args: unknown[]) => textMock(...args)),
 }));
 
 vi.mock('node:child_process', () => ({
@@ -656,7 +659,7 @@ describe('deployToCloudRun', () => {
 
     expect(fs.cp).toHaveBeenCalledWith(
       'path/to/agent1.ts',
-      expect.stringContaining('agents/test-service/agent1.ts'),
+      expect.stringContaining(path.join('agents', 'test-service', 'agent1.ts')),
     );
   });
 
@@ -665,7 +668,7 @@ describe('deployToCloudRun', () => {
 
     expect(fs.cp).toHaveBeenCalledWith(
       'path/to/agent1.ts',
-      expect.stringContaining('agents/custom-app/agent1.ts'),
+      expect.stringContaining(path.join('agents', 'custom-app', 'agent1.ts')),
     );
   });
 
@@ -719,6 +722,99 @@ describe('deployToCloudRun', () => {
       await deployToCloudRun(defaultOptions);
       expect(outroMock).toHaveBeenCalledTimes(1);
       expect(outroMock).toHaveBeenCalledWith('Happy Agent Building!');
+    } finally {
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: originalIsTTY,
+        configurable: true,
+      });
+    }
+  });
+
+  it('should prompt for project and region interactively if they are unset and isTTY is true', async () => {
+    const originalIsTTY = process.stdout.isTTY;
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
+
+    const optionsWithoutProjectRegion = {
+      ...defaultOptions,
+      project: '',
+      region: '',
+    };
+
+    execMock.mockImplementation((cmd: string, callback: Callback) => {
+      if (cmd.includes('config get-value project')) {
+        callback(null, {stdout: '(unset)\n'});
+      } else if (cmd.includes('config get-value run/region')) {
+        callback(null, {stdout: '\n'});
+      } else {
+        callback(null, {stdout: ''});
+      }
+    });
+
+    textMock.mockImplementation((config: {message: string}) => {
+      if (config.message.includes('Project ID')) {
+        return Promise.resolve('prompted-project-id');
+      }
+      if (config.message.includes('Region')) {
+        return Promise.resolve('prompted-region');
+      }
+      return Promise.resolve('');
+    });
+
+    try {
+      await deployToCloudRun(optionsWithoutProjectRegion);
+
+      expect(textMock).toHaveBeenCalledTimes(2);
+      expect(spawnMock).toHaveBeenCalledWith(
+        'gcloud',
+        expect.arrayContaining([
+          '--project',
+          'prompted-project-id',
+          '--region',
+          'prompted-region',
+        ]),
+        expect.any(Object),
+      );
+    } finally {
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: originalIsTTY,
+        configurable: true,
+      });
+    }
+  });
+
+  it('should handle project prompt cancellation gracefully when isTTY is true', async () => {
+    const originalIsTTY = process.stdout.isTTY;
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
+
+    const optionsWithoutProjectRegion = {
+      ...defaultOptions,
+      project: '',
+      region: '',
+    };
+
+    execMock.mockImplementation((cmd: string, callback: Callback) => {
+      if (cmd.includes('config get-value project')) {
+        callback(null, {stdout: '(unset)\n'});
+      } else {
+        callback(null, {stdout: ''});
+      }
+    });
+
+    const cancelSymbol = Symbol('clack-cancel');
+    textMock.mockResolvedValue(cancelSymbol);
+
+    try {
+      await deployToCloudRun(optionsWithoutProjectRegion);
+
+      expect(textMock).toHaveBeenCalledTimes(1);
+      expect(spawnMock).not.toHaveBeenCalled();
+      expect(outroMock).toHaveBeenCalledWith('Operation cancelled');
     } finally {
       Object.defineProperty(process.stdout, 'isTTY', {
         value: originalIsTTY,

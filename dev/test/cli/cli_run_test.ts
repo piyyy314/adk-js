@@ -900,6 +900,7 @@ describe('cli_run', () => {
       (createInterface as unknown as Mock).mockReturnValue(mockInterface);
 
       const mockSessionService = createMockSessionService();
+      // eslint-disable-next-line require-yield
       const mockRunAsync = vi.fn().mockImplementation(async function* () {
         throw new Error('runner exploded');
       });
