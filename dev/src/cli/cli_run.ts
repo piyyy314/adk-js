@@ -182,15 +182,26 @@ async function runInteractively(
           .map((part) => part.text || '')
           .join('');
         if (textVal) {
-          if (!spinnerStopped) {
-            s?.stop();
-            spinnerStopped = true;
+          if (process.stdout.isTTY) {
+            if (!spinnerStopped) {
+              s?.stop();
+              spinnerStopped = true;
+              process.stdout.write(`[${event.author}]: `);
+            }
+            process.stdout.write(textVal);
+          } else {
+            if (!spinnerStopped) {
+              s?.stop();
+              spinnerStopped = true;
+            }
+            console.log(`[${event.author}]: ${textVal}`);
           }
-          console.log(`[${event.author}]: ${textVal}`);
         }
       }
     }
-    if (!spinnerStopped) {
+    if (process.stdout.isTTY && spinnerStopped) {
+      process.stdout.write('\n');
+    } else {
       s?.stop();
     }
   }
@@ -310,7 +321,7 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
       }
 
       const sessionPath = path.join(
-        options.agentPath,
+        path.dirname(options.agentPath),
         `${sessionId}.session.json`,
       );
       const sessionToStore = await sessionService.getSession({
