@@ -37,3 +37,7 @@
 ## 2025-06-18 - Consolidating vs. Removing CLI Lifecycle Elements
 **Learning:** Consolidating redundant `@clack/prompts` lifecycle elements (like multiple `intro` or `outro` calls) improves clarity, but removing them entirely degrades the 'delightful' themed experience; always maintain exactly one `intro` at the start and one `outro` at the end of a command execution. Also, be extremely careful with `pnpm install` in monorepos as it can generate unintended lockfiles that cause massive regressions.
 **Action:** Always verify that only one intro/outro pair remains and ensure all unintended lockfiles are removed before submission.
+
+## 2026-07-26 - Streaming Interactive UX and Safe Session Preservation
+**Learning:** In interactive CLI modes, logging chunks of agent output with `console.log` breaks streaming flow by outputting each chunk on a new line with duplicate headers. Using `process.stdout.write` preserves visual continuity in TTY environments. Additionally, when saving state to relative files, resolving the directory containing the agent file via `path.dirname` avoids ENOTDIR errors from treating the agent source file path itself as a directory.
+**Action:** Always stream text chunks in TTY environments on the same line and append final newlines, and use `path.dirname` on file paths to correctly locate parent directories for side-car assets.
