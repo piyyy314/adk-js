@@ -31,7 +31,6 @@ const logErrorMock = vi.fn();
 const logStepMock = vi.fn();
 const introMock = vi.fn();
 const outroMock = vi.fn();
-const textMock = vi.fn();
 const spinnerMock = {
   start: vi.fn(),
   stop: vi.fn(),
@@ -46,7 +45,6 @@ vi.mock('@clack/prompts', () => ({
   },
   intro: vi.fn((...args: unknown[]) => introMock(...args)),
   outro: vi.fn((...args: unknown[]) => outroMock(...args)),
-  text: vi.fn((...args: unknown[]) => textMock(...args)),
   spinner: () => spinnerMock,
   isCancel: (val: unknown) => typeof val === 'symbol',
 }));
@@ -241,122 +239,6 @@ describe('deployToCloudRun', () => {
       ]),
       expect.any(Object),
     );
-  });
-
-  it('should fallback to interactive text input for missing project when isTTY is true', async () => {
-    const originalIsTTY = process.stdout.isTTY;
-    Object.defineProperty(process.stdout, 'isTTY', {
-      value: true,
-      configurable: true,
-    });
-
-    const optionsWithoutProject = {
-      ...defaultOptions,
-      project: '',
-    };
-
-    execMock.mockImplementation((cmd: string, callback: Callback) => {
-      if (cmd.includes('config get-value project')) {
-        callback(null, {stdout: '(unset)\n'});
-      } else if (cmd.includes('config get-value run/region')) {
-        callback(null, {stdout: 'gcloud-region\n'});
-      }
-    });
-
-    textMock.mockResolvedValueOnce('interactive-project-id');
-
-    try {
-      await deployToCloudRun(optionsWithoutProject);
-      expect(textMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          message: 'Enter the Google Cloud Project ID',
-        }),
-      );
-      expect(spawnMock).toHaveBeenCalledWith(
-        'gcloud',
-        expect.arrayContaining(['--project', 'interactive-project-id']),
-        expect.any(Object),
-      );
-    } finally {
-      Object.defineProperty(process.stdout, 'isTTY', {
-        value: originalIsTTY,
-        configurable: true,
-      });
-    }
-  });
-
-  it('should fallback to interactive text input for missing region when isTTY is true', async () => {
-    const originalIsTTY = process.stdout.isTTY;
-    Object.defineProperty(process.stdout, 'isTTY', {
-      value: true,
-      configurable: true,
-    });
-
-    const optionsWithoutRegion = {
-      ...defaultOptions,
-      region: '',
-    };
-
-    execMock.mockImplementation((cmd: string, callback: Callback) => {
-      if (cmd.includes('config get-value project')) {
-        callback(null, {stdout: 'gcloud-project\n'});
-      } else if (cmd.includes('config get-value run/region')) {
-        callback(null, {stdout: '\n'});
-      }
-    });
-
-    textMock.mockResolvedValueOnce('interactive-region-name');
-
-    try {
-      await deployToCloudRun(optionsWithoutRegion);
-      expect(textMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          message: 'Enter the Google Cloud Region',
-        }),
-      );
-      expect(spawnMock).toHaveBeenCalledWith(
-        'gcloud',
-        expect.arrayContaining(['--region', 'interactive-region-name']),
-        expect.any(Object),
-      );
-    } finally {
-      Object.defineProperty(process.stdout, 'isTTY', {
-        value: originalIsTTY,
-        configurable: true,
-      });
-    }
-  });
-
-  it('should throw error on project prompt cancellation', async () => {
-    const originalIsTTY = process.stdout.isTTY;
-    Object.defineProperty(process.stdout, 'isTTY', {
-      value: true,
-      configurable: true,
-    });
-
-    const optionsWithoutProject = {
-      ...defaultOptions,
-      project: '',
-    };
-
-    execMock.mockImplementation((cmd: string, callback: Callback) => {
-      if (cmd.includes('config get-value project')) {
-        callback(null, {stdout: '(unset)\n'});
-      }
-    });
-
-    textMock.mockResolvedValueOnce(Symbol('cancel'));
-
-    try {
-      await expect(deployToCloudRun(optionsWithoutProject)).rejects.toThrow(
-        'Deployment cancelled by user',
-      );
-    } finally {
-      Object.defineProperty(process.stdout, 'isTTY', {
-        value: originalIsTTY,
-        configurable: true,
-      });
-    }
   });
 
   it('should throw error if project resolution fails (unset)', async () => {
