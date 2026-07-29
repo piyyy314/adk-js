@@ -71,5 +71,8 @@
     "**/*.{json,md}": [
       "prettier --write"
     ]
+  },
+  "dependencies": {
+    "@google/adk": "link:core"
   }
 }
