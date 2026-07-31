@@ -31,6 +31,7 @@ const logErrorMock = vi.fn();
 const logStepMock = vi.fn();
 const introMock = vi.fn();
 const outroMock = vi.fn();
+const textMock = vi.fn();
 const spinnerMock = {
   start: vi.fn(),
   stop: vi.fn(),
@@ -45,6 +46,7 @@ vi.mock('@clack/prompts', () => ({
   },
   intro: vi.fn((...args: unknown[]) => introMock(...args)),
   outro: vi.fn((...args: unknown[]) => outroMock(...args)),
+  text: vi.fn((...args: unknown[]) => textMock(...args)),
   spinner: () => spinnerMock,
   isCancel: (val: unknown) => typeof val === 'symbol',
 }));
@@ -262,7 +264,7 @@ describe('deployToCloudRun', () => {
     );
   });
 
-  it('should call outro with "Deployment failed" and still rethrow when project resolution fails and isTTY is true', async () => {
+  it('should prompt for project and deploy successfully when project is not specified and isTTY is true', async () => {
     const originalIsTTY = process.stdout.isTTY;
     Object.defineProperty(process.stdout, 'isTTY', {
       value: true,
@@ -278,11 +280,50 @@ describe('deployToCloudRun', () => {
       }
     });
 
+    textMock.mockResolvedValueOnce('prompted-project-id');
+
     try {
-      await expect(deployToCloudRun(optionsWithoutProject)).rejects.toThrow(
-        /Project is not specified/,
+      await deployToCloudRun(optionsWithoutProject);
+      expect(textMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Enter the Google Cloud Project ID',
+        }),
       );
-      expect(outro).toHaveBeenCalledWith('Deployment failed');
+      expect(outroMock).toHaveBeenCalledWith('Happy Agent Building!');
+    } finally {
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: originalIsTTY,
+        configurable: true,
+      });
+    }
+  });
+
+  it('should return early and call outro with "Operation cancelled" when project prompt is cancelled and isTTY is true', async () => {
+    const originalIsTTY = process.stdout.isTTY;
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
+
+    const optionsWithoutProject = {...defaultOptions, project: ''};
+    execMock.mockImplementation((cmd: string, callback: Callback) => {
+      if (cmd.includes('config get-value project')) {
+        callback(null, {stdout: '(unset)\n'});
+      } else if (cmd.includes('config get-value run/region')) {
+        callback(null, {stdout: 'gcloud-region\n'});
+      }
+    });
+
+    textMock.mockResolvedValueOnce(Symbol('cancel'));
+
+    try {
+      await deployToCloudRun(optionsWithoutProject);
+      expect(textMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Enter the Google Cloud Project ID',
+        }),
+      );
+      expect(outroMock).toHaveBeenCalledWith('Operation cancelled');
     } finally {
       Object.defineProperty(process.stdout, 'isTTY', {
         value: originalIsTTY,
@@ -320,7 +361,7 @@ describe('deployToCloudRun', () => {
     }
   });
 
-  it('should throw error and call outro with "Deployment failed" when region resolution fails and isTTY is true', async () => {
+  it('should prompt for region and deploy successfully when region is not specified and isTTY is true', async () => {
     const originalIsTTY = process.stdout.isTTY;
     Object.defineProperty(process.stdout, 'isTTY', {
       value: true,
@@ -336,11 +377,50 @@ describe('deployToCloudRun', () => {
       }
     });
 
+    textMock.mockResolvedValueOnce('prompted-region-name');
+
     try {
-      await expect(deployToCloudRun(optionsWithoutRegion)).rejects.toThrow(
-        /Region is not specified/,
+      await deployToCloudRun(optionsWithoutRegion);
+      expect(textMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Enter the Google Cloud Region',
+        }),
       );
-      expect(outro).toHaveBeenCalledWith('Deployment failed');
+      expect(outroMock).toHaveBeenCalledWith('Happy Agent Building!');
+    } finally {
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: originalIsTTY,
+        configurable: true,
+      });
+    }
+  });
+
+  it('should return early and call outro with "Operation cancelled" when region prompt is cancelled and isTTY is true', async () => {
+    const originalIsTTY = process.stdout.isTTY;
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
+
+    const optionsWithoutRegion = {...defaultOptions, region: ''};
+    execMock.mockImplementation((cmd: string, callback: Callback) => {
+      if (cmd.includes('config get-value project')) {
+        callback(null, {stdout: 'gcloud-project\n'});
+      } else if (cmd.includes('config get-value run/region')) {
+        callback(null, {stdout: '\n'});
+      }
+    });
+
+    textMock.mockResolvedValueOnce(Symbol('cancel'));
+
+    try {
+      await deployToCloudRun(optionsWithoutRegion);
+      expect(textMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Enter the Google Cloud Region',
+        }),
+      );
+      expect(outroMock).toHaveBeenCalledWith('Operation cancelled');
     } finally {
       Object.defineProperty(process.stdout, 'isTTY', {
         value: originalIsTTY,
