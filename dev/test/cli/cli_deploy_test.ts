@@ -31,6 +31,7 @@ const logErrorMock = vi.fn();
 const logStepMock = vi.fn();
 const introMock = vi.fn();
 const outroMock = vi.fn();
+const textMock = vi.fn();
 const spinnerMock = {
   start: vi.fn(),
   stop: vi.fn(),
@@ -47,6 +48,7 @@ vi.mock('@clack/prompts', () => ({
   outro: vi.fn((...args: unknown[]) => outroMock(...args)),
   spinner: () => spinnerMock,
   isCancel: (val: unknown) => typeof val === 'symbol',
+  text: vi.fn((...args: unknown[]) => textMock(...args)),
 }));
 
 vi.mock('node:child_process', () => ({
@@ -144,6 +146,7 @@ describe('deployToCloudRun', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    textMock.mockReset();
 
     // Default mock behavior
     (isFile as Mock).mockResolvedValue(false);
@@ -239,6 +242,103 @@ describe('deployToCloudRun', () => {
       ]),
       expect.any(Object),
     );
+  });
+
+  it('should prompt for project and region interactively when unset and isTTY is true', async () => {
+    const originalIsTTY = process.stdout.isTTY;
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
+
+    const optionsWithoutProjectRegion = {
+      ...defaultOptions,
+      project: '',
+      region: '',
+    };
+
+    // Simulate unset config values
+    execMock.mockImplementation((cmd: string, callback: Callback) => {
+      if (cmd.includes('config get-value project')) {
+        callback(null, {stdout: '(unset)\n'});
+      } else if (cmd.includes('config get-value run/region')) {
+        callback(null, {stdout: '\n'});
+      } else {
+        callback(null, {stdout: ''});
+      }
+    });
+
+    // Mock interactive user input
+    textMock
+      .mockResolvedValueOnce('interactive-project')
+      .mockResolvedValueOnce('interactive-region');
+
+    try {
+      await deployToCloudRun(optionsWithoutProjectRegion);
+
+      expect(textMock).toHaveBeenCalledTimes(2);
+      expect(textMock).toHaveBeenNthCalledWith(1, expect.objectContaining({
+        message: 'Enter the Google Cloud Project ID',
+      }));
+      expect(textMock).toHaveBeenNthCalledWith(2, expect.objectContaining({
+        message: 'Enter the Google Cloud Region',
+      }));
+
+      expect(spawnMock).toHaveBeenCalledWith(
+        'gcloud',
+        expect.arrayContaining([
+          '--project',
+          'interactive-project',
+          '--region',
+          'interactive-region',
+        ]),
+        expect.any(Object),
+      );
+    } finally {
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: originalIsTTY,
+        configurable: true,
+      });
+    }
+  });
+
+  it('should abort deployment and exit early when project prompt is cancelled', async () => {
+    const originalIsTTY = process.stdout.isTTY;
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
+
+    const optionsWithoutProjectRegion = {
+      ...defaultOptions,
+      project: '',
+      region: '',
+    };
+
+    // Simulate unset config values
+    execMock.mockImplementation((cmd: string, callback: Callback) => {
+      if (cmd.includes('config get-value project')) {
+        callback(null, {stdout: '(unset)\n'});
+      } else {
+        callback(null, {stdout: ''});
+      }
+    });
+
+    // Mock user cancelling the prompt
+    textMock.mockResolvedValueOnce(Symbol('cancel'));
+
+    try {
+      await deployToCloudRun(optionsWithoutProjectRegion);
+
+      expect(textMock).toHaveBeenCalledTimes(1);
+      // Spawn gcloud should NOT have been called
+      expect(spawnMock).not.toHaveBeenCalled();
+    } finally {
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: originalIsTTY,
+        configurable: true,
+      });
+    }
   });
 
   it('should throw error if project resolution fails (unset)', async () => {
