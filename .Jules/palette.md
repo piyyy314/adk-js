@@ -37,3 +37,7 @@
 ## 2025-06-18 - Consolidating vs. Removing CLI Lifecycle Elements
 **Learning:** Consolidating redundant `@clack/prompts` lifecycle elements (like multiple `intro` or `outro` calls) improves clarity, but removing them entirely degrades the 'delightful' themed experience; always maintain exactly one `intro` at the start and one `outro` at the end of a command execution. Also, be extremely careful with `pnpm install` in monorepos as it can generate unintended lockfiles that cause massive regressions.
 **Action:** Always verify that only one intro/outro pair remains and ensure all unintended lockfiles are removed before submission.
+
+## 2025-06-19 - Smooth Streaming UX for CLI Interactions
+**Learning:** Real-time text streams in interactive CLIs are much more readable and pleasant when printed continuously on the same line. Repeating the author prefix for every incoming chunk and splitting them across multiple lines ruins the reading flow.
+**Action:** In interactive TTY runs, use `process.stdout.write` to print the author prefix exactly once when the stream starts, stream consecutive chunks on the same line, and append a trailing newline once the stream is complete.
