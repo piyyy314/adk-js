@@ -308,7 +308,9 @@ describe('cli_run', () => {
     (isCancel as unknown as Mock).mockReturnValue(true);
     const mockSessionService = createMockSessionService();
 
-    const mockRunAsync = vi.fn().mockImplementation(async function* () {});
+    const mockRunAsync = vi.fn().mockImplementation(async function* () {
+      if (false) yield;
+    });
     (Runner as unknown as Mock).mockImplementation(() => ({
       runAsync: mockRunAsync,
     }));
@@ -331,7 +333,9 @@ describe('cli_run', () => {
     (isCancel as unknown as Mock).mockReturnValue(false);
     const mockSessionService = createMockSessionService();
 
-    const mockRunAsync = vi.fn().mockImplementation(async function* () {});
+    const mockRunAsync = vi.fn().mockImplementation(async function* () {
+      if (false) yield;
+    });
     (Runner as unknown as Mock).mockImplementation(() => ({
       runAsync: mockRunAsync,
     }));
@@ -632,7 +636,9 @@ describe('cli_run', () => {
       (isCancel as unknown as Mock).mockReturnValue(false);
       const mockSessionService = createMockSessionService();
 
-      const mockRunAsync = vi.fn().mockImplementation(async function* () {});
+      const mockRunAsync = vi.fn().mockImplementation(async function* () {
+        if (false) yield;
+      });
       (Runner as unknown as Mock).mockImplementation(() => ({
         runAsync: mockRunAsync,
       }));
@@ -856,7 +862,9 @@ describe('cli_run', () => {
       (createInterface as unknown as Mock).mockReturnValue(mockInterface);
 
       const mockSessionService = createMockSessionService();
-      const mockRunAsync = vi.fn().mockImplementation(async function* () {});
+      const mockRunAsync = vi.fn().mockImplementation(async function* () {
+        if (false) yield;
+      });
       (Runner as unknown as Mock).mockImplementation(() => ({
         runAsync: mockRunAsync,
       }));
@@ -879,7 +887,9 @@ describe('cli_run', () => {
       (createInterface as unknown as Mock).mockReturnValue(mockInterface);
 
       const mockSessionService = createMockSessionService();
-      const mockRunAsync = vi.fn().mockImplementation(async function* () {});
+      const mockRunAsync = vi.fn().mockImplementation(async function* () {
+        if (false) yield;
+      });
       (Runner as unknown as Mock).mockImplementation(() => ({
         runAsync: mockRunAsync,
       }));
@@ -901,6 +911,7 @@ describe('cli_run', () => {
 
       const mockSessionService = createMockSessionService();
       const mockRunAsync = vi.fn().mockImplementation(async function* () {
+        if (false) yield;
         throw new Error('runner exploded');
       });
       (Runner as unknown as Mock).mockImplementation(() => ({
