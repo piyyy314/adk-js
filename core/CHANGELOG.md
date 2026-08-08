@@ -57,7 +57,7 @@
 ### Bug Fixes
 
 * a2a integration: use right enum values for agent card transport types. ([#212](https://github.com/piyyy314/adk-js/issues/212)) ([b00cef7](https://github.com/piyyy314/adk-js/commit/b00cef76734c9730fb186dfd8e57ca22d357411a))
-* a2a support videometadata during part convertion ([#198](https://github.com/piyyy314/adk-js/issues/198)) ([7b36f48](https://github.com/piyyy314/adk-js/commit/7b36f4809fc5f46fbb1bbdf1a164eb6e6691edfd))
+* a2a support video metadata during part conversion ([#198](https://github.com/piyyy314/adk-js/issues/198)) ([7b36f48](https://github.com/piyyy314/adk-js/commit/7b36f4809fc5f46fbb1bbdf1a164eb6e6691edfd))
 * add missing invocation id when creating new ADK event while merging parallel tool responses. ([#253](https://github.com/piyyy314/adk-js/issues/253)) ([7739bd8](https://github.com/piyyy314/adk-js/commit/7739bd8b79ef38fc65fb06495043318c3f287f40))
 * add support for MCP type array instead of string only in gemini_schema_util ([#199](https://github.com/piyyy314/adk-js/issues/199)) ([9cb4a33](https://github.com/piyyy314/adk-js/commit/9cb4a33b9a15718e97cbda532a04f1e91c45389e))
 * Lazy load MikroORM drivers to avoid errors when not used. ([#183](https://github.com/piyyy314/adk-js/issues/183)) ([9cb726f](https://github.com/piyyy314/adk-js/commit/9cb726ffc23d5da79f46605af11e3a4765dec3c0))
@@ -67,8 +67,8 @@
 * polish CLI UX and help formatting ([488115b](https://github.com/piyyy314/adk-js/commit/488115b16a33c0a17c7299e17f904d722ae6342f))
 * prevent path traversal in FileArtifactService (CWE-22) ([#210](https://github.com/piyyy314/adk-js/issues/210)) ([8c0eaa1](https://github.com/piyyy314/adk-js/commit/8c0eaa160a43c1d791d5838a5de6ac87d905cf70))
 * Print error message when port for ADK API server already in use ([#207](https://github.com/piyyy314/adk-js/issues/207)) ([8164857](https://github.com/piyyy314/adk-js/commit/816485786940daefded405731fe776170df80efb))
-* stop droping all existing tables in schema during sesstion db initialisation ([#195](https://github.com/piyyy314/adk-js/issues/195)) ([40a9f14](https://github.com/piyyy314/adk-js/commit/40a9f14a660214114505da31105f432353514fa1))
-* support dynamic requre in esm builds ([#244](https://github.com/piyyy314/adk-js/issues/244)) ([fecbdd3](https://github.com/piyyy314/adk-js/commit/fecbdd351552fbacf2db1d6174920e76ddc56a53))
+* stop dropping all existing tables in schema during session db initialisation ([#195](https://github.com/piyyy314/adk-js/issues/195)) ([40a9f14](https://github.com/piyyy314/adk-js/commit/40a9f14a660214114505da31105f432353514fa1))
+* support dynamic require in esm builds ([#244](https://github.com/piyyy314/adk-js/issues/244)) ([fecbdd3](https://github.com/piyyy314/adk-js/commit/fecbdd351552fbacf2db1d6174920e76ddc56a53))
 * use getter for rootAgent to match Python SDK behavior ([#95](https://github.com/piyyy314/adk-js/issues/95)) ([23b1d7f](https://github.com/piyyy314/adk-js/commit/23b1d7f27ce8175ecf0ca14f2c974234fca0ae7d))
 * use isBaseTool | isLlmAgent instead of instanceof keyword. ([#116](https://github.com/piyyy314/adk-js/issues/116)) ([cc4d67b](https://github.com/piyyy314/adk-js/commit/cc4d67ba2f69932030b03efea2c9186680028cb8))
 * use llmAgent instruction when root agent is not llmAgent ([#208](https://github.com/piyyy314/adk-js/issues/208)) ([b3c677c](https://github.com/piyyy314/adk-js/commit/b3c677c0c946e7f0b44eb8d6c4c9a51e61649d51))
@@ -102,11 +102,11 @@
 ### Bug Fixes
 
 * a2a integration: use right enum values for agent card transport types. ([#212](https://github.com/google/adk-js/issues/212)) ([b00cef7](https://github.com/google/adk-js/commit/b00cef76734c9730fb186dfd8e57ca22d357411a))
-* a2a support videometadata during part convertion ([#198](https://github.com/google/adk-js/issues/198)) ([7b36f48](https://github.com/google/adk-js/commit/7b36f4809fc5f46fbb1bbdf1a164eb6e6691edfd))
+* a2a support video metadata during part conversion ([#198](https://github.com/google/adk-js/issues/198)) ([7b36f48](https://github.com/google/adk-js/commit/7b36f4809fc5f46fbb1bbdf1a164eb6e6691edfd))
 * persist session state correctly to not lose prev data. ([#209](https://github.com/google/adk-js/issues/209)) ([dbfa367](https://github.com/google/adk-js/commit/dbfa367fb34deaf246fdeea6ec45cd87d4adbdc4))
 * prevent path traversal in FileArtifactService (CWE-22) ([#210](https://github.com/google/adk-js/issues/210)) ([8c0eaa1](https://github.com/google/adk-js/commit/8c0eaa160a43c1d791d5838a5de6ac87d905cf70))
 * Print error message when port for ADK API server already in use ([#207](https://github.com/google/adk-js/issues/207)) ([8164857](https://github.com/google/adk-js/commit/816485786940daefded405731fe776170df80efb))
-* stop droping all existing tables in schema during sesstion db initialisation ([#195](https://github.com/google/adk-js/issues/195)) ([40a9f14](https://github.com/google/adk-js/commit/40a9f14a660214114505da31105f432353514fa1))
+* stop dropping all existing tables in schema during session db initialisation ([#195](https://github.com/google/adk-js/issues/195)) ([40a9f14](https://github.com/google/adk-js/commit/40a9f14a660214114505da31105f432353514fa1))
 * use llmAgent instruction when root agent is not llmAgent ([#208](https://github.com/google/adk-js/issues/208)) ([b3c677c](https://github.com/google/adk-js/commit/b3c677c0c946e7f0b44eb8d6c4c9a51e61649d51))
 
 ## [0.5.0](https://github.com/google/adk-js/compare/adk-v0.4.0...adk-v0.5.0) (2026-03-09)
