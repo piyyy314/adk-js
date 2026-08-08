@@ -901,6 +901,7 @@ describe('cli_run', () => {
 
       const mockSessionService = createMockSessionService();
       const mockRunAsync = vi.fn().mockImplementation(async function* () {
+        // eslint-disable-next-line no-constant-condition
         if (false) yield;
         throw new Error('runner exploded');
       });
