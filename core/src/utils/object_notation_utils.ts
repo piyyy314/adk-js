@@ -15,7 +15,8 @@ export function toCamelCase(
   obj: unknown,
   preserveKeys: string[] = [],
 ): unknown {
-  return toNotation(obj, toCamelCaseKey, '', preserveKeys);
+  const preserveSet = preserveKeys.length > 0 ? new Set(preserveKeys) : undefined;
+  return toNotation(obj, toCamelCaseKey, '', preserveSet);
 }
 
 /**
@@ -29,22 +30,55 @@ export function toSnakeCase(
   obj: unknown,
   preserveKeys: string[] = [],
 ): unknown {
-  return toNotation(obj, toSnakeCaseKey, '', preserveKeys);
+  const preserveSet = preserveKeys.length > 0 ? new Set(preserveKeys) : undefined;
+  return toNotation(obj, toSnakeCaseKey, '', preserveSet);
 }
 
-const toCamelCaseKey = (key: string) =>
-  key.replace(/_([a-z])/g, (_match: string, letter: string) =>
-    letter.toUpperCase(),
-  );
+// Bounded LRU-like caching mechanism to optimize repeated key formatting operations
+// while preventing memory leaks from dynamic keys.
+const MAX_CACHE_SIZE = 1000;
+const camelCaseCache = new Map<string, string>();
+const snakeCaseCache = new Map<string, string>();
 
-const toSnakeCaseKey = (key: string) =>
-  key.replace(/[A-Z]/g, (g) => '_' + g.toLowerCase());
+const toCamelCaseKey = (key: string) => {
+  let cached = camelCaseCache.get(key);
+  if (cached === undefined) {
+    cached = key.replace(/_([a-z])/g, (_match: string, letter: string) =>
+      letter.toUpperCase(),
+    );
+    // Prevent memory leaks by evicting older entries when limit is reached
+    if (camelCaseCache.size >= MAX_CACHE_SIZE) {
+      const firstKey = camelCaseCache.keys().next().value;
+      if (firstKey !== undefined) {
+        camelCaseCache.delete(firstKey);
+      }
+    }
+    camelCaseCache.set(key, cached);
+  }
+  return cached;
+};
+
+const toSnakeCaseKey = (key: string) => {
+  let cached = snakeCaseCache.get(key);
+  if (cached === undefined) {
+    cached = key.replace(/[A-Z]/g, (g) => '_' + g.toLowerCase());
+    // Prevent memory leaks by evicting older entries when limit is reached
+    if (snakeCaseCache.size >= MAX_CACHE_SIZE) {
+      const firstKey = snakeCaseCache.keys().next().value;
+      if (firstKey !== undefined) {
+        snakeCaseCache.delete(firstKey);
+      }
+    }
+    snakeCaseCache.set(key, cached);
+  }
+  return cached;
+};
 
 function toNotation(
   obj: unknown,
   converter: (key: string) => string,
   parentKey: string = '',
-  preserveKeys: string[] = [],
+  preserveKeys?: Set<string>,
 ): unknown {
   if (Array.isArray(obj)) {
     return obj.map((item) =>
@@ -60,7 +94,7 @@ function toNotation(
       const convertedKey = converter(key);
       const fullPath = parentKey !== '' ? parentKey + '.' + key : key;
 
-      if (preserveKeys.includes(fullPath)) {
+      if (preserveKeys && preserveKeys.has(fullPath)) {
         result[convertedKey] = source[key];
       } else {
         result[convertedKey] = toNotation(
