@@ -901,6 +901,10 @@ describe('cli_run', () => {
 
       const mockSessionService = createMockSessionService();
       const mockRunAsync = vi.fn().mockImplementation(async function* () {
+        yield {
+          author: 'model',
+          content: {parts: [{text: 'Response from model'}]},
+        };
         throw new Error('runner exploded');
       });
       (Runner as unknown as Mock).mockImplementation(() => ({
