@@ -15,7 +15,8 @@ export function toCamelCase(
   obj: unknown,
   preserveKeys: string[] = [],
 ): unknown {
-  const preserveSet = preserveKeys.length > 0 ? new Set(preserveKeys) : undefined;
+  const preserveSet =
+    preserveKeys.length > 0 ? new Set(preserveKeys) : undefined;
   return toNotation(obj, toCamelCaseKey, '', preserveSet);
 }
 
@@ -30,7 +31,8 @@ export function toSnakeCase(
   obj: unknown,
   preserveKeys: string[] = [],
 ): unknown {
-  const preserveSet = preserveKeys.length > 0 ? new Set(preserveKeys) : undefined;
+  const preserveSet =
+    preserveKeys.length > 0 ? new Set(preserveKeys) : undefined;
   return toNotation(obj, toSnakeCaseKey, '', preserveSet);
 }
 
