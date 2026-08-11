@@ -61,6 +61,8 @@ export class LLMRegistry {
    * Value is the class that implements the model.
    */
   private static llmRegistryDict: Map<string | RegExp, BaseLlmType> = new Map();
+  /** Cache compiled RegExp objects keyed by string representation or regex to avoid re-compilation. */
+  private static patternCache: Map<string | RegExp, RegExp> = new Map();
   private static resolveCache = new LRUCache<string, BaseLlmType>(32);
 
   /**
@@ -82,6 +84,15 @@ export class LLMRegistry {
       );
     }
     LLMRegistry.llmRegistryDict.set(modelNameRegex, llmCls);
+
+    // Precompile and cache the regular expression for the registered pattern.
+    // Replicates Python's `re.fullmatch` by anchoring the regex
+    // to the start (^) and end ($) of the string.
+    const pattern = new RegExp(
+      `^${modelNameRegex instanceof RegExp ? modelNameRegex.source : modelNameRegex}$`,
+      modelNameRegex instanceof RegExp ? modelNameRegex.flags : undefined,
+    );
+    LLMRegistry.patternCache.set(modelNameRegex, pattern);
   }
 
   /**
@@ -111,13 +122,15 @@ export class LLMRegistry {
     }
 
     for (const [regex, llmClass] of LLMRegistry.llmRegistryDict.entries()) {
-      // Replicates Python's `re.fullmatch` by anchoring the regex
-      // to the start (^) and end ($) of the string.
-      // TODO - b/425992518: validate it works well.
-      const pattern = new RegExp(
-        `^${regex instanceof RegExp ? regex.source : regex}$`,
-        regex instanceof RegExp ? regex.flags : undefined,
-      );
+      let pattern = LLMRegistry.patternCache.get(regex);
+      if (!pattern) {
+        // Fallback compilation in case registration was bypassed or for dynamic checks.
+        pattern = new RegExp(
+          `^${regex instanceof RegExp ? regex.source : regex}$`,
+          regex instanceof RegExp ? regex.flags : undefined,
+        );
+        LLMRegistry.patternCache.set(regex, pattern);
+      }
       if (pattern.test(model)) {
         LLMRegistry.resolveCache.set(model, llmClass);
         return llmClass;
