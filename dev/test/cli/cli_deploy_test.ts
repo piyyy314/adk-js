@@ -672,10 +672,7 @@ describe('deployToCloudRun', () => {
       );
       expect(spawnMock).toHaveBeenCalledWith(
         'gcloud',
-        expect.arrayContaining([
-          '--project',
-          'prompted-project-id',
-        ]),
+        expect.arrayContaining(['--project', 'prompted-project-id']),
         expect.any(Object),
       );
     } finally {
@@ -714,10 +711,7 @@ describe('deployToCloudRun', () => {
       );
       expect(spawnMock).toHaveBeenCalledWith(
         'gcloud',
-        expect.arrayContaining([
-          '--region',
-          'prompted-region',
-        ]),
+        expect.arrayContaining(['--region', 'prompted-region']),
         expect.any(Object),
       );
     } finally {
