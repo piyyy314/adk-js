@@ -164,7 +164,16 @@ export class UnsafeLocalCodeExecutor extends BaseCodeExecutor {
         command = this.pythonCommandPath;
       } else if (language === CodeExecutionLanguage.SHELL) {
         command = this.shellCommandPath;
-        if (this.shellCommandPath.toLowerCase().includes('powershell')) {
+        const lowerShellPath = this.shellCommandPath.toLowerCase();
+        const isPowerShell =
+          lowerShellPath.includes('powershell') ||
+          lowerShellPath === 'pwsh' ||
+          lowerShellPath === 'pwsh.exe' ||
+          lowerShellPath.endsWith('/pwsh') ||
+          lowerShellPath.endsWith('\\pwsh') ||
+          lowerShellPath.endsWith('/pwsh.exe') ||
+          lowerShellPath.endsWith('\\pwsh.exe');
+        if (isPowerShell) {
           args = [
             '-NoLogo',
             '-NoProfile',

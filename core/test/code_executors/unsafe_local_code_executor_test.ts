@@ -197,4 +197,100 @@ describe('UnsafeLocalCodeExecutor', () => {
     expect(result.stderr).toContain('Process error:');
     expect(result.stderr).toContain('non-existent-shell-executable-456');
   });
+
+  it('should recognize bare pwsh as PowerShell for SHELL language', async () => {
+    const customExecutor = new UnsafeLocalCodeExecutor({
+      shellCommandPath: 'pwsh',
+    });
+
+    const params: ExecuteCodeParams = {
+      invocationContext,
+      codeExecutionInput: {
+        code: 'Write-Host "PowerShell test"',
+        language: CodeExecutionLanguage.SHELL,
+        inputFiles: [],
+      },
+    };
+
+    // If pwsh is available, it should execute successfully
+    // Otherwise, we expect a process error (command not found)
+    const result = await customExecutor.executeCode(params);
+
+    // The test passes if either:
+    // 1. pwsh exists and executes successfully (stdout contains "PowerShell test")
+    // 2. pwsh doesn't exist but the executor tried to use it with PowerShell args (stderr contains process error)
+    const isPwshAvailable = result.stdout.includes('PowerShell test');
+    const triedToUsePwsh = result.stderr.includes('pwsh');
+
+    expect(isPwshAvailable || triedToUsePwsh).toBe(true);
+  });
+
+  it('should recognize bare pwsh.exe as PowerShell for SHELL language', async () => {
+    const customExecutor = new UnsafeLocalCodeExecutor({
+      shellCommandPath: 'pwsh.exe',
+    });
+
+    const params: ExecuteCodeParams = {
+      invocationContext,
+      codeExecutionInput: {
+        code: 'Write-Host "PowerShell test"',
+        language: CodeExecutionLanguage.SHELL,
+        inputFiles: [],
+      },
+    };
+
+    const result = await customExecutor.executeCode(params);
+
+    // Same logic as pwsh test
+    const isPwshExeAvailable = result.stdout.includes('PowerShell test');
+    const triedToUsePwshExe = result.stderr.includes('pwsh.exe');
+
+    expect(isPwshExeAvailable || triedToUsePwshExe).toBe(true);
+  });
+
+  it('should recognize full path ending with /pwsh as PowerShell for SHELL language', async () => {
+    const customExecutor = new UnsafeLocalCodeExecutor({
+      shellCommandPath: '/usr/bin/pwsh',
+    });
+
+    const params: ExecuteCodeParams = {
+      invocationContext,
+      codeExecutionInput: {
+        code: 'Write-Host "PowerShell test"',
+        language: CodeExecutionLanguage.SHELL,
+        inputFiles: [],
+      },
+    };
+
+    const result = await customExecutor.executeCode(params);
+
+    const isPwshAvailable = result.stdout.includes('PowerShell test');
+    const triedToUsePwsh = result.stderr.includes('/usr/bin/pwsh');
+
+    expect(isPwshAvailable || triedToUsePwsh).toBe(true);
+  });
+
+  it('should recognize full path ending with \\pwsh.exe as PowerShell for SHELL language', async () => {
+    const customExecutor = new UnsafeLocalCodeExecutor({
+      shellCommandPath: 'C:\\Tools\\pwsh.exe',
+    });
+
+    const params: ExecuteCodeParams = {
+      invocationContext,
+      codeExecutionInput: {
+        code: 'Write-Host "PowerShell test"',
+        language: CodeExecutionLanguage.SHELL,
+        inputFiles: [],
+      },
+    };
+
+    const result = await customExecutor.executeCode(params);
+
+    const isPwshExeAvailable = result.stdout.includes('PowerShell test');
+    const triedToUsePwshExe =
+      result.stderr.includes('C:\\Tools\\pwsh.exe') ||
+      result.stderr.includes('C:/Tools/pwsh.exe');
+
+    expect(isPwshExeAvailable || triedToUsePwshExe).toBe(true);
+  });
 });

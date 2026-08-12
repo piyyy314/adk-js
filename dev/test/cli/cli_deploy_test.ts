@@ -645,7 +645,12 @@ describe('deployToCloudRun', () => {
   });
 
   it('should fallback to interactive prompt for project ID when unset in gcloud config and isTTY is true', async () => {
-    const originalIsTTY = process.stdout.isTTY;
+    const originalStdinIsTTY = process.stdin.isTTY;
+    const originalStdoutIsTTY = process.stdout.isTTY;
+    Object.defineProperty(process.stdin, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
     Object.defineProperty(process.stdout, 'isTTY', {
       value: true,
       configurable: true,
@@ -676,15 +681,24 @@ describe('deployToCloudRun', () => {
         expect.any(Object),
       );
     } finally {
+      Object.defineProperty(process.stdin, 'isTTY', {
+        value: originalStdinIsTTY,
+        configurable: true,
+      });
       Object.defineProperty(process.stdout, 'isTTY', {
-        value: originalIsTTY,
+        value: originalStdoutIsTTY,
         configurable: true,
       });
     }
   });
 
   it('should fallback to interactive prompt for region when unset in gcloud config and isTTY is true', async () => {
-    const originalIsTTY = process.stdout.isTTY;
+    const originalStdinIsTTY = process.stdin.isTTY;
+    const originalStdoutIsTTY = process.stdout.isTTY;
+    Object.defineProperty(process.stdin, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
     Object.defineProperty(process.stdout, 'isTTY', {
       value: true,
       configurable: true,
@@ -715,15 +729,24 @@ describe('deployToCloudRun', () => {
         expect.any(Object),
       );
     } finally {
+      Object.defineProperty(process.stdin, 'isTTY', {
+        value: originalStdinIsTTY,
+        configurable: true,
+      });
       Object.defineProperty(process.stdout, 'isTTY', {
-        value: originalIsTTY,
+        value: originalStdoutIsTTY,
         configurable: true,
       });
     }
   });
 
   it('should exit deployment gracefully when interactive project prompt is cancelled', async () => {
-    const originalIsTTY = process.stdout.isTTY;
+    const originalStdinIsTTY = process.stdin.isTTY;
+    const originalStdoutIsTTY = process.stdout.isTTY;
+    Object.defineProperty(process.stdin, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
     Object.defineProperty(process.stdout, 'isTTY', {
       value: true,
       configurable: true,
@@ -745,8 +768,12 @@ describe('deployToCloudRun', () => {
       expect(spawnMock).not.toHaveBeenCalled();
       expect(outroMock).toHaveBeenCalledWith('Operation cancelled');
     } finally {
+      Object.defineProperty(process.stdin, 'isTTY', {
+        value: originalStdinIsTTY,
+        configurable: true,
+      });
       Object.defineProperty(process.stdout, 'isTTY', {
-        value: originalIsTTY,
+        value: originalStdoutIsTTY,
         configurable: true,
       });
     }
@@ -861,6 +888,254 @@ describe('deployToCloudRun', () => {
     } finally {
       Object.defineProperty(process.stdout, 'isTTY', {
         value: originalIsTTY,
+        configurable: true,
+      });
+    }
+  });
+
+  it('should NOT prompt and should throw error when stdin is not TTY even if stdout is TTY (project)', async () => {
+    const originalStdinIsTTY = process.stdin.isTTY;
+    const originalStdoutIsTTY = process.stdout.isTTY;
+    Object.defineProperty(process.stdin, 'isTTY', {
+      value: false,
+      configurable: true,
+    });
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
+
+    const optionsWithoutProject = {...defaultOptions, project: ''};
+    execMock.mockImplementation((cmd: string, callback: Callback) => {
+      if (cmd.includes('config get-value project')) {
+        callback(null, {stdout: '(unset)\n'});
+      } else if (cmd.includes('config get-value run/region')) {
+        callback(null, {stdout: 'us-central1\n'});
+      }
+    });
+
+    try {
+      await expect(deployToCloudRun(optionsWithoutProject)).rejects.toThrow(
+        /Project is not specified/,
+      );
+      expect(textMock).not.toHaveBeenCalled();
+    } finally {
+      Object.defineProperty(process.stdin, 'isTTY', {
+        value: originalStdinIsTTY,
+        configurable: true,
+      });
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: originalStdoutIsTTY,
+        configurable: true,
+      });
+    }
+  });
+
+  it('should NOT prompt and should throw error when stdin is not TTY even if stdout is TTY (region)', async () => {
+    const originalStdinIsTTY = process.stdin.isTTY;
+    const originalStdoutIsTTY = process.stdout.isTTY;
+    Object.defineProperty(process.stdin, 'isTTY', {
+      value: false,
+      configurable: true,
+    });
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
+
+    const optionsWithoutRegion = {...defaultOptions, region: ''};
+    execMock.mockImplementation((cmd: string, callback: Callback) => {
+      if (cmd.includes('config get-value project')) {
+        callback(null, {stdout: 'test-project\n'});
+      } else if (cmd.includes('config get-value run/region')) {
+        callback(null, {stdout: '(unset)\n'});
+      }
+    });
+
+    try {
+      await expect(deployToCloudRun(optionsWithoutRegion)).rejects.toThrow(
+        /Region is not specified/,
+      );
+      expect(textMock).not.toHaveBeenCalled();
+    } finally {
+      Object.defineProperty(process.stdin, 'isTTY', {
+        value: originalStdinIsTTY,
+        configurable: true,
+      });
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: originalStdoutIsTTY,
+        configurable: true,
+      });
+    }
+  });
+
+  it('should treat gcloud config region value "(unset)" as missing and throw error when not TTY', async () => {
+    const originalStdinIsTTY = process.stdin.isTTY;
+    const originalStdoutIsTTY = process.stdout.isTTY;
+    Object.defineProperty(process.stdin, 'isTTY', {
+      value: false,
+      configurable: true,
+    });
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: false,
+      configurable: true,
+    });
+
+    const optionsWithoutRegion = {...defaultOptions, region: ''};
+    execMock.mockImplementation((cmd: string, callback: Callback) => {
+      if (cmd.includes('config get-value project')) {
+        callback(null, {stdout: 'test-project\n'});
+      } else if (cmd.includes('config get-value run/region')) {
+        callback(null, {stdout: '(unset)\n'});
+      }
+    });
+
+    try {
+      await expect(deployToCloudRun(optionsWithoutRegion)).rejects.toThrow(
+        /Region is not specified/,
+      );
+      expect(textMock).not.toHaveBeenCalled();
+      expect(spawnMock).not.toHaveBeenCalled();
+    } finally {
+      Object.defineProperty(process.stdin, 'isTTY', {
+        value: originalStdinIsTTY,
+        configurable: true,
+      });
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: originalStdoutIsTTY,
+        configurable: true,
+      });
+    }
+  });
+
+  it('should treat gcloud config region value "(unset)" as missing and prompt when TTY', async () => {
+    const originalStdinIsTTY = process.stdin.isTTY;
+    const originalStdoutIsTTY = process.stdout.isTTY;
+    Object.defineProperty(process.stdin, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
+
+    const optionsWithoutRegion = {...defaultOptions, region: ''};
+    execMock.mockImplementation((cmd: string, callback: Callback) => {
+      if (cmd.includes('config get-value project')) {
+        callback(null, {stdout: 'test-project\n'});
+      } else if (cmd.includes('config get-value run/region')) {
+        callback(null, {stdout: '(unset)\n'});
+      }
+    });
+
+    textMock.mockResolvedValueOnce('us-west1');
+
+    try {
+      await deployToCloudRun(optionsWithoutRegion);
+      expect(textMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Enter the Google Cloud Region',
+        }),
+      );
+      expect(spawnMock).toHaveBeenCalledWith(
+        'gcloud',
+        expect.arrayContaining(['--region', 'us-west1']),
+        expect.any(Object),
+      );
+    } finally {
+      Object.defineProperty(process.stdin, 'isTTY', {
+        value: originalStdinIsTTY,
+        configurable: true,
+      });
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: originalStdoutIsTTY,
+        configurable: true,
+      });
+    }
+  });
+
+  it('should reject whitespace-only project input and trim valid project input', async () => {
+    const originalStdinIsTTY = process.stdin.isTTY;
+    const originalStdoutIsTTY = process.stdout.isTTY;
+    Object.defineProperty(process.stdin, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
+
+    const optionsWithoutProject = {...defaultOptions, project: ''};
+    execMock.mockImplementation((cmd: string, callback: Callback) => {
+      if (cmd.includes('config get-value project')) {
+        callback(null, {stdout: '(unset)\n'});
+      } else if (cmd.includes('config get-value run/region')) {
+        callback(null, {stdout: 'us-central1\n'});
+      }
+    });
+
+    // Mock the text prompt to return a value with leading/trailing whitespace
+    textMock.mockResolvedValueOnce('  my-project-id  ');
+
+    try {
+      await deployToCloudRun(optionsWithoutProject);
+      expect(spawnMock).toHaveBeenCalledWith(
+        'gcloud',
+        expect.arrayContaining(['--project', 'my-project-id']),
+        expect.any(Object),
+      );
+    } finally {
+      Object.defineProperty(process.stdin, 'isTTY', {
+        value: originalStdinIsTTY,
+        configurable: true,
+      });
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: originalStdoutIsTTY,
+        configurable: true,
+      });
+    }
+  });
+
+  it('should reject whitespace-only region input and trim valid region input', async () => {
+    const originalStdinIsTTY = process.stdin.isTTY;
+    const originalStdoutIsTTY = process.stdout.isTTY;
+    Object.defineProperty(process.stdin, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
+
+    const optionsWithoutRegion = {...defaultOptions, region: ''};
+    execMock.mockImplementation((cmd: string, callback: Callback) => {
+      if (cmd.includes('config get-value project')) {
+        callback(null, {stdout: 'test-project\n'});
+      } else if (cmd.includes('config get-value run/region')) {
+        callback(null, {stdout: '(unset)\n'});
+      }
+    });
+
+    // Mock the text prompt to return a value with leading/trailing whitespace
+    textMock.mockResolvedValueOnce('  us-west2  ');
+
+    try {
+      await deployToCloudRun(optionsWithoutRegion);
+      expect(spawnMock).toHaveBeenCalledWith(
+        'gcloud',
+        expect.arrayContaining(['--region', 'us-west2']),
+        expect.any(Object),
+      );
+    } finally {
+      Object.defineProperty(process.stdin, 'isTTY', {
+        value: originalStdinIsTTY,
+        configurable: true,
+      });
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: originalStdoutIsTTY,
         configurable: true,
       });
     }
