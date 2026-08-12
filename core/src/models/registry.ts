@@ -62,6 +62,7 @@ export class LLMRegistry {
    */
   private static llmRegistryDict: Map<string | RegExp, BaseLlmType> = new Map();
   private static resolveCache = new LRUCache<string, BaseLlmType>(32);
+  private static compiledPatterns: Map<string | RegExp, RegExp> = new Map();
 
   /**
    * Creates a new LLM instance.
@@ -114,10 +115,14 @@ export class LLMRegistry {
       // Replicates Python's `re.fullmatch` by anchoring the regex
       // to the start (^) and end ($) of the string.
       // TODO - b/425992518: validate it works well.
-      const pattern = new RegExp(
-        `^${regex instanceof RegExp ? regex.source : regex}$`,
-        regex instanceof RegExp ? regex.flags : undefined,
-      );
+      let pattern = LLMRegistry.compiledPatterns.get(regex);
+      if (!pattern) {
+        pattern = new RegExp(
+          `^${regex instanceof RegExp ? regex.source : regex}$`,
+          regex instanceof RegExp ? regex.flags : undefined,
+        );
+        LLMRegistry.compiledPatterns.set(regex, pattern);
+      }
       if (pattern.test(model)) {
         LLMRegistry.resolveCache.set(model, llmClass);
         return llmClass;

@@ -154,7 +154,7 @@ export function extractCodeAndTruncateContent(
     .map((d) => d[1])
     .join('|');
   const match = new RegExp(
-    `?<prefix>.*?)(${leadingDelimiterPattern})(?<codeStr>.*?)(${trailingDelimiterPattern})(?<suffix>.*?)$`,
+    `(?<prefix>.*?)(${leadingDelimiterPattern})(?<codeStr>.*?)(${trailingDelimiterPattern})(?<suffix>.*?)$`,
     's',
   ).exec(responseText) as unknown as CodeGroupMatch | null;
 
