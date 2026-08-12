@@ -361,7 +361,7 @@ describe('createAgent', () => {
       await createAgent({...getFreshOptions(), forceYes: false});
 
       expect(mockSpinnerInstance.start).toHaveBeenCalledWith(
-        'Installing dependencies...',
+        expect.stringContaining('Installing dependencies using'),
       );
       expect(mockSpinnerInstance.stop).toHaveBeenCalledWith(
         'Dependencies installed successfully.',
@@ -404,7 +404,7 @@ describe('createAgent', () => {
       await createAgent({...getFreshOptions(), forceYes: false});
 
       expect(mockSpinnerInstance.start).toHaveBeenCalledWith(
-        'Installing dependencies...',
+        expect.stringContaining('Installing dependencies using'),
       );
       expect(mockSpinnerInstance.stop).toHaveBeenCalledWith(
         'Failed to install dependencies.',
@@ -412,6 +412,90 @@ describe('createAgent', () => {
       );
       expect(outro).toHaveBeenCalledWith('Agent creation failed');
       expect(note).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('package manager detection and dependency installation', () => {
+    let originalUserAgent: string | undefined;
+
+    beforeEach(() => {
+      originalUserAgent = process.env.npm_config_user_agent;
+    });
+
+    afterEach(() => {
+      if (originalUserAgent !== undefined) {
+        process.env.npm_config_user_agent = originalUserAgent;
+      } else {
+        delete process.env.npm_config_user_agent;
+      }
+    });
+
+    it('should install using npm by default if user agent is not set', async () => {
+      delete process.env.npm_config_user_agent;
+      const mockSpinnerInstance = {start: vi.fn(), stop: vi.fn()};
+      const {spinner: spinnerMock, note} = await import('@clack/prompts');
+      (spinnerMock as Mock).mockReturnValue(mockSpinnerInstance);
+
+      await createAgent({...getFreshOptions(), forceYes: false});
+
+      expect(mockSpinnerInstance.start).toHaveBeenCalledWith(
+        'Installing dependencies using npm...',
+      );
+      expect(note).toHaveBeenCalledWith(
+        expect.stringContaining('npm run web'),
+        expect.any(String),
+      );
+    });
+
+    it('should install using pnpm and use pnpm run prefix if user agent is pnpm', async () => {
+      process.env.npm_config_user_agent = 'pnpm/10.30.3 npm/? node/...';
+      const mockSpinnerInstance = {start: vi.fn(), stop: vi.fn()};
+      const {spinner: spinnerMock, note} = await import('@clack/prompts');
+      (spinnerMock as Mock).mockReturnValue(mockSpinnerInstance);
+
+      await createAgent({...getFreshOptions(), forceYes: false});
+
+      expect(mockSpinnerInstance.start).toHaveBeenCalledWith(
+        'Installing dependencies using pnpm...',
+      );
+      expect(note).toHaveBeenCalledWith(
+        expect.stringContaining('pnpm web'),
+        expect.any(String),
+      );
+    });
+
+    it('should install using yarn and use yarn run prefix if user agent is yarn', async () => {
+      process.env.npm_config_user_agent = 'yarn/1.22.19 npm/? node/...';
+      const mockSpinnerInstance = {start: vi.fn(), stop: vi.fn()};
+      const {spinner: spinnerMock, note} = await import('@clack/prompts');
+      (spinnerMock as Mock).mockReturnValue(mockSpinnerInstance);
+
+      await createAgent({...getFreshOptions(), forceYes: false});
+
+      expect(mockSpinnerInstance.start).toHaveBeenCalledWith(
+        'Installing dependencies using yarn...',
+      );
+      expect(note).toHaveBeenCalledWith(
+        expect.stringContaining('yarn web'),
+        expect.any(String),
+      );
+    });
+
+    it('should install using bun and use bun run prefix if user agent is bun', async () => {
+      process.env.npm_config_user_agent = 'bun/1.0.0 npm/? node/...';
+      const mockSpinnerInstance = {start: vi.fn(), stop: vi.fn()};
+      const {spinner: spinnerMock, note} = await import('@clack/prompts');
+      (spinnerMock as Mock).mockReturnValue(mockSpinnerInstance);
+
+      await createAgent({...getFreshOptions(), forceYes: false});
+
+      expect(mockSpinnerInstance.start).toHaveBeenCalledWith(
+        'Installing dependencies using bun...',
+      );
+      expect(note).toHaveBeenCalledWith(
+        expect.stringContaining('bun run web'),
+        expect.any(String),
+      );
     });
 
     it('should stop early without calling outro, log.error or listFiles when npm install fails and forceYes is true', async () => {
