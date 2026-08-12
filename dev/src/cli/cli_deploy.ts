@@ -272,20 +272,19 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
     let project =
       options.project || (await resolveDefaultFromGcloudConfig('project'));
     if (!project || project === '(unset)') {
-      if (process.stdin.isTTY && process.stdout.isTTY) {
+      if (process.stdout.isTTY) {
         const projectResponse = await text({
           message: 'Enter the Google Cloud Project ID',
           placeholder: 'e.g. my-gcp-project',
           validate: (value) => {
-            const trimmed = value?.trim();
-            if (!trimmed) return 'Project ID is required';
+            if (!value) return 'Project ID is required';
             return;
           },
         });
         if (handleCancellation(projectResponse)) {
           return;
         }
-        project = projectResponse.trim();
+        project = projectResponse;
       } else {
         throw new Error(
           'Project is not specified and default value for "project" is not set in gcloud config. Please specify project with --project option or set default value running "gcloud config set project YOUR_PROJECT_ID"',
@@ -301,21 +300,20 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
 
     let region =
       options.region || (await resolveDefaultFromGcloudConfig('run/region'));
-    if (!region || region === '(unset)') {
-      if (process.stdin.isTTY && process.stdout.isTTY) {
+    if (!region) {
+      if (process.stdout.isTTY) {
         const regionResponse = await text({
           message: 'Enter the Google Cloud Region',
           placeholder: 'e.g. us-central1',
           validate: (value) => {
-            const trimmed = value?.trim();
-            if (!trimmed) return 'Region is required';
+            if (!value) return 'Region is required';
             return;
           },
         });
         if (handleCancellation(regionResponse)) {
           return;
         }
-        region = regionResponse.trim();
+        region = regionResponse;
       } else {
         throw new Error(
           'Region is not specified and default value for "run/region" is not set in gcloud config. Please specify region with --region option or set default value running "gcloud config set run/region YOUR_REGION_NAME"',
