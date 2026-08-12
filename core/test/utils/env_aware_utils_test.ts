@@ -6,10 +6,10 @@
 
 import {afterEach, describe, expect, it} from 'vitest';
 import {
+  base64Decode,
+  base64Encode,
   getBooleanEnvVar,
   isBase64Encoded,
-  base64Encode,
-  base64Decode,
 } from '../../src/utils/env_aware_utils.js';
 
 describe('env_aware_utils', () => {
