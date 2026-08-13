@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.3.0](https://github.com/piyyy314/adk-js/compare/devtools-v0.2.8...devtools-v0.3.0) (2026-08-10)
+
+
+### Features
+
+* **cli:** stream agent response chunks in runInteractively ([b597a4d](https://github.com/piyyy314/adk-js/commit/b597a4d944c78db102ef4e0ed83a104da1593d41))
+* **cli:** stream agent response chunks in runInteractively ([6ae9a29](https://github.com/piyyy314/adk-js/commit/6ae9a297499f593b23faf6a5adf6ceb15982b522))
+* **cli:** stream agent response chunks in runInteractively ([9064fa8](https://github.com/piyyy314/adk-js/commit/9064fa82757d1b57fb0a49617ca12abc5cf3cb5b))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @google/adk bumped from ^0.2.8 to ^0.3.0
+
 ## [0.2.8](https://github.com/piyyy314/adk-js/compare/devtools-v0.2.7...devtools-v0.2.8) (2026-07-21)
 
 
