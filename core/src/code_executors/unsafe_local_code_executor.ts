@@ -165,13 +165,29 @@ export class UnsafeLocalCodeExecutor extends BaseCodeExecutor {
       } else if (language === CodeExecutionLanguage.SHELL) {
         command = this.shellCommandPath;
         if (this.shellCommandPath.toLowerCase().includes('powershell')) {
-          args = ['-NoLogo', '-ExecutionPolicy', 'Bypass', '-File', filePath];
+          args = [
+            '-NoProfile',
+            '-NonInteractive',
+            '-NoLogo',
+            '-ExecutionPolicy',
+            'Bypass',
+            '-File',
+            filePath,
+          ];
         } else if (this.shellCommandPath.toLowerCase().includes('cmd')) {
           args = ['/c', filePath];
         }
       } else if (language === CodeExecutionLanguage.POWERSHELL) {
         command = IS_WINDOWS ? 'powershell' : 'pwsh';
-        args = ['-NoLogo', '-ExecutionPolicy', 'Bypass', '-File', filePath];
+        args = [
+          '-NoProfile',
+          '-NonInteractive',
+          '-NoLogo',
+          '-ExecutionPolicy',
+          'Bypass',
+          '-File',
+          filePath,
+        ];
       } else if (language === CodeExecutionLanguage.WINDOWS_CMD) {
         command = 'cmd.exe';
         args = ['/c', filePath];

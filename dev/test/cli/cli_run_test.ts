@@ -856,9 +856,7 @@ describe('cli_run', () => {
       (createInterface as unknown as Mock).mockReturnValue(mockInterface);
 
       const mockSessionService = createMockSessionService();
-      const mockRunAsync = vi.fn().mockImplementation(async function* () {
-        yield* [];
-      });
+      const mockRunAsync = vi.fn().mockImplementation(async function* () {});
       (Runner as unknown as Mock).mockImplementation(() => ({
         runAsync: mockRunAsync,
       }));
@@ -881,9 +879,7 @@ describe('cli_run', () => {
       (createInterface as unknown as Mock).mockReturnValue(mockInterface);
 
       const mockSessionService = createMockSessionService();
-      const mockRunAsync = vi.fn().mockImplementation(async function* () {
-        yield* [];
-      });
+      const mockRunAsync = vi.fn().mockImplementation(async function* () {});
       (Runner as unknown as Mock).mockImplementation(() => ({
         runAsync: mockRunAsync,
       }));
@@ -905,7 +901,6 @@ describe('cli_run', () => {
 
       const mockSessionService = createMockSessionService();
       const mockRunAsync = vi.fn().mockImplementation(async function* () {
-        yield* [];
         throw new Error('runner exploded');
       });
       (Runner as unknown as Mock).mockImplementation(() => ({
