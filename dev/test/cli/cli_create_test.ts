@@ -357,7 +357,7 @@ describe('createAgent', () => {
     const originalEnv = process.env;
 
     beforeEach(() => {
-      process.env = { ...originalEnv };
+      process.env = {...originalEnv};
     });
 
     afterEach(() => {
@@ -365,8 +365,8 @@ describe('createAgent', () => {
     });
 
     it('should use pnpm when pnpm is detected in user agent', async () => {
-      const { note } = await import('@clack/prompts');
-      const { exec } = await import('node:child_process');
+      const {note} = await import('@clack/prompts');
+      const {exec} = await import('node:child_process');
       process.env.npm_config_user_agent = 'pnpm/10.0.0 node/v20.0.0';
 
       await createAgent({
@@ -383,7 +383,9 @@ describe('createAgent', () => {
         expect.any(Function),
       );
       expect(exec).toHaveBeenCalledWith(
-        expect.stringContaining('pnpm add @google/adk @google/adk-devtools zod dotenv'),
+        expect.stringContaining(
+          'pnpm add @google/adk @google/adk-devtools zod dotenv',
+        ),
         expect.anything(),
         expect.any(Function),
       );
@@ -394,8 +396,8 @@ describe('createAgent', () => {
     });
 
     it('should use yarn when yarn is detected in user agent', async () => {
-      const { note } = await import('@clack/prompts');
-      const { exec } = await import('node:child_process');
+      const {note} = await import('@clack/prompts');
+      const {exec} = await import('node:child_process');
       process.env.npm_config_user_agent = 'yarn/3.0.0 node/v20.0.0';
 
       await createAgent({
@@ -412,7 +414,9 @@ describe('createAgent', () => {
         expect.any(Function),
       );
       expect(exec).toHaveBeenCalledWith(
-        expect.stringContaining('yarn add @google/adk @google/adk-devtools zod dotenv'),
+        expect.stringContaining(
+          'yarn add @google/adk @google/adk-devtools zod dotenv',
+        ),
         expect.anything(),
         expect.any(Function),
       );
@@ -423,8 +427,8 @@ describe('createAgent', () => {
     });
 
     it('should use bun when bun is detected in user agent', async () => {
-      const { note } = await import('@clack/prompts');
-      const { exec } = await import('node:child_process');
+      const {note} = await import('@clack/prompts');
+      const {exec} = await import('node:child_process');
       process.env.npm_config_user_agent = 'bun/1.0.0 node/v20.0.0';
 
       await createAgent({
@@ -441,7 +445,9 @@ describe('createAgent', () => {
         expect.any(Function),
       );
       expect(exec).toHaveBeenCalledWith(
-        expect.stringContaining('bun add @google/adk @google/adk-devtools zod dotenv'),
+        expect.stringContaining(
+          'bun add @google/adk @google/adk-devtools zod dotenv',
+        ),
         expect.anything(),
         expect.any(Function),
       );
@@ -452,9 +458,9 @@ describe('createAgent', () => {
     });
 
     it('should fall back to lockfile detection if user agent is empty', async () => {
-      const { note } = await import('@clack/prompts');
-      const { exec } = await import('node:child_process');
-      const { isFileExists } = await import('../../src/utils/file_utils.js');
+      const {note} = await import('@clack/prompts');
+      const {exec} = await import('node:child_process');
+      const {isFileExists} = await import('../../src/utils/file_utils.js');
       delete process.env.npm_config_user_agent;
       (isFileExists as Mock).mockImplementation((filepath: string) => {
         if (filepath.endsWith('pnpm-lock.yaml')) return Promise.resolve(true);

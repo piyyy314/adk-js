@@ -30,7 +30,9 @@ import {
 
 const execPromise = promisify(exec);
 
-async function detectPackageManager(): Promise<'npm' | 'pnpm' | 'yarn' | 'bun'> {
+async function detectPackageManager(): Promise<
+  'npm' | 'pnpm' | 'yarn' | 'bun'
+> {
   const ua = process.env.npm_config_user_agent || '';
   if (ua.startsWith('pnpm')) return 'pnpm';
   if (ua.startsWith('yarn')) return 'yarn';
@@ -38,7 +40,11 @@ async function detectPackageManager(): Promise<'npm' | 'pnpm' | 'yarn' | 'bun'> 
   if (ua.startsWith('npm')) return 'npm';
   if (await isFileExists(path.join(dirname, 'pnpm-lock.yaml'))) return 'pnpm';
   if (await isFileExists(path.join(dirname, 'yarn.lock'))) return 'yarn';
-  if (await isFileExists(path.join(dirname, 'bun.lockb')) || await isFileExists(path.join(dirname, 'bun.lock'))) return 'bun';
+  if (
+    (await isFileExists(path.join(dirname, 'bun.lockb'))) ||
+    (await isFileExists(path.join(dirname, 'bun.lock')))
+  )
+    return 'bun';
   return 'npm';
 }
 const dirname = process.cwd();
@@ -383,14 +389,16 @@ export async function createAgent(options: AgentCreationOptions) {
   s?.start('Installing dependencies...');
   try {
     if (options.language === 'ts') {
-      const tsCmd = pm === 'pnpm' || pm === 'yarn' || pm === 'bun'
-        ? `${pm} add -D typescript`
-        : `npm install typescript --save-dev`;
+      const tsCmd =
+        pm === 'pnpm' || pm === 'yarn' || pm === 'bun'
+          ? `${pm} add -D typescript`
+          : `npm install typescript --save-dev`;
       await execPromise(tsCmd, {cwd: agentDir});
     }
-    const depsCmd = pm === 'pnpm' || pm === 'yarn' || pm === 'bun'
-      ? `${pm} add @google/adk @google/adk-devtools zod dotenv`
-      : `npm install @google/adk @google/adk-devtools zod dotenv`;
+    const depsCmd =
+      pm === 'pnpm' || pm === 'yarn' || pm === 'bun'
+        ? `${pm} add @google/adk @google/adk-devtools zod dotenv`
+        : `npm install @google/adk @google/adk-devtools zod dotenv`;
     await execPromise(depsCmd, {cwd: agentDir});
     s?.stop('Dependencies installed successfully.');
   } catch (e) {
