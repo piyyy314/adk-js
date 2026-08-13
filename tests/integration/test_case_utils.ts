@@ -286,6 +286,7 @@ export abstract class BaseTestServer {
       let started = false;
       this.serverProcess!.stdout.on('data', (data) => {
         const message = data.toString();
+        console.log(`${serverName} Stdout: ${message}`);
         if (message.includes(startMessage)) {
           started = true;
           console.log(successLogMessage);
