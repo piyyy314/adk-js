@@ -172,37 +172,46 @@ async function runInteractively(
     const s = process.stdout.isTTY ? spinner() : null;
     s?.start('Thinking...');
     let spinnerStopped = false;
-    for await (const event of runner.runAsync({
-      userId: options.session.userId,
-      sessionId: options.session.id,
-      newMessage: {role: 'user', parts: [{text: query}]},
-    })) {
-      if (event.content && event.content.parts) {
-        const textVal = event.content.parts
-          .map((part) => part.text || '')
-          .join('');
-        if (textVal) {
-          if (process.stdout.isTTY) {
-            if (!spinnerStopped) {
-              s?.stop();
-              spinnerStopped = true;
-              process.stdout.write(`[${event.author}]: `);
+    let currentAuthor: string | undefined = undefined;
+    try {
+      for await (const event of runner.runAsync({
+        userId: options.session.userId,
+        sessionId: options.session.id,
+        newMessage: {role: 'user', parts: [{text: query}]},
+      })) {
+        if (event.content && event.content.parts) {
+          const textVal = event.content.parts
+            .map((part) => part.text || '')
+            .join('');
+          if (textVal) {
+            if (process.stdout.isTTY) {
+              if (!spinnerStopped) {
+                s?.stop();
+                spinnerStopped = true;
+                process.stdout.write(`[${event.author}]: `);
+                currentAuthor = event.author;
+              } else if (event.author !== currentAuthor) {
+                process.stdout.write('\n');
+                process.stdout.write(`[${event.author}]: `);
+                currentAuthor = event.author;
+              }
+              process.stdout.write(textVal);
+            } else {
+              if (!spinnerStopped) {
+                s?.stop();
+                spinnerStopped = true;
+              }
+              console.log(`[${event.author}]: ${textVal}`);
             }
-            process.stdout.write(textVal);
-          } else {
-            if (!spinnerStopped) {
-              s?.stop();
-              spinnerStopped = true;
-            }
-            console.log(`[${event.author}]: ${textVal}`);
           }
         }
       }
-    }
-    if (process.stdout.isTTY && spinnerStopped) {
-      process.stdout.write('\n');
-    } else if (!spinnerStopped) {
-      s?.stop();
+    } finally {
+      if (process.stdout.isTTY && spinnerStopped) {
+        process.stdout.write('\n');
+      } else if (!spinnerStopped) {
+        s?.stop();
+      }
     }
   }
 
