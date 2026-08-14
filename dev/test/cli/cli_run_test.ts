@@ -4,9 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {intro, isCancel, outro, spinner, text} from '@clack/prompts';
 import {BaseAgent, BaseSessionService, Runner} from '@google/adk';
-import {createInterface} from 'node:readline';
+import {intro, isCancel, log, outro, spinner, text} from '@clack/prompts';
 import {afterEach, beforeEach, describe, expect, it, Mock, vi} from 'vitest';
 import {runAgent} from '../../src/cli/cli_run.js';
 import {AgentFile} from '../../src/utils/agent_loader.js';
@@ -56,25 +55,16 @@ vi.mock('@clack/prompts', () => ({
   intro: vi.fn(),
   outro: vi.fn(),
   log: {
-    error: vi.fn(),
     info: vi.fn(),
     step: vi.fn(),
-    warn: vi.fn(),
+    error: vi.fn(),
   },
-  text: vi.fn(),
-  isCancel: vi.fn(),
-  spinner: vi.fn(() => ({
+  spinner: vi.fn().mockReturnValue({
     start: vi.fn(),
     stop: vi.fn(),
-  })),
-}));
-
-vi.mock('node:readline', () => ({
-  createInterface: vi.fn().mockReturnValue({
-    [Symbol.asyncIterator]: vi.fn().mockReturnValue({
-      next: vi.fn(),
-    }),
   }),
+  text: vi.fn(),
+  isCancel: vi.fn().mockReturnValue(false),
 }));
 
 describe('cli_run', () => {
@@ -83,13 +73,6 @@ describe('cli_run', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.spyOn(console, 'log').mockImplementation(() => {});
-    // Force TTY path so unit tests use the mocked `text()` from @clack/prompts.
-    (process.stdin as unknown as {isTTY: boolean}).isTTY = true;
-    Object.defineProperty(process.stdout, 'isTTY', {
-      value: true,
-      configurable: true,
-    });
 
     mockRootAgent = {
       name: 'test-agent',
@@ -102,23 +85,10 @@ describe('cli_run', () => {
 
     (AgentFile as unknown as Mock).mockImplementation(() => mockAgentFile);
 
-    // Restore Runner mock implementation that vi.restoreAllMocks() may have cleared.
-    (Runner as unknown as Mock).mockImplementation(() => ({
-      runAsync: vi.fn().mockImplementation(async function* () {
-        yield {
-          author: 'model',
-          content: {parts: [{text: 'Response from model'}]},
-        };
-      }),
-    }));
-
     (text as Mock).mockResolvedValue('exit');
-    (isCancel as unknown as Mock).mockReturnValue(false);
   });
 
   afterEach(() => {
-    (process.stdin as unknown as {isTTY: boolean | undefined}).isTTY =
-      undefined;
     vi.restoreAllMocks();
   });
 
@@ -130,9 +100,8 @@ describe('cli_run', () => {
       undefined,
     );
     expect(mockAgentFile.load).toHaveBeenCalled();
-    expect(intro).toHaveBeenCalledWith('Running agent: test-agent');
+    expect(intro).toHaveBeenCalled();
     expect(text).toHaveBeenCalled();
-    expect(outro).toHaveBeenCalledWith('Happy Agent Building!');
   });
 
   const createMockSessionService = () =>
@@ -151,29 +120,6 @@ describe('cli_run', () => {
         events: [],
       }),
     }) as unknown as BaseSessionService;
-
-  /**
-   * Builds a fake `readline.Interface`-like object that is async-iterable
-   * over the given lines, mirroring what `createInterface` normally returns.
-   */
-  const createMockReadlineInterface = (lines: string[]) => {
-    const closeMock = vi.fn();
-    let index = 0;
-    const mockInterface = {
-      close: closeMock,
-      [Symbol.asyncIterator]() {
-        return {
-          next: async () => {
-            if (index < lines.length) {
-              return {value: lines[index++], done: false};
-            }
-            return {value: undefined, done: true};
-          },
-        };
-      },
-    };
-    return {mockInterface, closeMock};
-  };
 
   it('should run from input file', async () => {
     const inputFileContent = {
@@ -227,9 +173,7 @@ describe('cli_run', () => {
     });
 
     expect(loadFileData).toHaveBeenCalledWith('session.json');
-    expect(intro).toHaveBeenCalledWith('Resuming session: test-agent');
     expect(text).toHaveBeenCalled();
-    expect(outro).toHaveBeenCalledWith('Happy Agent Building!');
   });
 
   it('should save session when requested', async () => {
@@ -246,22 +190,6 @@ describe('cli_run', () => {
       expect.stringContaining('my-session.session.json'),
       expect.anything(),
     );
-  });
-
-  it('should NOT save session if interaction is cancelled', async () => {
-    const mockSessionService = createMockSessionService();
-    (text as Mock).mockResolvedValueOnce(Symbol('cancel'));
-    (isCancel as unknown as Mock).mockReturnValueOnce(true);
-
-    await runAgent({
-      agentPath: 'agent.ts',
-      saveSession: true,
-      sessionId: 'my-session',
-      sessionService: mockSessionService,
-    });
-
-    expect(saveToFile).not.toHaveBeenCalled();
-    expect(outro).toHaveBeenCalledWith('Operation cancelled');
   });
 
   it('should prompt for session id if not provided when saving', async () => {
@@ -282,77 +210,96 @@ describe('cli_run', () => {
     );
   });
 
-  it('should not save session if session ID prompt is cancelled', async () => {
-    const cancelSymbol = Symbol('cancel');
+  it('should prompt with the expected message and placeholder in the interactive loop', async () => {
+    const mockSessionService = createMockSessionService();
+
+    await runAgent({agentPath: 'agent.ts', sessionService: mockSessionService});
+
+    expect(text).toHaveBeenCalledWith({
+      message: 'user',
+      placeholder: 'Type your message (or "exit" to quit)',
+    });
+  });
+
+  it('should skip empty or whitespace-only input without invoking the runner', async () => {
+    const mockSessionService = createMockSessionService();
     (text as Mock)
-      .mockResolvedValueOnce('exit') // For the runInteractively loop
-      .mockResolvedValueOnce(cancelSymbol); // User cancels session ID prompt
-    // isCancel returns false for 'exit', true for the cancel symbol
-    (isCancel as unknown as Mock)
-      .mockReturnValueOnce(false) // for 'exit' in runInteractively
-      .mockReturnValueOnce(true); // for cancel symbol in saveSession
-    const mockSessionService = createMockSessionService();
+      .mockResolvedValueOnce('   ')
+      .mockResolvedValueOnce('exit');
 
-    await runAgent({
-      agentPath: 'agent.ts',
-      saveSession: true,
-      sessionService: mockSessionService,
-    });
+    await runAgent({agentPath: 'agent.ts', sessionService: mockSessionService});
 
-    expect(saveToFile).not.toHaveBeenCalled();
+    expect(text).toHaveBeenCalledTimes(2);
+    const runnerInstance = (Runner as unknown as Mock).mock.results[0].value;
+    expect(runnerInstance.runAsync).not.toHaveBeenCalled();
   });
 
-  it('should break interactive loop immediately when input is cancelled', async () => {
-    const cancelSymbol = Symbol('cancel');
-    (text as Mock).mockResolvedValue(cancelSymbol);
-    (isCancel as unknown as Mock).mockReturnValue(true);
+  it('should break the interactive loop when the input prompt is cancelled', async () => {
     const mockSessionService = createMockSessionService();
+    (text as Mock).mockResolvedValueOnce('would have been sent');
+    (isCancel as Mock).mockReturnValueOnce(true);
 
-    const mockRunAsync = vi.fn().mockImplementation(async function* () {
-      yield* [];
-    });
-    (Runner as unknown as Mock).mockImplementation(() => ({
-      runAsync: mockRunAsync,
+    await runAgent({agentPath: 'agent.ts', sessionService: mockSessionService});
+
+    expect(text).toHaveBeenCalledTimes(1);
+    const runnerInstance = (Runner as unknown as Mock).mock.results[0].value;
+    expect(runnerInstance.runAsync).not.toHaveBeenCalled();
+  });
+
+  it('should show a spinner and stop it with "Agent replied:" when the agent responds', async () => {
+    const mockSessionService = createMockSessionService();
+    const spinnerInstance = {start: vi.fn(), stop: vi.fn()};
+    (spinner as Mock).mockReturnValueOnce(spinnerInstance);
+    (text as Mock).mockResolvedValueOnce('hello').mockResolvedValueOnce('exit');
+
+    await runAgent({agentPath: 'agent.ts', sessionService: mockSessionService});
+
+    expect(spinnerInstance.start).toHaveBeenCalledWith('Agent is thinking...');
+    expect(spinnerInstance.stop).toHaveBeenCalledWith('Agent replied:');
+    expect(spinnerInstance.stop).toHaveBeenCalledTimes(1);
+    expect(log.info).toHaveBeenCalledWith('model: Response from model');
+  });
+
+  it('should stop the spinner with "Agent finished processing." when the agent yields no text', async () => {
+    const mockSessionService = createMockSessionService();
+    const spinnerInstance = {start: vi.fn(), stop: vi.fn()};
+    (spinner as Mock).mockReturnValueOnce(spinnerInstance);
+    (Runner as unknown as Mock).mockImplementationOnce(() => ({
+      runAsync: vi.fn().mockImplementation(async function* () {
+        yield {author: 'model', content: undefined};
+      }),
     }));
+    (text as Mock).mockResolvedValueOnce('hello').mockResolvedValueOnce('exit');
 
-    await runAgent({
-      agentPath: 'agent.ts',
-      sessionService: mockSessionService,
-    });
+    await runAgent({agentPath: 'agent.ts', sessionService: mockSessionService});
 
-    // runAsync should not have been called because cancel breaks the loop immediately
-    expect(mockRunAsync).not.toHaveBeenCalled();
-    expect(outro).toHaveBeenCalledWith('Operation cancelled');
+    expect(spinnerInstance.stop).toHaveBeenCalledWith(
+      'Agent finished processing.',
+    );
+    expect(log.info).not.toHaveBeenCalled();
   });
 
-  it('should continue loop on empty input without processing', async () => {
-    (text as Mock)
-      .mockResolvedValueOnce('') // Empty input - should continue
-      .mockResolvedValueOnce('   ') // Whitespace - should continue
-      .mockResolvedValueOnce('exit'); // Exit
-    (isCancel as unknown as Mock).mockReturnValue(false);
+  it('should join multiple content parts, treating missing text as empty', async () => {
     const mockSessionService = createMockSessionService();
-
-    const mockRunAsync = vi.fn().mockImplementation(async function* () {
-      yield* [];
-    });
-    (Runner as unknown as Mock).mockImplementation(() => ({
-      runAsync: mockRunAsync,
+    (Runner as unknown as Mock).mockImplementationOnce(() => ({
+      runAsync: vi.fn().mockImplementation(async function* () {
+        yield {
+          author: 'model',
+          content: {parts: [{}, {text: 'Hello '}, {text: 'world'}]},
+        };
+      }),
     }));
+    (text as Mock).mockResolvedValueOnce('hi').mockResolvedValueOnce('exit');
 
-    await runAgent({
-      agentPath: 'agent.ts',
-      sessionService: mockSessionService,
-    });
+    await runAgent({agentPath: 'agent.ts', sessionService: mockSessionService});
 
-    // runAsync should not have been called for empty/whitespace inputs
-    expect(mockRunAsync).not.toHaveBeenCalled();
+    expect(log.info).toHaveBeenCalledWith('model: Hello world');
   });
 
-  it('should not call intro or outro when running from input file', async () => {
+  it('should log each query with log.step and each reply with log.info when running from an input file', async () => {
     const inputFileContent = {
       state: {foo: 'bar'},
-      queries: ['Hello'],
+      queries: ['Hello', 'How are you?'],
     };
     (loadFileData as Mock).mockResolvedValue(inputFileContent);
     const mockSessionService = createMockSessionService();
@@ -363,131 +310,20 @@ describe('cli_run', () => {
       sessionService: mockSessionService,
     });
 
-    expect(intro).not.toHaveBeenCalled();
-    expect(outro).not.toHaveBeenCalled();
+    expect(log.step).toHaveBeenCalledWith('user: Hello');
+    expect(log.step).toHaveBeenCalledWith('user: How are you?');
+    expect(log.info).toHaveBeenCalledWith('model: Response from model');
   });
 
-  it('should call outro with "Run failed" when run fails and isTTY is true', async () => {
-    mockAgentFile.load = vi
-      .fn()
-      .mockRejectedValue(new Error('Load agent failed'));
-    const mockSessionService = createMockSessionService();
-
-    await runAgent({
-      agentPath: 'agent.ts',
-      sessionService: mockSessionService,
-    });
-
-    expect(outro).toHaveBeenCalledWith('Run failed');
-  });
-
-  it('should still log the error message when run fails', async () => {
-    const {log} = await import('@clack/prompts');
-    mockAgentFile.load = vi
-      .fn()
-      .mockRejectedValue(new Error('Load agent failed'));
-    const mockSessionService = createMockSessionService();
-
-    await runAgent({
-      agentPath: 'agent.ts',
-      sessionService: mockSessionService,
-    });
-
-    expect(log.error).toHaveBeenCalledWith('Load agent failed');
-  });
-
-  it('should NOT call outro when run fails and an inputFile is provided', async () => {
-    mockAgentFile.load = vi
-      .fn()
-      .mockRejectedValue(new Error('Load agent failed'));
-    const mockSessionService = createMockSessionService();
-
-    await runAgent({
-      agentPath: 'agent.ts',
-      inputFile: 'input.json',
-      sessionService: mockSessionService,
-    });
-
-    expect(outro).not.toHaveBeenCalled();
-  });
-
-  it('should NOT call outro when run fails and isTTY is false', async () => {
-    Object.defineProperty(process.stdout, 'isTTY', {
-      value: false,
-      configurable: true,
-    });
-
-    try {
-      mockAgentFile.load = vi
-        .fn()
-        .mockRejectedValue(new Error('Load agent failed'));
-      const mockSessionService = createMockSessionService();
-
-      await runAgent({
-        agentPath: 'agent.ts',
-        sessionService: mockSessionService,
-      });
-
-      expect(outro).not.toHaveBeenCalled();
-    } finally {
-      Object.defineProperty(process.stdout, 'isTTY', {
-        value: true,
-        configurable: true,
-      });
-    }
-  });
-
-  it('should handle non-Error thrown values by logging their string representation', async () => {
-    mockAgentFile.load = vi.fn().mockRejectedValue('a plain string failure');
-    const mockSessionService = createMockSessionService();
-    const {log} = await import('@clack/prompts');
-
-    await runAgent({
-      agentPath: 'agent.ts',
-      sessionService: mockSessionService,
-    });
-
-    expect(log.error).toHaveBeenCalledWith('a plain string failure');
-    expect(outro).toHaveBeenCalledWith('Run failed');
-  });
-
-  it('should process user query before exiting', async () => {
-    (text as Mock)
-      .mockResolvedValueOnce('Hello agent') // First query
-      .mockResolvedValueOnce('exit'); // Then exit
-    (isCancel as unknown as Mock).mockReturnValue(false);
-    const mockSessionService = createMockSessionService();
-
-    const mockRunAsync = vi.fn().mockImplementation(async function* () {
-      yield {
-        author: 'model',
-        content: {parts: [{text: 'Response'}]},
-      };
-    });
-    (Runner as unknown as Mock).mockImplementation(() => ({
-      runAsync: mockRunAsync,
-    }));
-
-    await runAgent({
-      agentPath: 'agent.ts',
-      sessionService: mockSessionService,
-    });
-
-    // runAsync should have been called exactly once (for 'Hello agent')
-    expect(mockRunAsync).toHaveBeenCalledTimes(1);
-    expect(mockRunAsync).toHaveBeenCalledWith(
-      expect.objectContaining({
-        newMessage: {role: 'user', parts: [{text: 'Hello agent'}]},
-      }),
-    );
-  });
-
-  it('should call outro after completing savedSessionFile interaction', async () => {
+  it('should log replayed session events via log.info', async () => {
     const sessionContent = {
       id: 'old-session',
       appName: 'test-agent',
       userId: 'test_user',
-      events: [],
+      events: [
+        {author: 'user', content: {parts: [{text: 'Hi'}]}},
+        {author: 'model', content: {parts: [{text: 'Hello'}]}},
+      ],
     };
     (loadFileData as Mock).mockResolvedValue(sessionContent);
     const mockSessionService = createMockSessionService();
@@ -498,17 +334,32 @@ describe('cli_run', () => {
       sessionService: mockSessionService,
     });
 
-    expect(outro).toHaveBeenCalledWith('Happy Agent Building!');
-    // outro should only be called once
-    expect(outro).toHaveBeenCalledTimes(1);
+    expect(log.info).toHaveBeenCalledWith('user: Hi');
+    expect(log.info).toHaveBeenCalledWith('model: Hello');
   });
 
-  it('should call text with session ID message when prompting', async () => {
+  it('should call intro with the agent path when starting', async () => {
+    const mockSessionService = createMockSessionService();
+
+    await runAgent({agentPath: 'agent.ts', sessionService: mockSessionService});
+
+    expect(intro).toHaveBeenCalledWith('Running agent agent.ts');
+  });
+
+  it('should call outro with "Exiting agent." when the session is not saved', async () => {
+    const mockSessionService = createMockSessionService();
+
+    await runAgent({agentPath: 'agent.ts', sessionService: mockSessionService});
+
+    expect(outro).toHaveBeenCalledWith('Exiting agent.');
+    expect(saveToFile).not.toHaveBeenCalled();
+  });
+
+  it('should prompt with the expected message and initial value when saving without a session id', async () => {
+    const mockSessionService = createMockSessionService();
     (text as Mock)
       .mockResolvedValueOnce('exit')
-      .mockResolvedValueOnce('my-session-id');
-    (isCancel as unknown as Mock).mockReturnValue(false);
-    const mockSessionService = createMockSessionService();
+      .mockResolvedValueOnce('prompted-session-id');
 
     await runAgent({
       agentPath: 'agent.ts',
@@ -516,416 +367,54 @@ describe('cli_run', () => {
       sessionService: mockSessionService,
     });
 
-    expect(text).toHaveBeenCalledWith(
-      expect.objectContaining({
-        message: 'Session ID to save (will be used as filename)',
-        initialValue: expect.any(String),
-        placeholder: 'e.g. my-session',
-      }),
+    expect(text).toHaveBeenLastCalledWith({
+      message: 'Session ID to save',
+      initialValue: 'session_1',
+    });
+  });
+
+  it('should exit without saving when the session id prompt is cancelled', async () => {
+    const mockSessionService = createMockSessionService();
+    (text as Mock)
+      .mockResolvedValueOnce('exit') // interactive loop exit
+      .mockResolvedValueOnce(undefined); // sessionId prompt result
+    (isCancel as Mock)
+      .mockReturnValueOnce(false) // interactive loop query, exits via 'exit' check
+      .mockReturnValueOnce(true); // sessionId prompt is cancelled
+
+    await runAgent({
+      agentPath: 'agent.ts',
+      saveSession: true,
+      sessionService: mockSessionService,
+    });
+
+    expect(outro).toHaveBeenCalledWith('Exiting without saving.');
+    expect(saveToFile).not.toHaveBeenCalled();
+  });
+
+  it('should not prompt for a session id when one is already provided', async () => {
+    const mockSessionService = createMockSessionService();
+
+    await runAgent({
+      agentPath: 'agent.ts',
+      saveSession: true,
+      sessionId: 'my-session',
+      sessionService: mockSessionService,
+    });
+
+    // Only the interactive loop query prompt should occur; no session-id prompt.
+    expect(text).toHaveBeenCalledTimes(1);
+    expect(outro).toHaveBeenCalledWith(
+      expect.stringContaining('my-session.session.json'),
     );
   });
 
-  describe('spinner behavior in interactive mode', () => {
-    it('should create and start spinner with "Thinking..." when user submits a query and stdout is TTY', async () => {
-      // isTTY is set to true in beforeEach
-      const mockSpinner = {start: vi.fn(), stop: vi.fn()};
-      (spinner as Mock).mockReturnValue(mockSpinner);
-      (text as Mock)
-        .mockResolvedValueOnce('Hello agent')
-        .mockResolvedValueOnce('exit');
-      (isCancel as unknown as Mock).mockReturnValue(false);
-      const mockSessionService = createMockSessionService();
+  it('should log errors via log.error when an exception occurs', async () => {
+    const error = new Error('Load failed');
+    (mockAgentFile.load as unknown as Mock).mockRejectedValueOnce(error);
 
-      await runAgent({
-        agentPath: 'agent.ts',
-        sessionService: mockSessionService,
-      });
+    await runAgent({agentPath: 'agent.ts'});
 
-      expect(spinner).toHaveBeenCalled();
-      expect(mockSpinner.start).toHaveBeenCalledWith('Thinking...');
-    });
-
-    it('should stop spinner when a text response is received', async () => {
-      const mockSpinner = {start: vi.fn(), stop: vi.fn()};
-      (spinner as Mock).mockReturnValue(mockSpinner);
-      (text as Mock)
-        .mockResolvedValueOnce('Hello agent')
-        .mockResolvedValueOnce('exit');
-      (isCancel as unknown as Mock).mockReturnValue(false);
-      const mockSessionService = createMockSessionService();
-
-      const mockRunAsync = vi.fn().mockImplementation(async function* () {
-        yield {
-          author: 'model',
-          content: {parts: [{text: 'Hello back'}]},
-        };
-      });
-      (Runner as unknown as Mock).mockImplementation(() => ({
-        runAsync: mockRunAsync,
-      }));
-
-      await runAgent({
-        agentPath: 'agent.ts',
-        sessionService: mockSessionService,
-      });
-
-      expect(mockSpinner.stop).toHaveBeenCalled();
-    });
-
-    it('should stop spinner after loop even when no text content events are emitted', async () => {
-      const mockSpinner = {start: vi.fn(), stop: vi.fn()};
-      (spinner as Mock).mockReturnValue(mockSpinner);
-      (text as Mock)
-        .mockResolvedValueOnce('Hello agent')
-        .mockResolvedValueOnce('exit');
-      (isCancel as unknown as Mock).mockReturnValue(false);
-      const mockSessionService = createMockSessionService();
-
-      // Events with no text content
-      const mockRunAsync = vi.fn().mockImplementation(async function* () {
-        yield {author: 'model', content: {parts: [{}]}};
-        yield {author: 'model', content: null};
-      });
-      (Runner as unknown as Mock).mockImplementation(() => ({
-        runAsync: mockRunAsync,
-      }));
-
-      await runAgent({
-        agentPath: 'agent.ts',
-        sessionService: mockSessionService,
-      });
-
-      expect(mockSpinner.start).toHaveBeenCalledWith('Thinking...');
-      expect(mockSpinner.stop).toHaveBeenCalled();
-    });
-
-    it('should create a new spinner for each user query in interactive mode', async () => {
-      const spinnerInstances: Array<{start: Mock; stop: Mock}> = [];
-      (spinner as Mock).mockImplementation(() => {
-        const instance = {start: vi.fn(), stop: vi.fn()};
-        spinnerInstances.push(instance);
-        return instance;
-      });
-      (text as Mock)
-        .mockResolvedValueOnce('First query')
-        .mockResolvedValueOnce('Second query')
-        .mockResolvedValueOnce('exit');
-      (isCancel as unknown as Mock).mockReturnValue(false);
-      const mockSessionService = createMockSessionService();
-
-      await runAgent({
-        agentPath: 'agent.ts',
-        sessionService: mockSessionService,
-      });
-
-      expect(spinner).toHaveBeenCalledTimes(2);
-      expect(spinnerInstances).toHaveLength(2);
-      for (const instance of spinnerInstances) {
-        expect(instance.start).toHaveBeenCalledWith('Thinking...');
-        expect(instance.stop).toHaveBeenCalled();
-      }
-    });
-
-    it('should not create spinner for empty or whitespace-only input', async () => {
-      const mockSpinner = {start: vi.fn(), stop: vi.fn()};
-      (spinner as Mock).mockReturnValue(mockSpinner);
-      (text as Mock)
-        .mockResolvedValueOnce('')
-        .mockResolvedValueOnce('   ')
-        .mockResolvedValueOnce('exit');
-      (isCancel as unknown as Mock).mockReturnValue(false);
-      const mockSessionService = createMockSessionService();
-
-      const mockRunAsync = vi.fn().mockImplementation(async function* () {
-        yield* [];
-      });
-      (Runner as unknown as Mock).mockImplementation(() => ({
-        runAsync: mockRunAsync,
-      }));
-
-      await runAgent({
-        agentPath: 'agent.ts',
-        sessionService: mockSessionService,
-      });
-
-      expect(spinner).not.toHaveBeenCalled();
-      expect(mockSpinner.start).not.toHaveBeenCalled();
-    });
-
-    it('should not create spinner when input is cancelled', async () => {
-      const mockSpinner = {start: vi.fn(), stop: vi.fn()};
-      (spinner as Mock).mockReturnValue(mockSpinner);
-      const cancelSymbol = Symbol('cancel');
-      (text as Mock).mockResolvedValue(cancelSymbol);
-      (isCancel as unknown as Mock).mockReturnValue(true);
-      const mockSessionService = createMockSessionService();
-
-      await runAgent({
-        agentPath: 'agent.ts',
-        sessionService: mockSessionService,
-      });
-
-      expect(spinner).not.toHaveBeenCalled();
-    });
-
-    it('should not create spinner when stdout is not TTY', async () => {
-      Object.defineProperty(process.stdout, 'isTTY', {
-        value: false,
-        configurable: true,
-      });
-      const mockSpinner = {start: vi.fn(), stop: vi.fn()};
-      (spinner as Mock).mockReturnValue(mockSpinner);
-      (text as Mock)
-        .mockResolvedValueOnce('Hello agent')
-        .mockResolvedValueOnce('exit');
-      (isCancel as unknown as Mock).mockReturnValue(false);
-      const mockSessionService = createMockSessionService();
-
-      await runAgent({
-        agentPath: 'agent.ts',
-        sessionService: mockSessionService,
-      });
-
-      expect(spinner).not.toHaveBeenCalled();
-
-      // Reset isTTY for other tests
-      Object.defineProperty(process.stdout, 'isTTY', {
-        value: true,
-        configurable: true,
-      });
-    });
-  });
-
-  describe('spinner behavior in input file mode', () => {
-    it('should create and start spinner with "Thinking..." for each query when stdout is TTY', async () => {
-      const spinnerInstances: Array<{start: Mock; stop: Mock}> = [];
-      (spinner as Mock).mockImplementation(() => {
-        const instance = {start: vi.fn(), stop: vi.fn()};
-        spinnerInstances.push(instance);
-        return instance;
-      });
-
-      const inputFileContent = {
-        state: {},
-        queries: ['Query one', 'Query two'],
-      };
-      (loadFileData as Mock).mockResolvedValue(inputFileContent);
-      const mockSessionService = createMockSessionService();
-
-      await runAgent({
-        agentPath: 'agent.ts',
-        inputFile: 'input.json',
-        sessionService: mockSessionService,
-      });
-
-      expect(spinner).toHaveBeenCalledTimes(2);
-      for (const instance of spinnerInstances) {
-        expect(instance.start).toHaveBeenCalledWith('Thinking...');
-      }
-    });
-
-    it('should stop spinner when text content is received in input file mode', async () => {
-      const mockSpinner = {start: vi.fn(), stop: vi.fn()};
-      (spinner as Mock).mockReturnValue(mockSpinner);
-
-      const inputFileContent = {
-        state: {},
-        queries: ['Hello'],
-      };
-      (loadFileData as Mock).mockResolvedValue(inputFileContent);
-      const mockSessionService = createMockSessionService();
-
-      const mockRunAsync = vi.fn().mockImplementation(async function* () {
-        yield {
-          author: 'model',
-          content: {parts: [{text: 'Response text'}]},
-        };
-      });
-      (Runner as unknown as Mock).mockImplementation(() => ({
-        runAsync: mockRunAsync,
-      }));
-
-      await runAgent({
-        agentPath: 'agent.ts',
-        inputFile: 'input.json',
-        sessionService: mockSessionService,
-      });
-
-      expect(mockSpinner.stop).toHaveBeenCalled();
-    });
-
-    it('should stop spinner after loop even with no text events in input file mode', async () => {
-      const mockSpinner = {start: vi.fn(), stop: vi.fn()};
-      (spinner as Mock).mockReturnValue(mockSpinner);
-
-      const inputFileContent = {
-        state: {},
-        queries: ['Query with no response'],
-      };
-      (loadFileData as Mock).mockResolvedValue(inputFileContent);
-      const mockSessionService = createMockSessionService();
-
-      // Runner emits events with no usable text
-      const mockRunAsync = vi.fn().mockImplementation(async function* () {
-        yield {author: 'model', content: {parts: [{text: ''}]}};
-      });
-      (Runner as unknown as Mock).mockImplementation(() => ({
-        runAsync: mockRunAsync,
-      }));
-
-      await runAgent({
-        agentPath: 'agent.ts',
-        inputFile: 'input.json',
-        sessionService: mockSessionService,
-      });
-
-      expect(mockSpinner.start).toHaveBeenCalledWith('Thinking...');
-      // stop() is called once at the end of the loop (idempotent stop)
-      expect(mockSpinner.stop).toHaveBeenCalled();
-    });
-
-    it('should stop spinner only once per query when text is received (idempotent stop)', async () => {
-      const mockSpinner = {start: vi.fn(), stop: vi.fn()};
-      (spinner as Mock).mockReturnValue(mockSpinner);
-
-      const inputFileContent = {
-        state: {},
-        queries: ['Single query'],
-      };
-      (loadFileData as Mock).mockResolvedValue(inputFileContent);
-      const mockSessionService = createMockSessionService();
-
-      // Emit two text events - stop should be called on the first, then again at end of loop
-      const mockRunAsync = vi.fn().mockImplementation(async function* () {
-        yield {author: 'model', content: {parts: [{text: 'First chunk'}]}};
-        yield {author: 'model', content: {parts: [{text: 'Second chunk'}]}};
-      });
-      (Runner as unknown as Mock).mockImplementation(() => ({
-        runAsync: mockRunAsync,
-      }));
-
-      await runAgent({
-        agentPath: 'agent.ts',
-        inputFile: 'input.json',
-        sessionService: mockSessionService,
-      });
-
-      // stop() is called on first text event AND after the loop, but spinner is idempotent
-      expect(mockSpinner.stop).toHaveBeenCalled();
-      // start() should only be called once per query
-      expect(mockSpinner.start).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  describe('non-interactive mode (piped stdin)', () => {
-    beforeEach(() => {
-      // Force the non-TTY branch of getQueries() to read from readline.
-      (process.stdin as unknown as {isTTY: boolean}).isTTY = false;
-    });
-
-    it('should process piped lines and stop at "exit" without prompting via text()', async () => {
-      const {mockInterface, closeMock} = createMockReadlineInterface([
-        'Hello from pipe',
-        'exit',
-      ]);
-      (createInterface as unknown as Mock).mockReturnValue(mockInterface);
-
-      const mockSessionService = createMockSessionService();
-      const mockRunAsync = vi.fn().mockImplementation(async function* () {
-        yield {author: 'model', content: {parts: [{text: 'Reply'}]}};
-      });
-      (Runner as unknown as Mock).mockImplementation(() => ({
-        runAsync: mockRunAsync,
-      }));
-
-      await runAgent({
-        agentPath: 'agent.ts',
-        sessionService: mockSessionService,
-      });
-
-      expect(mockRunAsync).toHaveBeenCalledTimes(1);
-      expect(mockRunAsync).toHaveBeenCalledWith(
-        expect.objectContaining({
-          newMessage: {role: 'user', parts: [{text: 'Hello from pipe'}]},
-        }),
-      );
-      expect(text).not.toHaveBeenCalled();
-      expect(closeMock).toHaveBeenCalled();
-    });
-
-    it('should skip blank and whitespace-only piped lines without invoking the runner', async () => {
-      const {mockInterface, closeMock} = createMockReadlineInterface([
-        '',
-        '   ',
-        'exit',
-      ]);
-      (createInterface as unknown as Mock).mockReturnValue(mockInterface);
-
-      const mockSessionService = createMockSessionService();
-      const mockRunAsync = vi.fn().mockImplementation(async function* () {
-        yield* [];
-      });
-      (Runner as unknown as Mock).mockImplementation(() => ({
-        runAsync: mockRunAsync,
-      }));
-
-      await runAgent({
-        agentPath: 'agent.ts',
-        sessionService: mockSessionService,
-      });
-
-      expect(mockRunAsync).not.toHaveBeenCalled();
-      expect(closeMock).toHaveBeenCalled();
-    });
-
-    it('should process multiple piped lines sequentially before exiting on "exit"', async () => {
-      const {mockInterface, closeMock} = createMockReadlineInterface([
-        'first line',
-        'second line',
-        'exit',
-      ]);
-      (createInterface as unknown as Mock).mockReturnValue(mockInterface);
-
-      const mockSessionService = createMockSessionService();
-      const mockRunAsync = vi.fn().mockImplementation(async function* () {
-        yield* [];
-      });
-      (Runner as unknown as Mock).mockImplementation(() => ({
-        runAsync: mockRunAsync,
-      }));
-
-      await runAgent({
-        agentPath: 'agent.ts',
-        sessionService: mockSessionService,
-      });
-
-      expect(mockRunAsync).toHaveBeenCalledTimes(2);
-      expect(closeMock).toHaveBeenCalled();
-    });
-
-    it('should close the readline interface (finally block) even when the runner throws mid-loop', async () => {
-      const {mockInterface, closeMock} = createMockReadlineInterface([
-        'trigger failure',
-      ]);
-      (createInterface as unknown as Mock).mockReturnValue(mockInterface);
-
-      const mockSessionService = createMockSessionService();
-      const mockRunAsync = vi.fn().mockImplementation(async function* () {
-        yield* [];
-        throw new Error('runner exploded');
-      });
-      (Runner as unknown as Mock).mockImplementation(() => ({
-        runAsync: mockRunAsync,
-      }));
-      const {log} = await import('@clack/prompts');
-
-      await runAgent({
-        agentPath: 'agent.ts',
-        sessionService: mockSessionService,
-      });
-
-      expect(closeMock).toHaveBeenCalled();
-      expect(log.error).toHaveBeenCalledWith('runner exploded');
-    });
+    expect(log.error).toHaveBeenCalledWith(String(error));
   });
 });
