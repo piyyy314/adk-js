@@ -173,6 +173,40 @@ async function generateAgentFolder(
   return true;
 }
 
+function detectPackageManager(): {
+  installDev: string;
+  install: string;
+  run: string;
+} {
+  const userAgent = process.env.npm_config_user_agent || '';
+  if (userAgent.startsWith('pnpm')) {
+    return {
+      installDev: 'pnpm add -D',
+      install: 'pnpm add',
+      run: 'pnpm',
+    };
+  }
+  if (userAgent.startsWith('yarn')) {
+    return {
+      installDev: 'yarn add -D',
+      install: 'yarn add',
+      run: 'yarn',
+    };
+  }
+  if (userAgent.startsWith('bun')) {
+    return {
+      installDev: 'bun add -d',
+      install: 'bun add',
+      run: 'bun',
+    };
+  }
+  return {
+    installDev: 'npm install --save-dev',
+    install: 'npm install',
+    run: 'npm run',
+  };
+}
+
 function generateEnvFile(options: AgentCreationOptions): string {
   const lines = [];
   if (options.apiKey) {
@@ -365,14 +399,15 @@ export async function createAgent(options: AgentCreationOptions) {
   if (!options.forceYes) log.step('Generating files...');
   await generateFiles(options);
 
+  const pm = detectPackageManager();
   const s = !options.forceYes ? spinner() : null;
   s?.start('Installing dependencies...');
   try {
     if (options.language === 'ts') {
-      await execPromise(`npm install typescript --save-dev`, {cwd: agentDir});
+      await execPromise(`${pm.installDev} typescript`, {cwd: agentDir});
     }
     await execPromise(
-      `npm install @google/adk @google/adk-devtools zod dotenv`,
+      `${pm.install} @google/adk @google/adk-devtools zod dotenv`,
       {
         cwd: agentDir,
       },
@@ -395,8 +430,8 @@ export async function createAgent(options: AgentCreationOptions) {
         files.map((file) => `  - ${file}`).join('\n') +
         `\n\nTo get started, run:\n` +
         `  cd ${options.agentName}\n` +
-        `  npm run web  # Start the agent in a web interface\n` +
-        `  npm run cli  # Interact with the agent in the terminal`,
+        `  ${pm.run} web  # Start the agent in a web interface\n` +
+        `  ${pm.run} cli  # Interact with the agent in the terminal`,
       'Agent Created Successfully',
     );
 
