@@ -451,4 +451,84 @@ describe('createAgent', () => {
       expect(listFiles).not.toHaveBeenCalled();
     });
   });
+
+  describe('Package Manager Detection', () => {
+    const originalUserAgent = process.env.npm_config_user_agent;
+
+    afterEach(() => {
+      if (originalUserAgent !== undefined) {
+        process.env.npm_config_user_agent = originalUserAgent;
+      } else {
+        delete process.env.npm_config_user_agent;
+      }
+    });
+
+    it('should use pnpm install commands and instructions when running under pnpm', async () => {
+      process.env.npm_config_user_agent =
+        'pnpm/10.30.3 node/v20.0.0 linux x64';
+      const {exec: execMock} = await import('node:child_process');
+      const {note} = await import('@clack/prompts');
+
+      await createAgent({
+        ...getFreshOptions(),
+        forceYes: true,
+        language: 'ts',
+      });
+
+      expect(execMock).toHaveBeenCalledWith(
+        'pnpm add -D typescript',
+        expect.anything(),
+        expect.any(Function),
+      );
+      expect(execMock).toHaveBeenCalledWith(
+        'pnpm add @google/adk @google/adk-devtools zod dotenv',
+        expect.anything(),
+        expect.any(Function),
+      );
+
+      await createAgent({
+        ...getFreshOptions(),
+        forceYes: false,
+        language: 'ts',
+      });
+      expect(note).toHaveBeenCalledWith(
+        expect.stringContaining('pnpm web'),
+        expect.anything(),
+      );
+    });
+
+    it('should use yarn install commands and instructions when running under yarn', async () => {
+      process.env.npm_config_user_agent =
+        'yarn/1.22.19 npm/? node/v20.0.0 linux x64';
+      const {exec: execMock} = await import('node:child_process');
+      const {note} = await import('@clack/prompts');
+
+      await createAgent({
+        ...getFreshOptions(),
+        forceYes: true,
+        language: 'ts',
+      });
+
+      expect(execMock).toHaveBeenCalledWith(
+        'yarn add -D typescript',
+        expect.anything(),
+        expect.any(Function),
+      );
+      expect(execMock).toHaveBeenCalledWith(
+        'yarn add @google/adk @google/adk-devtools zod dotenv',
+        expect.anything(),
+        expect.any(Function),
+      );
+
+      await createAgent({
+        ...getFreshOptions(),
+        forceYes: false,
+        language: 'ts',
+      });
+      expect(note).toHaveBeenCalledWith(
+        expect.stringContaining('yarn web'),
+        expect.anything(),
+      );
+    });
+  });
 });
