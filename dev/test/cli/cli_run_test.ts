@@ -308,9 +308,7 @@ describe('cli_run', () => {
     (isCancel as unknown as Mock).mockReturnValue(true);
     const mockSessionService = createMockSessionService();
 
-    const mockRunAsync = vi.fn().mockImplementation(async function* () {
-      yield* [];
-    });
+    const mockRunAsync = vi.fn().mockImplementation(async function* () {});
     (Runner as unknown as Mock).mockImplementation(() => ({
       runAsync: mockRunAsync,
     }));
@@ -333,9 +331,7 @@ describe('cli_run', () => {
     (isCancel as unknown as Mock).mockReturnValue(false);
     const mockSessionService = createMockSessionService();
 
-    const mockRunAsync = vi.fn().mockImplementation(async function* () {
-      yield* [];
-    });
+    const mockRunAsync = vi.fn().mockImplementation(async function* () {});
     (Runner as unknown as Mock).mockImplementation(() => ({
       runAsync: mockRunAsync,
     }));
@@ -636,9 +632,7 @@ describe('cli_run', () => {
       (isCancel as unknown as Mock).mockReturnValue(false);
       const mockSessionService = createMockSessionService();
 
-      const mockRunAsync = vi.fn().mockImplementation(async function* () {
-        yield* [];
-      });
+      const mockRunAsync = vi.fn().mockImplementation(async function* () {});
       (Runner as unknown as Mock).mockImplementation(() => ({
         runAsync: mockRunAsync,
       }));
@@ -666,6 +660,34 @@ describe('cli_run', () => {
       });
 
       expect(spinner).not.toHaveBeenCalled();
+    });
+
+    it('should call spinner.stop() exactly once when no text content is ever emitted for a query', async () => {
+      const mockSpinner = {start: vi.fn(), stop: vi.fn()};
+      (spinner as Mock).mockReturnValue(mockSpinner);
+      (text as Mock)
+        .mockResolvedValueOnce('Hello agent')
+        .mockResolvedValueOnce('exit');
+      (isCancel as unknown as Mock).mockReturnValue(false);
+      const mockSessionService = createMockSessionService();
+
+      // Events with no usable text content: spinnerStopped stays false
+      // throughout the loop, so the fallback `stop()` call after the loop
+      // must be the only one.
+      const mockRunAsync = vi.fn().mockImplementation(async function* () {
+        yield {author: 'model', content: {parts: [{}]}};
+        yield {author: 'model', content: null};
+      });
+      (Runner as unknown as Mock).mockImplementation(() => ({
+        runAsync: mockRunAsync,
+      }));
+
+      await runAgent({
+        agentPath: 'agent.ts',
+        sessionService: mockSessionService,
+      });
+
+      expect(mockSpinner.stop).toHaveBeenCalledTimes(1);
     });
 
     it('should not create spinner when stdout is not TTY', async () => {
@@ -862,9 +884,7 @@ describe('cli_run', () => {
       (createInterface as unknown as Mock).mockReturnValue(mockInterface);
 
       const mockSessionService = createMockSessionService();
-      const mockRunAsync = vi.fn().mockImplementation(async function* () {
-        yield* [];
-      });
+      const mockRunAsync = vi.fn().mockImplementation(async function* () {});
       (Runner as unknown as Mock).mockImplementation(() => ({
         runAsync: mockRunAsync,
       }));
@@ -887,9 +907,7 @@ describe('cli_run', () => {
       (createInterface as unknown as Mock).mockReturnValue(mockInterface);
 
       const mockSessionService = createMockSessionService();
-      const mockRunAsync = vi.fn().mockImplementation(async function* () {
-        yield* [];
-      });
+      const mockRunAsync = vi.fn().mockImplementation(async function* () {});
       (Runner as unknown as Mock).mockImplementation(() => ({
         runAsync: mockRunAsync,
       }));
@@ -911,7 +929,6 @@ describe('cli_run', () => {
 
       const mockSessionService = createMockSessionService();
       const mockRunAsync = vi.fn().mockImplementation(async function* () {
-        yield* [];
         throw new Error('runner exploded');
       });
       (Runner as unknown as Mock).mockImplementation(() => ({
@@ -926,6 +943,53 @@ describe('cli_run', () => {
 
       expect(closeMock).toHaveBeenCalled();
       expect(log.error).toHaveBeenCalledWith('runner exploded');
+    });
+
+    it('should not invoke the spinner and should not throw when stdout is also non-TTY and multiple text chunks are received', async () => {
+      // Regression test for the `else if (!spinnerStopped)` fallback: when
+      // stdout is not a TTY, `s` is always `null`, and once the loop already
+      // marked `spinnerStopped = true` (because text was already flushed via
+      // `console.log`), the post-loop fallback must not attempt to stop the
+      // spinner again.
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: false,
+        configurable: true,
+      });
+
+      try {
+        const {mockInterface, closeMock} = createMockReadlineInterface([
+          'Hello from pipe',
+          'exit',
+        ]);
+        (createInterface as unknown as Mock).mockReturnValue(mockInterface);
+        const mockSpinner = {start: vi.fn(), stop: vi.fn()};
+        (spinner as Mock).mockReturnValue(mockSpinner);
+
+        const mockSessionService = createMockSessionService();
+        const mockRunAsync = vi.fn().mockImplementation(async function* () {
+          yield {author: 'model', content: {parts: [{text: 'Reply chunk 1'}]}};
+          yield {author: 'model', content: {parts: [{text: 'Reply chunk 2'}]}};
+        });
+        (Runner as unknown as Mock).mockImplementation(() => ({
+          runAsync: mockRunAsync,
+        }));
+
+        await runAgent({
+          agentPath: 'agent.ts',
+          sessionService: mockSessionService,
+        });
+
+        expect(spinner).not.toHaveBeenCalled();
+        expect(mockSpinner.stop).not.toHaveBeenCalled();
+        expect(console.log).toHaveBeenCalledWith('[model]: Reply chunk 1');
+        expect(console.log).toHaveBeenCalledWith('[model]: Reply chunk 2');
+        expect(closeMock).toHaveBeenCalled();
+      } finally {
+        Object.defineProperty(process.stdout, 'isTTY', {
+          value: true,
+          configurable: true,
+        });
+      }
     });
   });
 });
