@@ -464,8 +464,7 @@ describe('createAgent', () => {
     });
 
     it('should use pnpm install commands and instructions when running under pnpm', async () => {
-      process.env.npm_config_user_agent =
-        'pnpm/10.30.3 node/v20.0.0 linux x64';
+      process.env.npm_config_user_agent = 'pnpm/10.30.3';
       const {exec: execMock} = await import('node:child_process');
       const {note} = await import('@clack/prompts');
 
@@ -498,8 +497,7 @@ describe('createAgent', () => {
     });
 
     it('should use yarn install commands and instructions when running under yarn', async () => {
-      process.env.npm_config_user_agent =
-        'yarn/1.22.19 npm/? node/v20.0.0 linux x64';
+      process.env.npm_config_user_agent = 'yarn/1.22.19';
       const {exec: execMock} = await import('node:child_process');
       const {note} = await import('@clack/prompts');
 
