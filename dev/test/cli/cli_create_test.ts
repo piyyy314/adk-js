@@ -4,7 +4,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {confirm, isCancel, password, select, text} from '@clack/prompts';
+import {
+  confirm,
+  intro,
+  isCancel,
+  outro,
+  password,
+  select,
+  text,
+} from '@clack/prompts';
 import {execSync} from 'node:child_process';
 import {
   afterEach,
@@ -251,6 +259,140 @@ describe('createAgent', () => {
       expect(saveToFile).toHaveBeenCalledWith(
         expect.stringContaining('.env'),
         expect.stringContaining('GOOGLE_CLOUD_PROJECT=gcloud-project'),
+      );
+    });
+  });
+
+  describe('TTY behavior', () => {
+    let originalIsTTY: boolean | undefined;
+
+    beforeEach(() => {
+      originalIsTTY = process.stdout.isTTY;
+    });
+
+    afterEach(() => {
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: originalIsTTY,
+        configurable: true,
+      });
+    });
+
+    it('should call intro and outro when stdout is a TTY', async () => {
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: true,
+        configurable: true,
+      });
+
+      await createAgent({...getFreshOptions(), forceYes: true});
+
+      expect(intro).toHaveBeenCalledWith('Agent Creation');
+      expect(outro).toHaveBeenCalledWith('Happy Agent Building!');
+    });
+
+    it('should not call intro or outro when stdout is not a TTY', async () => {
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: false,
+        configurable: true,
+      });
+
+      await createAgent({...getFreshOptions(), forceYes: true});
+
+      expect(intro).not.toHaveBeenCalled();
+      expect(outro).not.toHaveBeenCalled();
+    });
+
+    it('should still generate files when stdout is not a TTY', async () => {
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: false,
+        configurable: true,
+      });
+
+      await createAgent({...getFreshOptions(), forceYes: true});
+
+      expect(saveToFile).toHaveBeenCalledWith(
+        expect.stringContaining('package.json'),
+        expect.anything(),
+      );
+    });
+  });
+
+  describe('Prompt option hints', () => {
+    beforeEach(() => {
+      (select as Mock).mockResolvedValueOnce('gemini-2.5-flash'); // Model
+      (select as Mock).mockResolvedValueOnce('ts'); // Language
+      (select as Mock).mockResolvedValueOnce('googleai'); // Backend
+      (password as Mock).mockResolvedValueOnce('test-key'); // API Key
+    });
+
+    it('should include descriptive hints for model options', async () => {
+      await createAgent(getFreshOptions());
+
+      expect(select).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Choose a model for the root agent',
+          options: [
+            {
+              label: 'gemini-2.5-flash',
+              value: 'gemini-2.5-flash',
+              hint: 'Fast and cost-effective',
+            },
+            {
+              label: 'gemini-2.5-pro',
+              value: 'gemini-2.5-pro',
+              hint: 'Best for complex reasoning',
+            },
+            {
+              label: 'gemini-3-flash-preview',
+              value: 'gemini-3-flash-preview',
+              hint: 'Next-gen speed (Preview)',
+            },
+            {
+              label: 'gemini-3-pro-preview',
+              value: 'gemini-3-pro-preview',
+              hint: 'Next-gen intelligence (Preview)',
+            },
+          ],
+        }),
+      );
+    });
+
+    it('should include descriptive hints for language options', async () => {
+      await createAgent(getFreshOptions());
+
+      expect(select).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Choose a language for the agent',
+          options: [
+            {
+              label: 'TypeScript',
+              value: 'ts',
+              hint: 'Type-safe (recommended)',
+            },
+            {label: 'JavaScript', value: 'js', hint: 'Simple and standard'},
+          ],
+        }),
+      );
+    });
+
+    it('should include descriptive hints for backend options', async () => {
+      await createAgent(getFreshOptions());
+
+      expect(select).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Choose a backend',
+          options: [
+            {
+              label: 'Google AI',
+              value: 'googleai',
+              hint: 'Quick start with API key',
+            },
+            {
+              label: 'Vertex AI',
+              value: 'vertex',
+              hint: 'Enterprise-ready GCP platform',
+            },
+          ],
+        }),
       );
     });
   });

@@ -6,6 +6,7 @@
 
 import {intro, isCancel, outro, spinner, text} from '@clack/prompts';
 import {BaseAgent, BaseSessionService, Runner} from '@google/adk';
+import {createInterface} from 'node:readline/promises';
 import {afterEach, beforeEach, describe, expect, it, Mock, vi} from 'vitest';
 import {runAgent} from '../../src/cli/cli_run.js';
 import {AgentFile} from '../../src/utils/agent_loader.js';
@@ -14,6 +15,10 @@ import {loadFileData, saveToFile} from '../../src/utils/file_utils.js';
 // Mock dependencies
 vi.mock('../../src/utils/agent_loader.js', () => ({
   AgentFile: vi.fn(),
+}));
+
+vi.mock('node:readline/promises', () => ({
+  createInterface: vi.fn(),
 }));
 
 vi.mock('../../src/utils/file_utils.js', () => ({
@@ -137,6 +142,23 @@ describe('cli_run', () => {
         events: [],
       }),
     }) as unknown as BaseSessionService;
+
+  /**
+   * Creates a mock readline interface (as returned by
+   * `readline.createInterface`) whose `question` method resolves with each
+   * value in `responses` in order, one per call.
+   */
+  const createMockReadlineInterface = (responses: string[]) => {
+    let callCount = 0;
+    return {
+      question: vi.fn().mockImplementation(async () => {
+        const response = responses[callCount];
+        callCount += 1;
+        return response;
+      }),
+      close: vi.fn(),
+    };
+  };
 
   it('should run from input file', async () => {
     const inputFileContent = {
@@ -661,6 +683,227 @@ describe('cli_run', () => {
       expect(mockSpinner.stop).toHaveBeenCalled();
       // start() should only be called once per query
       expect(mockSpinner.start).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('Non-TTY mode', () => {
+    beforeEach(() => {
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: false,
+        configurable: true,
+      });
+    });
+
+    it('should not call intro or outro when running interactively', async () => {
+      (createInterface as Mock).mockReturnValueOnce(
+        createMockReadlineInterface(['exit']),
+      );
+      const mockSessionService = createMockSessionService();
+
+      await runAgent({agentPath: 'agent.ts', sessionService: mockSessionService});
+
+      expect(intro).not.toHaveBeenCalled();
+      expect(outro).not.toHaveBeenCalled();
+    });
+
+    it('should not call intro or outro when resuming a saved session', async () => {
+      const sessionContent = {
+        id: 'old-session',
+        appName: 'test-agent',
+        userId: 'test_user',
+        events: [],
+      };
+      (loadFileData as Mock).mockResolvedValue(sessionContent);
+      (createInterface as Mock).mockReturnValueOnce(
+        createMockReadlineInterface(['exit']),
+      );
+      const mockSessionService = createMockSessionService();
+
+      await runAgent({
+        agentPath: 'agent.ts',
+        savedSessionFile: 'session.json',
+        sessionService: mockSessionService,
+      });
+
+      expect(intro).not.toHaveBeenCalled();
+      expect(outro).not.toHaveBeenCalled();
+    });
+
+    it('should use a readline interface instead of clack text prompts', async () => {
+      const mockRl = createMockReadlineInterface(['exit']);
+      (createInterface as Mock).mockReturnValueOnce(mockRl);
+      const mockSessionService = createMockSessionService();
+
+      await runAgent({agentPath: 'agent.ts', sessionService: mockSessionService});
+
+      expect(createInterface).toHaveBeenCalledWith({
+        input: process.stdin,
+        output: process.stdout,
+      });
+      expect(mockRl.question).toHaveBeenCalledWith('[user]: ');
+      expect(text).not.toHaveBeenCalled();
+    });
+
+    it('should process a user query received via readline before exiting', async () => {
+      (createInterface as Mock).mockReturnValueOnce(
+        createMockReadlineInterface(['Hello agent', 'exit']),
+      );
+      const mockSessionService = createMockSessionService();
+      const mockRunAsync = vi.fn().mockImplementation(async function* () {
+        yield {author: 'model', content: {parts: [{text: 'Response'}]}};
+      });
+      (Runner as unknown as Mock).mockImplementation(() => ({
+        runAsync: mockRunAsync,
+      }));
+
+      await runAgent({agentPath: 'agent.ts', sessionService: mockSessionService});
+
+      expect(mockRunAsync).toHaveBeenCalledTimes(1);
+      expect(mockRunAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          newMessage: {role: 'user', parts: [{text: 'Hello agent'}]},
+        }),
+      );
+    });
+
+    it('should skip empty or whitespace-only readline input without querying the runner', async () => {
+      (createInterface as Mock).mockReturnValueOnce(
+        createMockReadlineInterface(['', '   ', 'exit']),
+      );
+      const mockSessionService = createMockSessionService();
+      const mockRunAsync = vi.fn().mockImplementation(async function* () {});
+      (Runner as unknown as Mock).mockImplementation(() => ({
+        runAsync: mockRunAsync,
+      }));
+
+      await runAgent({agentPath: 'agent.ts', sessionService: mockSessionService});
+
+      expect(mockRunAsync).not.toHaveBeenCalled();
+    });
+
+    it('should exit the loop when the underlying readline stream ends (undefined)', async () => {
+      const mockRl = {
+        question: vi.fn().mockResolvedValue(undefined),
+        close: vi.fn(),
+      };
+      (createInterface as Mock).mockReturnValueOnce(mockRl);
+      const mockSessionService = createMockSessionService();
+      const mockRunAsync = vi.fn().mockImplementation(async function* () {});
+      (Runner as unknown as Mock).mockImplementation(() => ({
+        runAsync: mockRunAsync,
+      }));
+
+      await runAgent({agentPath: 'agent.ts', sessionService: mockSessionService});
+
+      expect(mockRunAsync).not.toHaveBeenCalled();
+      expect(mockRl.close).toHaveBeenCalled();
+    });
+
+    it('should close the readline interface after the interactive loop ends', async () => {
+      const mockRl = createMockReadlineInterface(['exit']);
+      (createInterface as Mock).mockReturnValueOnce(mockRl);
+      const mockSessionService = createMockSessionService();
+
+      await runAgent({agentPath: 'agent.ts', sessionService: mockSessionService});
+
+      expect(mockRl.close).toHaveBeenCalled();
+    });
+
+    it('should not create a spinner while processing queries interactively', async () => {
+      (createInterface as Mock).mockReturnValueOnce(
+        createMockReadlineInterface(['Hello agent', 'exit']),
+      );
+      const mockSessionService = createMockSessionService();
+      const mockRunAsync = vi.fn().mockImplementation(async function* () {
+        yield {author: 'model', content: {parts: [{text: 'Response'}]}};
+      });
+      (Runner as unknown as Mock).mockImplementation(() => ({
+        runAsync: mockRunAsync,
+      }));
+
+      await runAgent({agentPath: 'agent.ts', sessionService: mockSessionService});
+
+      expect(spinner).not.toHaveBeenCalled();
+    });
+
+    it('should not create a spinner while processing queries from an input file', async () => {
+      const inputFileContent = {
+        state: {},
+        queries: ['Query one'],
+      };
+      (loadFileData as Mock).mockResolvedValue(inputFileContent);
+      const mockSessionService = createMockSessionService();
+
+      await runAgent({
+        agentPath: 'agent.ts',
+        inputFile: 'input.json',
+        sessionService: mockSessionService,
+      });
+
+      expect(spinner).not.toHaveBeenCalled();
+    });
+
+    it('should prompt for a session ID via readline and use the typed value when saving', async () => {
+      (createInterface as Mock)
+        .mockReturnValueOnce(createMockReadlineInterface(['exit'])) // interactive loop
+        .mockReturnValueOnce(createMockReadlineInterface(['typed-session-id'])); // saveSession prompt
+      const mockSessionService = createMockSessionService();
+
+      await runAgent({
+        agentPath: 'agent.ts',
+        saveSession: true,
+        sessionService: mockSessionService,
+      });
+
+      expect(text).not.toHaveBeenCalled();
+      expect(saveToFile).toHaveBeenCalledWith(
+        expect.stringContaining('typed-session-id.session.json'),
+        expect.anything(),
+      );
+    });
+
+    it('should fall back to the default session ID when readline input is empty', async () => {
+      (createInterface as Mock)
+        .mockReturnValueOnce(createMockReadlineInterface(['exit'])) // interactive loop
+        .mockReturnValueOnce(createMockReadlineInterface([''])); // saveSession prompt, empty input
+      const mockSessionService = createMockSessionService();
+
+      await runAgent({
+        agentPath: 'agent.ts',
+        saveSession: true,
+        sessionService: mockSessionService,
+      });
+
+      expect(saveToFile).toHaveBeenCalledWith(
+        expect.stringMatching(/\.session\.json$/),
+        expect.anything(),
+      );
+      // The saved filename should not literally be "undefined" or empty.
+      const [savedPath] = (saveToFile as Mock).mock.calls[0];
+      expect(savedPath).not.toMatch(/undefined/);
+      expect(savedPath).not.toMatch(/^\.session\.json$/);
+    });
+
+    it('should not prompt for a session ID at all when sessionId option is provided', async () => {
+      (createInterface as Mock).mockReturnValueOnce(
+        createMockReadlineInterface(['exit']),
+      );
+      const mockSessionService = createMockSessionService();
+
+      await runAgent({
+        agentPath: 'agent.ts',
+        saveSession: true,
+        sessionId: 'explicit-session',
+        sessionService: mockSessionService,
+      });
+
+      // Only one readline interface should be created (for the interactive
+      // loop); none for the session-ID prompt since it was pre-supplied.
+      expect(createInterface).toHaveBeenCalledTimes(1);
+      expect(saveToFile).toHaveBeenCalledWith(
+        expect.stringContaining('explicit-session.session.json'),
+        expect.anything(),
+      );
     });
   });
 });
