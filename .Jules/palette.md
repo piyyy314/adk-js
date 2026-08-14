@@ -37,3 +37,7 @@
 ## 2025-06-18 - Consolidating vs. Removing CLI Lifecycle Elements
 **Learning:** Consolidating redundant `@clack/prompts` lifecycle elements (like multiple `intro` or `outro` calls) improves clarity, but removing them entirely degrades the 'delightful' themed experience; always maintain exactly one `intro` at the start and one `outro` at the end of a command execution. Also, be extremely careful with `pnpm install` in monorepos as it can generate unintended lockfiles that cause massive regressions.
 **Action:** Always verify that only one intro/outro pair remains and ensure all unintended lockfiles are removed before submission.
+
+## 2025-06-19 - Smooth Streaming in Terminal UIs
+**Learning:** Logging streaming chunks via `console.log` produces choppy, line-by-line output that degrades terminal UX. Using `process.stdout.write` when `process.stdout.isTTY` is true enables real-time smooth stream alignment while preserving non-TTY fallbacks.
+**Action:** Stream interactive model responses with `process.stdout.write` and append a single trailing newline (`\n`) once the streaming generator completes.

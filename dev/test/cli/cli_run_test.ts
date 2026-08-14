@@ -308,7 +308,9 @@ describe('cli_run', () => {
     (isCancel as unknown as Mock).mockReturnValue(true);
     const mockSessionService = createMockSessionService();
 
-    const mockRunAsync = vi.fn().mockImplementation(async function* () {});
+    const mockRunAsync = vi.fn().mockImplementation(async function* () {
+      yield* [];
+    });
     (Runner as unknown as Mock).mockImplementation(() => ({
       runAsync: mockRunAsync,
     }));
@@ -331,7 +333,9 @@ describe('cli_run', () => {
     (isCancel as unknown as Mock).mockReturnValue(false);
     const mockSessionService = createMockSessionService();
 
-    const mockRunAsync = vi.fn().mockImplementation(async function* () {});
+    const mockRunAsync = vi.fn().mockImplementation(async function* () {
+      yield* [];
+    });
     (Runner as unknown as Mock).mockImplementation(() => ({
       runAsync: mockRunAsync,
     }));
@@ -632,7 +636,9 @@ describe('cli_run', () => {
       (isCancel as unknown as Mock).mockReturnValue(false);
       const mockSessionService = createMockSessionService();
 
-      const mockRunAsync = vi.fn().mockImplementation(async function* () {});
+      const mockRunAsync = vi.fn().mockImplementation(async function* () {
+        yield* [];
+      });
       (Runner as unknown as Mock).mockImplementation(() => ({
         runAsync: mockRunAsync,
       }));
