@@ -162,8 +162,11 @@ async function runInteractively(
       }
       return true;
     }
-    if (query === 'exit') {
-      return false;
+    if (typeof query === 'string') {
+      const normalizedQuery = query.trim().toLowerCase();
+      if (normalizedQuery === 'exit' || normalizedQuery === 'quit') {
+        return false;
+      }
     }
     if (typeof query !== 'string' || !query.trim()) {
       continue;
@@ -320,10 +323,8 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
         return;
       }
 
-      const sessionPath = path.join(
-        options.agentPath,
-        `${sessionId}.session.json`,
-      );
+      const agentDir = path.dirname(options.agentPath);
+      const sessionPath = path.join(agentDir, `${sessionId}.session.json`);
       const sessionToStore = await sessionService.getSession({
         appName: session.appName,
         userId: session.userId,
