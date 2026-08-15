@@ -6,6 +6,7 @@
 
 import {intro, isCancel, outro, spinner, text} from '@clack/prompts';
 import {BaseAgent, BaseSessionService, Runner} from '@google/adk';
+import * as path from 'node:path';
 import {createInterface} from 'node:readline';
 import {afterEach, beforeEach, describe, expect, it, Mock, vi} from 'vitest';
 import {runAgent} from '../../src/cli/cli_run.js';
@@ -243,7 +244,7 @@ describe('cli_run', () => {
     });
 
     expect(saveToFile).toHaveBeenCalledWith(
-      expect.stringContaining('my_folder/my-session.session.json'),
+      expect.stringContaining(path.join('my_folder', 'my-session.session.json')),
       expect.anything(),
     );
   });
