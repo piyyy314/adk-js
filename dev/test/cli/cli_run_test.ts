@@ -244,14 +244,15 @@ describe('cli_run', () => {
     });
 
     expect(saveToFile).toHaveBeenCalledWith(
-      expect.stringContaining(path.join('my_folder', 'my-session.session.json')),
+      expect.stringContaining(
+        path.join('my_folder', 'my-session.session.json'),
+      ),
       expect.anything(),
     );
   });
 
   it('should exit interactive loop when user inputs exit or quit case-insensitively', async () => {
-    (text as Mock)
-      .mockResolvedValueOnce('QUIT');
+    (text as Mock).mockResolvedValueOnce('QUIT');
     (isCancel as unknown as Mock).mockReturnValue(false);
     const mockSessionService = createMockSessionService();
 
