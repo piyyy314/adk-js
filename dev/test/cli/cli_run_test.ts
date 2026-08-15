@@ -232,20 +232,34 @@ describe('cli_run', () => {
     expect(outro).toHaveBeenCalledWith('Happy Agent Building!');
   });
 
-  it('should save session when requested', async () => {
+  it('should save session when requested in the agent directory', async () => {
     const mockSessionService = createMockSessionService();
     // Run interactively then exit
     await runAgent({
-      agentPath: 'agent.ts',
+      agentPath: 'my_folder/agent.ts',
       saveSession: true,
       sessionId: 'my-session',
       sessionService: mockSessionService,
     });
 
     expect(saveToFile).toHaveBeenCalledWith(
-      expect.stringContaining('my-session.session.json'),
+      expect.stringContaining('my_folder/my-session.session.json'),
       expect.anything(),
     );
+  });
+
+  it('should exit interactive loop when user inputs exit or quit case-insensitively', async () => {
+    (text as Mock)
+      .mockResolvedValueOnce('QUIT');
+    (isCancel as unknown as Mock).mockReturnValue(false);
+    const mockSessionService = createMockSessionService();
+
+    await runAgent({
+      agentPath: 'agent.ts',
+      sessionService: mockSessionService,
+    });
+
+    expect(outro).toHaveBeenCalledWith('Happy Agent Building!');
   });
 
   it('should NOT save session if interaction is cancelled', async () => {
