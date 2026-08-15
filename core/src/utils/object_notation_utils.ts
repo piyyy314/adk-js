@@ -75,12 +75,7 @@ function toNotation(
           preservedSet,
         );
       } else {
-        result[convertedKey] = toNotation(
-          source[key],
-          converter,
-          '',
-          null,
-        );
+        result[convertedKey] = toNotation(source[key], converter, '', null);
       }
     }
 
