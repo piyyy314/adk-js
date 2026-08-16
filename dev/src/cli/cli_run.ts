@@ -162,11 +162,12 @@ async function runInteractively(
       }
       return true;
     }
-    if (query === 'exit') {
-      return false;
-    }
     if (typeof query !== 'string' || !query.trim()) {
       continue;
+    }
+    const normalizedQuery = query.trim().toLowerCase();
+    if (normalizedQuery === 'exit' || normalizedQuery === 'quit') {
+      return false;
     }
 
     const s = process.stdout.isTTY ? spinner() : null;
