@@ -474,8 +474,9 @@ async function linkProjectNodeModules(
   }
 
   try {
+    const realNodeModulesDir = await fsPromises.realpath(nodeModulesDir);
     await fsPromises.symlink(
-      path.resolve(nodeModulesDir),
+      realNodeModulesDir,
       linkPath,
       process.platform === 'win32' ? 'junction' : 'dir',
     );
