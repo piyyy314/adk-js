@@ -96,7 +96,10 @@ export class LLMRegistry {
       modelNameRegex instanceof RegExp ? modelNameRegex.flags : undefined,
     );
 
-    LLMRegistry.llmRegistryDict.set(modelNameRegex, {pattern, llmClass: llmCls});
+    LLMRegistry.llmRegistryDict.set(modelNameRegex, {
+      pattern,
+      llmClass: llmCls,
+    });
     // Invalidate resolveCache whenever new models are registered or updated.
     LLMRegistry.resolveCache.clear();
   }
