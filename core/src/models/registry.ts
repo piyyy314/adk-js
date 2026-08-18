@@ -58,9 +58,12 @@ class LRUCache<K, V> {
 export class LLMRegistry {
   /**
    * Key is the regex that matches the model name.
-   * Value is the class that implements the model.
+   * Value is an object with the class that implements the model and the compiled fullmatch RegExp.
    */
-  private static llmRegistryDict: Map<string | RegExp, BaseLlmType> = new Map();
+  private static llmRegistryDict: Map<
+    string | RegExp,
+    {llmClass: BaseLlmType; compiledPattern: RegExp}
+  > = new Map();
   private static resolveCache = new LRUCache<string, BaseLlmType>(32);
 
   /**
@@ -78,10 +81,19 @@ export class LLMRegistry {
   ) {
     if (LLMRegistry.llmRegistryDict.has(modelNameRegex)) {
       logger.info(
-        `Updating LLM class for ${modelNameRegex} from ${LLMRegistry.llmRegistryDict.get(modelNameRegex)} to ${llmCls}`,
+        `Updating LLM class for ${modelNameRegex} from ${LLMRegistry.llmRegistryDict.get(modelNameRegex)?.llmClass} to ${llmCls}`,
       );
     }
-    LLMRegistry.llmRegistryDict.set(modelNameRegex, llmCls);
+    // Pre-compile and cache the fullmatch RegExp anchored with ^ and $
+    // to avoid re-compiling RegExp objects on every resolve cache miss.
+    const compiledPattern = new RegExp(
+      `^${modelNameRegex instanceof RegExp ? modelNameRegex.source : modelNameRegex}$`,
+      modelNameRegex instanceof RegExp ? modelNameRegex.flags : undefined,
+    );
+    LLMRegistry.llmRegistryDict.set(modelNameRegex, {
+      llmClass: llmCls,
+      compiledPattern,
+    });
   }
 
   /**
@@ -110,15 +122,10 @@ export class LLMRegistry {
       return cachedLlm;
     }
 
-    for (const [regex, llmClass] of LLMRegistry.llmRegistryDict.entries()) {
-      // Replicates Python's `re.fullmatch` by anchoring the regex
-      // to the start (^) and end ($) of the string.
-      // TODO - b/425992518: validate it works well.
-      const pattern = new RegExp(
-        `^${regex instanceof RegExp ? regex.source : regex}$`,
-        regex instanceof RegExp ? regex.flags : undefined,
-      );
-      if (pattern.test(model)) {
+    for (const {llmClass, compiledPattern} of LLMRegistry.llmRegistryDict.values()) {
+      // Reset lastIndex defensively in case the RegExp has global or sticky flags
+      compiledPattern.lastIndex = 0;
+      if (compiledPattern.test(model)) {
         LLMRegistry.resolveCache.set(model, llmClass);
         return llmClass;
       }
