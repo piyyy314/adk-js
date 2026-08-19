@@ -162,10 +162,12 @@ async function runInteractively(
       }
       return true;
     }
-    if (query === 'exit') {
+    const normalizedQuery =
+      typeof query === 'string' ? query.trim().toLowerCase() : '';
+    if (normalizedQuery === 'exit' || normalizedQuery === 'quit') {
       return false;
     }
-    if (typeof query !== 'string' || !query.trim()) {
+    if (!normalizedQuery) {
       continue;
     }
 
