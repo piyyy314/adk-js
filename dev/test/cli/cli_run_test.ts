@@ -482,6 +482,29 @@ describe('cli_run', () => {
     );
   });
 
+  it('should handle case-insensitive exit commands like "quit", "QUIT", "EXIT"', async () => {
+    const exitInputs = ['quit', 'QUIT', '  EXIT  ', 'Exit'];
+    for (const exitInput of exitInputs) {
+      (text as Mock).mockReset();
+      (text as Mock).mockResolvedValueOnce(exitInput);
+      (isCancel as unknown as Mock).mockReturnValue(false);
+      const mockSessionService = createMockSessionService();
+
+      const mockRunAsync = vi.fn();
+      (Runner as unknown as Mock).mockImplementation(() => ({
+        runAsync: mockRunAsync,
+      }));
+
+      await runAgent({
+        agentPath: 'agent.ts',
+        sessionService: mockSessionService,
+      });
+
+      expect(mockRunAsync).not.toHaveBeenCalled();
+      expect(outro).toHaveBeenCalledWith('Happy Agent Building!');
+    }
+  });
+
   it('should call outro after completing savedSessionFile interaction', async () => {
     const sessionContent = {
       id: 'old-session',
