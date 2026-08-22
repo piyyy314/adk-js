@@ -46,9 +46,7 @@ const toCamelCaseKey = (key: string) =>
 
 // Optimization: Skip regex replace engine if key contains no uppercase characters.
 const toSnakeCaseKey = (key: string) =>
-  /[A-Z]/.test(key)
-    ? key.replace(/[A-Z]/g, (g) => '_' + g.toLowerCase())
-    : key;
+  /[A-Z]/.test(key) ? key.replace(/[A-Z]/g, (g) => '_' + g.toLowerCase()) : key;
 
 function toNotation(
   obj: unknown,
