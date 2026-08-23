@@ -116,7 +116,7 @@ async function* getQueries(): AsyncGenerator<string | symbol, void, unknown> {
     while (true) {
       const input = await text({
         message: 'Message',
-        placeholder: 'Type your message here (or "exit" to quit)...',
+        placeholder: 'Type your message here (or "exit" / "quit" to leave)...',
       });
       yield input;
     }
@@ -162,7 +162,11 @@ async function runInteractively(
       }
       return true;
     }
-    if (query === 'exit') {
+    if (
+      typeof query === 'string' &&
+      (query.trim().toLowerCase() === 'exit' ||
+        query.trim().toLowerCase() === 'quit')
+    ) {
       return false;
     }
     if (typeof query !== 'string' || !query.trim()) {

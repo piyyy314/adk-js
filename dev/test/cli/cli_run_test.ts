@@ -482,6 +482,29 @@ describe('cli_run', () => {
     );
   });
 
+  it('should cleanly terminate interactive mode on case-insensitive exit or quit commands', async () => {
+    for (const exitCmd of ['quit', 'QUIT', 'Quit', 'Exit', '  exit  ']) {
+      vi.clearAllMocks();
+      (text as Mock).mockResolvedValueOnce(exitCmd);
+      (isCancel as unknown as Mock).mockReturnValue(false);
+      const mockSessionService = createMockSessionService();
+      const mockRunAsync = vi.fn().mockImplementation(async function* () {
+        yield* [];
+      });
+      (Runner as unknown as Mock).mockImplementation(() => ({
+        runAsync: mockRunAsync,
+      }));
+
+      await runAgent({
+        agentPath: 'agent.ts',
+        sessionService: mockSessionService,
+      });
+
+      expect(mockRunAsync).not.toHaveBeenCalled();
+      expect(outro).toHaveBeenCalledWith('Happy Agent Building!');
+    }
+  });
+
   it('should call outro after completing savedSessionFile interaction', async () => {
     const sessionContent = {
       id: 'old-session',
