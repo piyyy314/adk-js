@@ -350,8 +350,7 @@ describe('cli_run', () => {
   });
 
   it('should exit interactive loop gracefully on "quit", "QUIT", "EXIT", or padded exit commands', async () => {
-    (text as Mock)
-      .mockResolvedValueOnce('quit');
+    (text as Mock).mockResolvedValueOnce('quit');
     (isCancel as unknown as Mock).mockReturnValue(false);
     const mockSessionService = createMockSessionService();
 
