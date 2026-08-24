@@ -349,6 +349,28 @@ describe('cli_run', () => {
     expect(mockRunAsync).not.toHaveBeenCalled();
   });
 
+  it('should exit interactive loop gracefully on "quit", "QUIT", "EXIT", or padded exit commands', async () => {
+    (text as Mock)
+      .mockResolvedValueOnce('quit');
+    (isCancel as unknown as Mock).mockReturnValue(false);
+    const mockSessionService = createMockSessionService();
+
+    const mockRunAsync = vi.fn().mockImplementation(async function* () {
+      yield* [];
+    });
+    (Runner as unknown as Mock).mockImplementation(() => ({
+      runAsync: mockRunAsync,
+    }));
+
+    await runAgent({
+      agentPath: 'agent.ts',
+      sessionService: mockSessionService,
+    });
+
+    expect(mockRunAsync).not.toHaveBeenCalled();
+    expect(outro).toHaveBeenCalledWith('Happy Agent Building!');
+  });
+
   it('should not call intro or outro when running from input file', async () => {
     const inputFileContent = {
       state: {foo: 'bar'},
