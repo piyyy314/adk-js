@@ -1,0 +1,3 @@
+## 2026-08-24 - Pre-building Sets for Key Preservation and Fast-Path Regex Checks in Object Notation Conversion
+**Learning:** `toCamelCase` and `toSnakeCase` are called on every event serialization and deserialization. Passing `preserveKeys` as an array caused $O(N)$ string lookup overhead per object property, and running regex replacement on keys without underscores/uppercase letters generated unnecessary overhead and intermediate string allocations.
+**Action:** Always accept `ReadonlySet<string>` alongside `string[]` in notation converters and pre-instantiate `Set`s statically for constant preserve key lists. Use fast string checks (`includes('_')` or `/[A-Z]/.test()`) before applying regex replacements.
