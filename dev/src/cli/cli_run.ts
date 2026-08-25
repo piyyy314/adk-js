@@ -162,8 +162,11 @@ async function runInteractively(
       }
       return true;
     }
-    if (query === 'exit') {
-      return false;
+    if (typeof query === 'string') {
+      const normalized = query.trim().toLowerCase();
+      if (normalized === 'exit' || normalized === 'quit') {
+        return false;
+      }
     }
     if (typeof query !== 'string' || !query.trim()) {
       continue;

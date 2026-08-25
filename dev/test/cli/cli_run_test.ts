@@ -451,6 +451,30 @@ describe('cli_run', () => {
     expect(outro).toHaveBeenCalledWith('Run failed');
   });
 
+  it('should exit interaction loop on case-insensitive "EXIT", "Quit", etc.', async () => {
+    const mockSessionService = createMockSessionService();
+    const mockRunAsync = vi.fn().mockImplementation(async function* () {
+      yield* [];
+    });
+    (Runner as unknown as Mock).mockImplementation(() => ({
+      runAsync: mockRunAsync,
+    }));
+
+    (text as Mock).mockResolvedValueOnce('EXIT');
+    await runAgent({
+      agentPath: 'agent.ts',
+      sessionService: mockSessionService,
+    });
+    expect(mockRunAsync).not.toHaveBeenCalled();
+
+    (text as Mock).mockResolvedValueOnce('  quit  ');
+    await runAgent({
+      agentPath: 'agent.ts',
+      sessionService: mockSessionService,
+    });
+    expect(mockRunAsync).not.toHaveBeenCalled();
+  });
+
   it('should process user query before exiting', async () => {
     (text as Mock)
       .mockResolvedValueOnce('Hello agent') // First query
