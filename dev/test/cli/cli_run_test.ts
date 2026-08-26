@@ -451,6 +451,19 @@ describe('cli_run', () => {
     expect(outro).toHaveBeenCalledWith('Run failed');
   });
 
+  it('should exit cleanly when user types "quit" or "EXIT" case-insensitively', async () => {
+    (text as Mock).mockResolvedValueOnce('QUIT');
+    (isCancel as unknown as Mock).mockReturnValue(false);
+    const mockSessionService = createMockSessionService();
+
+    await runAgent({
+      agentPath: 'agent.ts',
+      sessionService: mockSessionService,
+    });
+
+    expect(outro).toHaveBeenCalledWith('Happy Agent Building!');
+  });
+
   it('should process user query before exiting', async () => {
     (text as Mock)
       .mockResolvedValueOnce('Hello agent') // First query
