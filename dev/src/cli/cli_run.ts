@@ -116,7 +116,7 @@ async function* getQueries(): AsyncGenerator<string | symbol, void, unknown> {
     while (true) {
       const input = await text({
         message: 'Message',
-        placeholder: 'Type your message here (or "exit" to quit)...',
+        placeholder: 'Type your message here (or "exit"/"quit" to exit)...',
       });
       yield input;
     }
@@ -162,8 +162,11 @@ async function runInteractively(
       }
       return true;
     }
-    if (query === 'exit') {
-      return false;
+    if (typeof query === 'string') {
+      const lower = query.trim().toLowerCase();
+      if (lower === 'exit' || lower === 'quit') {
+        return false;
+      }
     }
     if (typeof query !== 'string' || !query.trim()) {
       continue;
