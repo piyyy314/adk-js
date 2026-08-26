@@ -16,8 +16,7 @@ export function toCamelCase(
   preserveKeys: string[] = [],
 ): unknown {
   // Convert preserveKeys array to a Set for O(1) lookup when set is non-empty.
-  const preserveSet =
-    preserveKeys.length > 0 ? new Set(preserveKeys) : null;
+  const preserveSet = preserveKeys.length > 0 ? new Set(preserveKeys) : null;
   return toNotation(obj, toCamelCaseKey, '', preserveSet);
 }
 
@@ -33,8 +32,7 @@ export function toSnakeCase(
   preserveKeys: string[] = [],
 ): unknown {
   // Convert preserveKeys array to a Set for O(1) lookup when set is non-empty.
-  const preserveSet =
-    preserveKeys.length > 0 ? new Set(preserveKeys) : null;
+  const preserveSet = preserveKeys.length > 0 ? new Set(preserveKeys) : null;
   return toNotation(obj, toSnakeCaseKey, '', preserveSet);
 }
 
@@ -50,9 +48,7 @@ const toCamelCaseKey = (key: string) =>
 // Optimization: Fast-path check using RegExp test before regex replace.
 // Avoids regex replacement allocations for keys without uppercase letters.
 const toSnakeCaseKey = (key: string) =>
-  /[A-Z]/.test(key)
-    ? key.replace(/[A-Z]/g, (g) => '_' + g.toLowerCase())
-    : key;
+  /[A-Z]/.test(key) ? key.replace(/[A-Z]/g, (g) => '_' + g.toLowerCase()) : key;
 
 function toNotation(
   obj: unknown,
