@@ -197,6 +197,8 @@ const PRESERVE_KEYS_CAMEL_CASE = [
   'content.parts.functionResponse.response',
 ];
 
+const PRESERVE_KEYS_CAMEL_CASE_SET = new Set(PRESERVE_KEYS_CAMEL_CASE);
+
 /**
  * List of keys to preserve during camelCase to snake_case conversion.
  *
@@ -215,6 +217,8 @@ const PRESERVE_KEYS_SNAKE_CASE = [
   'content.parts.function_response.response',
 ];
 
+const PRESERVE_KEYS_SNAKE_CASE_SET = new Set(PRESERVE_KEYS_SNAKE_CASE);
+
 /**
  * Transforms a snake_cased event object to a camelCased Event object.
  *
@@ -224,7 +228,7 @@ const PRESERVE_KEYS_SNAKE_CASE = [
 export function transformToCamelCaseEvent(
   event: Record<string, unknown>,
 ): Event {
-  return toCamelCase(event, PRESERVE_KEYS_SNAKE_CASE) as Event;
+  return toCamelCase(event, PRESERVE_KEYS_SNAKE_CASE_SET) as Event;
 }
 
 /**
@@ -236,7 +240,7 @@ export function transformToCamelCaseEvent(
 export function transformToSnakeCaseEvent(
   event: Event,
 ): Record<string, unknown> {
-  return toSnakeCase(event, PRESERVE_KEYS_CAMEL_CASE) as Record<
+  return toSnakeCase(event, PRESERVE_KEYS_CAMEL_CASE_SET) as Record<
     string,
     unknown
   >;
