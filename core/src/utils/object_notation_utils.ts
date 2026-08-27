@@ -16,9 +16,7 @@ export function toCamelCase(
   preserveKeys: string[] | ReadonlySet<string> = [],
 ): unknown {
   const preserveSet =
-    preserveKeys instanceof Set
-      ? preserveKeys
-      : new Set(preserveKeys);
+    preserveKeys instanceof Set ? preserveKeys : new Set(preserveKeys);
   return toNotation(obj, toCamelCaseKey, '', preserveSet);
 }
 
@@ -34,9 +32,7 @@ export function toSnakeCase(
   preserveKeys: string[] | ReadonlySet<string> = [],
 ): unknown {
   const preserveSet =
-    preserveKeys instanceof Set
-      ? preserveKeys
-      : new Set(preserveKeys);
+    preserveKeys instanceof Set ? preserveKeys : new Set(preserveKeys);
   return toNotation(obj, toSnakeCaseKey, '', preserveSet);
 }
 
