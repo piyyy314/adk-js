@@ -57,10 +57,13 @@ class LRUCache<K, V> {
  */
 export class LLMRegistry {
   /**
-   * Key is the regex that matches the model name.
-   * Value is the class that implements the model.
+   * Key is the regex pattern or string provided at registration.
+   * Value contains the pre-compiled fullmatch RegExp and the associated BaseLlmType.
    */
-  private static llmRegistryDict: Map<string | RegExp, BaseLlmType> = new Map();
+  private static llmRegistryDict: Map<
+    string | RegExp,
+    {compiledRegex: RegExp; llmClass: BaseLlmType}
+  > = new Map();
   private static resolveCache = new LRUCache<string, BaseLlmType>(32);
 
   /**
@@ -76,12 +79,24 @@ export class LLMRegistry {
     modelNameRegex: string | RegExp,
     llmCls: BaseLlmType,
   ) {
-    if (LLMRegistry.llmRegistryDict.has(modelNameRegex)) {
+    const existing = LLMRegistry.llmRegistryDict.get(modelNameRegex);
+    if (existing) {
       logger.info(
-        `Updating LLM class for ${modelNameRegex} from ${LLMRegistry.llmRegistryDict.get(modelNameRegex)} to ${llmCls}`,
+        `Updating LLM class for ${modelNameRegex} from ${existing.llmClass} to ${llmCls}`,
       );
     }
-    LLMRegistry.llmRegistryDict.set(modelNameRegex, llmCls);
+
+    // Performance Optimization: Pre-compile anchored fullmatch RegExp at registration
+    // to avoid re-instantiating and compiling `new RegExp` on every cache miss in `resolve`.
+    const compiledRegex = new RegExp(
+      `^${modelNameRegex instanceof RegExp ? modelNameRegex.source : modelNameRegex}$`,
+      modelNameRegex instanceof RegExp ? modelNameRegex.flags : undefined,
+    );
+
+    LLMRegistry.llmRegistryDict.set(modelNameRegex, {
+      compiledRegex,
+      llmClass: llmCls,
+    });
   }
 
   /**
@@ -110,15 +125,13 @@ export class LLMRegistry {
       return cachedLlm;
     }
 
-    for (const [regex, llmClass] of LLMRegistry.llmRegistryDict.entries()) {
-      // Replicates Python's `re.fullmatch` by anchoring the regex
-      // to the start (^) and end ($) of the string.
-      // TODO - b/425992518: validate it works well.
-      const pattern = new RegExp(
-        `^${regex instanceof RegExp ? regex.source : regex}$`,
-        regex instanceof RegExp ? regex.flags : undefined,
-      );
-      if (pattern.test(model)) {
+    for (const {
+      compiledRegex,
+      llmClass,
+    } of LLMRegistry.llmRegistryDict.values()) {
+      // Reset lastIndex defensively before testing pre-compiled RegExp
+      compiledRegex.lastIndex = 0;
+      if (compiledRegex.test(model)) {
         LLMRegistry.resolveCache.set(model, llmClass);
         return llmClass;
       }
