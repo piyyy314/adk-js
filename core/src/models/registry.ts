@@ -125,7 +125,10 @@ export class LLMRegistry {
       return cachedLlm;
     }
 
-    for (const {compiledRegex, llmClass} of LLMRegistry.llmRegistryDict.values()) {
+    for (const {
+      compiledRegex,
+      llmClass,
+    } of LLMRegistry.llmRegistryDict.values()) {
       // Reset lastIndex defensively before testing pre-compiled RegExp
       compiledRegex.lastIndex = 0;
       if (compiledRegex.test(model)) {
