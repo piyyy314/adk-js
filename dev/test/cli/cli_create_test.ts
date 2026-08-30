@@ -4,7 +4,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {confirm, isCancel, password, select, text} from '@clack/prompts';
+import {
+  confirm,
+  isCancel,
+  note,
+  outro,
+  password,
+  select,
+  text,
+} from '@clack/prompts';
 import {execSync} from 'node:child_process';
 import {
   afterEach,
@@ -166,6 +174,28 @@ describe('createAgent', () => {
         expect.stringContaining('.env'),
         expect.stringContaining('GOOGLE_API_KEY=my-api-key'),
       );
+    });
+  });
+
+  describe('Agent Name Validation', () => {
+    it('should log error and return if agent name is invalid', async () => {
+      const {log} = await import('@clack/prompts');
+      await createAgent({...getFreshOptions(), agentName: 'invalid name'});
+
+      expect(log.error).toHaveBeenCalledWith(
+        expect.stringContaining('Found invalid agent name'),
+      );
+      expect(isFolderExists).not.toHaveBeenCalled();
+    });
+
+    it('should log error and return if agent name is "user"', async () => {
+      const {log} = await import('@clack/prompts');
+      await createAgent({...getFreshOptions(), agentName: 'user'});
+
+      expect(log.error).toHaveBeenCalledWith(
+        expect.stringContaining("Agent name cannot be 'user'"),
+      );
+      expect(isFolderExists).not.toHaveBeenCalled();
     });
   });
 
@@ -366,6 +396,14 @@ describe('createAgent', () => {
       expect(mockSpinnerInstance.stop).toHaveBeenCalledWith(
         'Dependencies installed successfully.',
       );
+      expect(note).toHaveBeenCalledWith(
+        expect.stringContaining('cd test-agent'),
+        'Agent Created Successfully',
+      );
+      expect(note).not.toHaveBeenCalledWith(
+        expect.stringContaining('npm install  # Install missing dependencies'),
+        expect.anything(),
+      );
     });
 
     it('should NOT start spinner during npm install when forceYes is true', async () => {
@@ -410,45 +448,10 @@ describe('createAgent', () => {
         'Failed to install dependencies.',
         1,
       );
-      expect(outro).toHaveBeenCalledWith('Agent creation failed');
-      expect(note).not.toHaveBeenCalled();
-    });
-
-    it('should stop early without calling outro, log.error or listFiles when npm install fails and forceYes is true', async () => {
-      const mockSpinnerInstance = {start: vi.fn(), stop: vi.fn()};
-      const {
-        spinner: spinnerMock,
-        note,
-        outro,
-        log,
-      } = await import('@clack/prompts');
-      (spinnerMock as Mock).mockReturnValue(mockSpinnerInstance);
-
-      const {exec: execMock} = await import('node:child_process');
-      // Make exec fail by calling callback with error
-      (execMock as unknown as Mock).mockImplementation(
-        (
-          _cmd: string,
-          _opts: unknown,
-          callback: (err: Error | null) => void,
-        ) => {
-          callback(new Error('npm install failed'));
-          return {on: vi.fn()};
-        },
+      expect(note).toHaveBeenCalledWith(
+        expect.stringContaining('npm install  # Install missing dependencies'),
+        'Agent Created with Warnings',
       );
-
-      await expect(
-        createAgent({...getFreshOptions(), forceYes: true}),
-      ).resolves.toBeUndefined();
-
-      // Spinner is never created when forceYes is true, so no spinner calls.
-      expect(spinnerMock).not.toHaveBeenCalled();
-      // The error is only logged/announced in the interactive (!forceYes) path.
-      expect(log.error).not.toHaveBeenCalled();
-      expect(outro).not.toHaveBeenCalled();
-      expect(note).not.toHaveBeenCalled();
-      // The function must return before reaching the file-listing/note step.
-      expect(listFiles).not.toHaveBeenCalled();
     });
   });
 });

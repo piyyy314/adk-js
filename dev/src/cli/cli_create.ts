@@ -141,6 +141,21 @@ async function getGcpRegion(): Promise<string> {
   }
 }
 
+function isIdentifier(str: string): boolean {
+  return /^[\p{ID_Start}$_][\p{ID_Continue}$_-]*$/u.test(str);
+}
+
+function validateAgentName(name: string): string | undefined {
+  if (!isIdentifier(name)) {
+    return `Found invalid agent name: "${name}". Agent name must be a valid identifier. It should start with a letter (a-z, A-Z) or an underscore (_), and can only contain letters, digits (0-9), underscores, and hyphens.`;
+  }
+
+  if (name === 'user') {
+    return `Agent name cannot be 'user'. 'user' is reserved for end-user's input.`;
+  }
+  return undefined;
+}
+
 async function generateAgentFolder(
   agentDir: string,
   forceYes: boolean,
@@ -209,10 +224,18 @@ async function generateFiles(options: AgentCreationOptions) {
 }
 
 export async function createAgent(options: AgentCreationOptions) {
+  const agentNameError = validateAgentName(options.agentName);
+  if (agentNameError) {
+    log.error(agentNameError);
+    return;
+  }
+
   if (!options.forceYes && process.stdout.isTTY) intro('Agent Creation');
   const agentDir = path.join(dirname, options.agentName);
   const folderReady = await generateAgentFolder(agentDir, options.forceYes);
   if (!folderReady) {
+    if (!options.forceYes && process.stdout.isTTY)
+      outro('Agent creation aborted.');
     return;
   }
 
@@ -367,6 +390,7 @@ export async function createAgent(options: AgentCreationOptions) {
 
   const s = !options.forceYes ? spinner() : null;
   s?.start('Installing dependencies...');
+  let installSucceeded = true;
   try {
     if (options.language === 'ts') {
       await execPromise(`npm install typescript --save-dev`, {cwd: agentDir});
@@ -379,6 +403,7 @@ export async function createAgent(options: AgentCreationOptions) {
     );
     s?.stop('Dependencies installed successfully.');
   } catch (e) {
+    installSucceeded = false;
     s?.stop('Failed to install dependencies.', 1);
     if (!options.forceYes) {
       log.error(`Error: ${(e as Error).message}`);
@@ -390,14 +415,27 @@ export async function createAgent(options: AgentCreationOptions) {
   const files = await listFiles(agentDir);
 
   if (!options.forceYes) {
+    let nextSteps =
+      `  cd ${options.agentName}\n` +
+      `  npm run web  # Start the agent in a web interface\n` +
+      `  npm run cli  # Interact with the agent in the terminal`;
+
+    if (!installSucceeded) {
+      nextSteps =
+        `  cd ${options.agentName}\n` +
+        `  npm install  # Install missing dependencies\n` +
+        `  npm run web  # Start the agent in a web interface\n` +
+        `  npm run cli  # Interact with the agent in the terminal`;
+    }
+
     note(
       `Created the following files in ${agentDir}:\n` +
         files.map((file) => `  - ${file}`).join('\n') +
         `\n\nTo get started, run:\n` +
-        `  cd ${options.agentName}\n` +
-        `  npm run web  # Start the agent in a web interface\n` +
-        `  npm run cli  # Interact with the agent in the terminal`,
-      'Agent Created Successfully',
+        nextSteps,
+      installSucceeded
+        ? 'Agent Created Successfully'
+        : 'Agent Created with Warnings',
     );
 
     if (process.stdout.isTTY) outro('Happy Agent Building!');
