@@ -15,7 +15,8 @@ export function toCamelCase(
   obj: unknown,
   preserveKeys: string[] = [],
 ): unknown {
-  return toNotation(obj, toCamelCaseKey, '', preserveKeys);
+  const preserveSet = preserveKeys.length > 0 ? new Set(preserveKeys) : null;
+  return toNotation(obj, toCamelCaseKey, '', preserveSet);
 }
 
 /**
@@ -29,7 +30,8 @@ export function toSnakeCase(
   obj: unknown,
   preserveKeys: string[] = [],
 ): unknown {
-  return toNotation(obj, toSnakeCaseKey, '', preserveKeys);
+  const preserveSet = preserveKeys.length > 0 ? new Set(preserveKeys) : null;
+  return toNotation(obj, toSnakeCaseKey, '', preserveSet);
 }
 
 const toCamelCaseKey = (key: string) =>
@@ -44,11 +46,11 @@ function toNotation(
   obj: unknown,
   converter: (key: string) => string,
   parentKey: string = '',
-  preserveKeys: string[] = [],
+  preserveSet: Set<string> | null = null,
 ): unknown {
   if (Array.isArray(obj)) {
     return obj.map((item) =>
-      toNotation(item, converter, parentKey, preserveKeys),
+      toNotation(item, converter, parentKey, preserveSet),
     );
   }
 
@@ -58,16 +60,27 @@ function toNotation(
 
     for (const key of Object.keys(source)) {
       const convertedKey = converter(key);
-      const fullPath = parentKey !== '' ? parentKey + '.' + key : key;
 
-      if (preserveKeys.includes(fullPath)) {
-        result[convertedKey] = source[key];
-      } else {
+      // Performance optimization: Avoid string concatenation for path tracking
+      // when preserveSet is null/empty. Use O(1) Set.has() lookup when provided.
+      if (preserveSet !== null) {
+        const fullPath = parentKey !== '' ? parentKey + '.' + key : key;
+        if (preserveSet.has(fullPath)) {
+          result[convertedKey] = source[key];
+          continue;
+        }
         result[convertedKey] = toNotation(
           source[key],
           converter,
           fullPath,
-          preserveKeys,
+          preserveSet,
+        );
+      } else {
+        result[convertedKey] = toNotation(
+          source[key],
+          converter,
+          '',
+          null,
         );
       }
     }
