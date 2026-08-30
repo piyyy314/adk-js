@@ -63,6 +63,8 @@ export function base64Decode(data: string): string {
   return Buffer.from(data, 'base64').toString();
 }
 
+const NON_BASE64_CHARS = /[^A-Za-z0-9+/=\s]/;
+
 /**
  * Checks if the given string is base64-encoded.
  *
@@ -70,6 +72,9 @@ export function base64Decode(data: string): string {
  * @return True if the string is base64-encoded, false otherwise.
  */
 export function isBase64Encoded(data: string): boolean {
+  if (NON_BASE64_CHARS.test(data)) {
+    return false;
+  }
   try {
     return base64Encode(base64Decode(data)) === data;
   } catch (_e: unknown) {
