@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.4.0](https://github.com/piyyy314/adk-js/compare/devtools-v0.3.0...devtools-v0.4.0) (2026-08-30)
+
+
+### Features
+
+* **cli:** handle interactive exit commands case-insensitively and support quit ([9d527f7](https://github.com/piyyy314/adk-js/commit/9d527f711e905961b25dfd0fb9225b13463b22ce))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @google/adk bumped from ^0.3.0 to ^0.4.0
+
 ## [0.3.0](https://github.com/piyyy314/adk-js/compare/devtools-v0.2.8...devtools-v0.3.0) (2026-08-10)
 
 
