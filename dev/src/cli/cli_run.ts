@@ -134,15 +134,13 @@ async function* getQueries(): AsyncGenerator<string | symbol, void, unknown> {
 }
 
 /**
- * Runs an agent in an interactive CLI loop, sending each user input to the agent runner and printing emitted events.
+ * Runs an agent in an interactive CLI loop and displays its responses.
  *
- * The loop ends when the user cancels the prompt or types `exit`. Empty or whitespace-only inputs are ignored.
+ * The loop ends when the prompt is cancelled or the user enters `exit` or
+ * `quit`, ignoring case and surrounding whitespace. Blank inputs are ignored.
  *
- * @param options - Configuration for the interactive run. Required fields:
- *   - `rootAgent`: the agent implementation to drive.
- *   - `session`: the current session (provides `userId` and `id`).
- *   - `artifactService`, `sessionService`, `memoryService` (optional): services passed to the runner.
- * @returns `true` when cancelled from the interactive prompt, otherwise `false`.
+ * @param options - Configuration containing the agent, current session, and optional runner services.
+ * @returns `true` if the prompt was cancelled, `false` otherwise.
  */
 async function runInteractively(
   options: RunInteractivelyOptions,
@@ -162,7 +160,10 @@ async function runInteractively(
       }
       return true;
     }
-    if (query === 'exit') {
+    if (
+      typeof query === 'string' &&
+      ['exit', 'quit'].includes(query.trim().toLowerCase())
+    ) {
       return false;
     }
     if (typeof query !== 'string' || !query.trim()) {
