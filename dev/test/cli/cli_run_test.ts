@@ -482,27 +482,65 @@ describe('cli_run', () => {
     );
   });
 
-  it('should exit interactive loop on exit command variations like "quit", "QUIT", or "EXIT"', async () => {
-    for (const exitCommand of ['quit', 'QUIT', 'EXIT', '  exit  ']) {
-      vi.clearAllMocks();
-      (text as Mock).mockResolvedValueOnce(exitCommand);
-      (isCancel as unknown as Mock).mockReturnValue(false);
-      const mockSessionService = createMockSessionService();
+  it.each([
+    'exit',
+    'EXIT',
+    'eXiT',
+    '  exit  ',
+    'quit',
+    'QUIT',
+    'qUiT',
+    '\t quit \t',
+  ])('should exit the interactive loop for command %j', async (exitCommand) => {
+    (text as Mock).mockResolvedValueOnce(exitCommand);
+    (isCancel as unknown as Mock).mockReturnValue(false);
+    const mockSessionService = createMockSessionService();
 
-      const mockRunAsync = vi.fn().mockImplementation(async function* () {
-        yield* [];
-      });
-      (Runner as unknown as Mock).mockImplementation(() => ({
-        runAsync: mockRunAsync,
-      }));
+    const mockRunAsync = vi.fn().mockImplementation(async function* () {
+      yield* [];
+    });
+    (Runner as unknown as Mock).mockImplementation(() => ({
+      runAsync: mockRunAsync,
+    }));
 
-      await runAgent({
-        agentPath: 'agent.ts',
-        sessionService: mockSessionService,
-      });
+    await runAgent({
+      agentPath: 'agent.ts',
+      sessionService: mockSessionService,
+    });
 
-      expect(mockRunAsync).not.toHaveBeenCalled();
-      expect(outro).toHaveBeenCalledWith('Happy Agent Building!');
+    expect(mockRunAsync).not.toHaveBeenCalled();
+    expect(outro).toHaveBeenCalledWith('Happy Agent Building!');
+  });
+
+  it('should send near-miss exit commands to the agent', async () => {
+    const queries = ['exit now', 'quitter', 'quit!'];
+    (text as Mock)
+      .mockResolvedValueOnce(queries[0])
+      .mockResolvedValueOnce(queries[1])
+      .mockResolvedValueOnce(queries[2])
+      .mockResolvedValueOnce('exit');
+    (isCancel as unknown as Mock).mockReturnValue(false);
+    const mockSessionService = createMockSessionService();
+
+    const mockRunAsync = vi.fn().mockImplementation(async function* () {
+      yield* [];
+    });
+    (Runner as unknown as Mock).mockImplementation(() => ({
+      runAsync: mockRunAsync,
+    }));
+
+    await runAgent({
+      agentPath: 'agent.ts',
+      sessionService: mockSessionService,
+    });
+
+    expect(mockRunAsync).toHaveBeenCalledTimes(queries.length);
+    for (const query of queries) {
+      expect(mockRunAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          newMessage: {role: 'user', parts: [{text: query}]},
+        }),
+      );
     }
   });
 
@@ -873,6 +911,31 @@ describe('cli_run', () => {
           newMessage: {role: 'user', parts: [{text: 'Hello from pipe'}]},
         }),
       );
+      expect(text).not.toHaveBeenCalled();
+      expect(closeMock).toHaveBeenCalled();
+    });
+
+    it('should stop on a trimmed mixed-case quit command from piped stdin', async () => {
+      const {mockInterface, closeMock} = createMockReadlineInterface([
+        '  QuIt\t',
+        'must not be processed',
+      ]);
+      (createInterface as unknown as Mock).mockReturnValue(mockInterface);
+
+      const mockSessionService = createMockSessionService();
+      const mockRunAsync = vi.fn().mockImplementation(async function* () {
+        yield* [];
+      });
+      (Runner as unknown as Mock).mockImplementation(() => ({
+        runAsync: mockRunAsync,
+      }));
+
+      await runAgent({
+        agentPath: 'agent.ts',
+        sessionService: mockSessionService,
+      });
+
+      expect(mockRunAsync).not.toHaveBeenCalled();
       expect(text).not.toHaveBeenCalled();
       expect(closeMock).toHaveBeenCalled();
     });
