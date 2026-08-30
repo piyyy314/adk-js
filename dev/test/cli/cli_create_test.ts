@@ -41,6 +41,7 @@ vi.mock('@clack/prompts', () => ({
   },
   note: vi.fn(),
   outro: vi.fn(),
+  password: vi.fn(),
   select: vi.fn(),
   spinner: vi.fn(() => ({
     start: vi.fn(),
