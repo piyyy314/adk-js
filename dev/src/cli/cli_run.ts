@@ -162,7 +162,10 @@ async function runInteractively(
       }
       return true;
     }
-    if (query === 'exit') {
+    if (
+      typeof query === 'string' &&
+      ['exit', 'quit'].includes(query.trim().toLowerCase())
+    ) {
       return false;
     }
     if (typeof query !== 'string' || !query.trim()) {
