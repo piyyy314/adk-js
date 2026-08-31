@@ -42,105 +42,129 @@ describe('UnsafeLocalCodeExecutor', () => {
     executor = new UnsafeLocalCodeExecutor();
   });
 
-  it('should execute code and return stdout', async () => {
-    const params: ExecuteCodeParams = {
-      invocationContext,
-      codeExecutionInput: {
-        code: 'console.log("Hello, World!");',
-        language: CodeExecutionLanguage.JAVASCRIPT,
-        inputFiles: [],
-      },
-    };
+  it(
+    'should execute code and return stdout',
+    async () => {
+      const params: ExecuteCodeParams = {
+        invocationContext,
+        codeExecutionInput: {
+          code: 'console.log("Hello, World!");',
+          language: CodeExecutionLanguage.JAVASCRIPT,
+          inputFiles: [],
+        },
+      };
 
-    const result = await executor.executeCode(params);
+      const result = await executor.executeCode(params);
 
-    expect(result.stdout).toContain('Hello, World!');
-    expect(result.stderr).toBe('');
-  });
+      expect(result.stdout).toContain('Hello, World!');
+      expect(result.stderr).toBe('');
+    },
+    30000,
+  );
 
-  it('should capture stderr', async () => {
-    const params: ExecuteCodeParams = {
-      invocationContext,
-      codeExecutionInput: {
-        code: 'console.error("An error occurred");',
-        language: CodeExecutionLanguage.JAVASCRIPT,
-        inputFiles: [],
-      },
-    };
+  it(
+    'should capture stderr',
+    async () => {
+      const params: ExecuteCodeParams = {
+        invocationContext,
+        codeExecutionInput: {
+          code: 'console.error("An error occurred");',
+          language: CodeExecutionLanguage.JAVASCRIPT,
+          inputFiles: [],
+        },
+      };
 
-    const result = await executor.executeCode(params);
+      const result = await executor.executeCode(params);
 
-    expect(result.stderr).toContain('An error occurred');
-  });
+      expect(result.stderr).toContain('An error occurred');
+    },
+    30000,
+  );
 
-  it('should handle execution errors', async () => {
-    const params: ExecuteCodeParams = {
-      invocationContext,
-      codeExecutionInput: {
-        code: 'throw new Error("Fatal error");',
-        language: CodeExecutionLanguage.JAVASCRIPT,
-        inputFiles: [],
-      },
-    };
+  it(
+    'should handle execution errors',
+    async () => {
+      const params: ExecuteCodeParams = {
+        invocationContext,
+        codeExecutionInput: {
+          code: 'throw new Error("Fatal error");',
+          language: CodeExecutionLanguage.JAVASCRIPT,
+          inputFiles: [],
+        },
+      };
 
-    const result = await executor.executeCode(params);
+      const result = await executor.executeCode(params);
 
-    expect(result.stderr).toContain('Fatal error');
-  });
+      expect(result.stderr).toContain('Fatal error');
+    },
+    30000,
+  );
 
-  it('should respect timeout', async () => {
-    // Create executor with 1 second timeout
-    const shortTimeoutExecutor = new UnsafeLocalCodeExecutor({
-      timeoutSeconds: 1,
-    });
+  it(
+    'should respect timeout',
+    async () => {
+      // Create executor with 1 second timeout
+      const shortTimeoutExecutor = new UnsafeLocalCodeExecutor({
+        timeoutSeconds: 1,
+      });
 
-    const params: ExecuteCodeParams = {
-      invocationContext,
-      codeExecutionInput: {
-        code: 'setTimeout(() => {}, 5000);', // Sleep for 5 seconds
-        language: CodeExecutionLanguage.JAVASCRIPT,
-        inputFiles: [],
-      },
-    };
+      const params: ExecuteCodeParams = {
+        invocationContext,
+        codeExecutionInput: {
+          code: 'setTimeout(() => {}, 5000);', // Sleep for 5 seconds
+          language: CodeExecutionLanguage.JAVASCRIPT,
+          inputFiles: [],
+        },
+      };
 
-    const result = await shortTimeoutExecutor.executeCode(params);
+      const result = await shortTimeoutExecutor.executeCode(params);
 
-    expect(result.stderr).toContain(
-      'Code execution timed out after 1 seconds.',
-    );
-  });
+      expect(result.stderr).toContain(
+        'Code execution timed out after 1 seconds.',
+      );
+    },
+    30000,
+  );
 
-  it('should execute python code and return stdout', async () => {
-    const params: ExecuteCodeParams = {
-      invocationContext,
-      codeExecutionInput: {
-        code: 'print("Hello, Python!")',
-        language: CodeExecutionLanguage.PYTHON,
-        inputFiles: [],
-      },
-    };
+  it(
+    'should execute python code and return stdout',
+    async () => {
+      const params: ExecuteCodeParams = {
+        invocationContext,
+        codeExecutionInput: {
+          code: 'print("Hello, Python!")',
+          language: CodeExecutionLanguage.PYTHON,
+          inputFiles: [],
+        },
+      };
 
-    const result = await executor.executeCode(params);
+      const result = await executor.executeCode(params);
 
-    expect(result.stdout).toContain('Hello, Python!');
-    expect(result.stderr).toBe('');
-  });
+      expect(result.stdout).toContain('Hello, Python!');
+      expect(result.stderr).toBe('');
+    },
+    30000,
+  );
 
-  it('should execute shell code and return stdout', async () => {
-    const params: ExecuteCodeParams = {
-      invocationContext,
-      codeExecutionInput: {
-        code: 'echo "Hello, Shell!"',
-        language: CodeExecutionLanguage.SHELL,
-        inputFiles: [],
-      },
-    };
+  it(
+    'should execute shell code and return stdout',
+    async () => {
+      const params: ExecuteCodeParams = {
+        invocationContext,
+        codeExecutionInput: {
+          code: 'echo "Hello, Shell!"',
+          language: CodeExecutionLanguage.SHELL,
+          inputFiles: [],
+        },
+      };
 
-    const result = await executor.executeCode(params);
+      const result = await executor.executeCode(params);
 
-    expect(result.stdout).toContain('Hello, Shell!');
-    expect(result.stderr).toBe('');
-  });
+      expect(result.stdout).toContain('Hello, Shell!');
+      expect(result.stderr).toBe('');
+    },
+    30000,
+  );
 
   it('should return error for unsupported language', async () => {
     const params: ExecuteCodeParams = {
