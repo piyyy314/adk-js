@@ -32,6 +32,7 @@ const logErrorMock = vi.fn();
 const logStepMock = vi.fn();
 const introMock = vi.fn();
 const outroMock = vi.fn();
+const textMock = vi.fn();
 const spinnerMock = {
   start: vi.fn(),
   stop: vi.fn(),
@@ -48,6 +49,7 @@ vi.mock('@clack/prompts', () => ({
   outro: vi.fn((...args: unknown[]) => outroMock(...args)),
   spinner: () => spinnerMock,
   isCancel: (val: unknown) => typeof val === 'symbol',
+  text: vi.fn((...args: unknown[]) => textMock(...args)),
 }));
 
 vi.mock('node:child_process', () => ({
@@ -279,6 +281,8 @@ describe('deployToCloudRun', () => {
       }
     });
 
+    textMock.mockRejectedValueOnce(new Error('Project is not specified'));
+
     try {
       await expect(deployToCloudRun(optionsWithoutProject)).rejects.toThrow(
         /Project is not specified/,
@@ -336,6 +340,8 @@ describe('deployToCloudRun', () => {
         callback(null, {stdout: '\n'});
       }
     });
+
+    textMock.mockRejectedValueOnce(new Error('Region is not specified'));
 
     try {
       await expect(deployToCloudRun(optionsWithoutRegion)).rejects.toThrow(
@@ -577,7 +583,13 @@ describe('deployToCloudRun', () => {
     );
   });
 
-  it('error message for missing project should say "specify project" not "specify region"', async () => {
+  it('error message for missing project should say "specify project" not "specify region" when isTTY is false', async () => {
+    const originalIsTTY = process.stdout.isTTY;
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: false,
+      configurable: true,
+    });
+
     const optionsWithoutProject = {...defaultOptions, project: ''};
 
     execMock.mockImplementation((cmd: string, callback: Callback) => {
@@ -588,12 +600,25 @@ describe('deployToCloudRun', () => {
       }
     });
 
-    await expect(deployToCloudRun(optionsWithoutProject)).rejects.toThrow(
-      'Please specify project with --project option',
-    );
+    try {
+      await expect(deployToCloudRun(optionsWithoutProject)).rejects.toThrow(
+        'Please specify project with --project option',
+      );
+    } finally {
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: originalIsTTY,
+        configurable: true,
+      });
+    }
   });
 
-  it('error message for missing project should not contain stale "specify region" wording', async () => {
+  it('error message for missing project should not contain stale "specify region" wording when isTTY is false', async () => {
+    const originalIsTTY = process.stdout.isTTY;
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: false,
+      configurable: true,
+    });
+
     const optionsWithoutProject = {...defaultOptions, project: ''};
 
     execMock.mockImplementation((cmd: string, callback: Callback) => {
@@ -609,9 +634,122 @@ describe('deployToCloudRun', () => {
       await deployToCloudRun(optionsWithoutProject);
     } catch (e) {
       thrownError = e as Error;
+    } finally {
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: originalIsTTY,
+        configurable: true,
+      });
     }
     expect(thrownError).toBeDefined();
     expect(thrownError!.message).not.toContain('specify region with --project');
+  });
+
+  it('should fallback to interactive prompt for project ID when unset in gcloud config and isTTY is true', async () => {
+    const originalIsTTY = process.stdout.isTTY;
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
+
+    const optionsWithoutProject = {...defaultOptions, project: ''};
+    execMock.mockImplementation((cmd: string, callback: Callback) => {
+      if (cmd.includes('config get-value project')) {
+        callback(null, {stdout: '(unset)\n'});
+      } else {
+        callback(null, {stdout: 'us-central1\n'});
+      }
+    });
+
+    textMock.mockResolvedValueOnce('prompted-project-id');
+
+    try {
+      await deployToCloudRun(optionsWithoutProject);
+      expect(textMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Enter the Google Cloud Project ID',
+          placeholder: 'e.g. my-gcp-project',
+        }),
+      );
+      expect(spawnMock).toHaveBeenCalledWith(
+        'gcloud',
+        expect.arrayContaining(['--project', 'prompted-project-id']),
+        expect.any(Object),
+      );
+    } finally {
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: originalIsTTY,
+        configurable: true,
+      });
+    }
+  });
+
+  it('should fallback to interactive prompt for region when unset in gcloud config and isTTY is true', async () => {
+    const originalIsTTY = process.stdout.isTTY;
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
+
+    const optionsWithoutRegion = {...defaultOptions, region: ''};
+    execMock.mockImplementation((cmd: string, callback: Callback) => {
+      if (cmd.includes('config get-value project')) {
+        callback(null, {stdout: 'test-project\n'});
+      } else if (cmd.includes('config get-value run/region')) {
+        callback(null, {stdout: '\n'});
+      }
+    });
+
+    textMock.mockResolvedValueOnce('prompted-region');
+
+    try {
+      await deployToCloudRun(optionsWithoutRegion);
+      expect(textMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Enter the Google Cloud Region',
+          placeholder: 'e.g. us-central1',
+        }),
+      );
+      expect(spawnMock).toHaveBeenCalledWith(
+        'gcloud',
+        expect.arrayContaining(['--region', 'prompted-region']),
+        expect.any(Object),
+      );
+    } finally {
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: originalIsTTY,
+        configurable: true,
+      });
+    }
+  });
+
+  it('should exit deployment gracefully when interactive project prompt is cancelled', async () => {
+    const originalIsTTY = process.stdout.isTTY;
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
+
+    const optionsWithoutProject = {...defaultOptions, project: ''};
+    execMock.mockImplementation((cmd: string, callback: Callback) => {
+      if (cmd.includes('config get-value project')) {
+        callback(null, {stdout: '(unset)\n'});
+      } else {
+        callback(null, {stdout: 'us-central1\n'});
+      }
+    });
+
+    textMock.mockResolvedValueOnce(Symbol('cancel'));
+
+    try {
+      await deployToCloudRun(optionsWithoutProject);
+      expect(spawnMock).not.toHaveBeenCalled();
+      expect(outroMock).toHaveBeenCalledWith('Operation cancelled');
+    } finally {
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: originalIsTTY,
+        configurable: true,
+      });
+    }
   });
 
   it('should call fs.rm for cleanup even when deployment fails', async () => {
