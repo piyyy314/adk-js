@@ -75,12 +75,11 @@ function toNotation(
   if (typeof obj === 'object' && obj !== null) {
     const source = obj as Record<string, unknown>;
     const result: Record<string, unknown> = {};
-    const hasPreserve = preserveSet !== undefined && preserveSet.size > 0;
 
     for (const key of Object.keys(source)) {
       const convertedKey = converter(key);
 
-      if (hasPreserve) {
+      if (preserveSet && preserveSet.size > 0) {
         const fullPath = parentKey !== '' ? parentKey + '.' + key : key;
         if (preserveSet.has(fullPath)) {
           result[convertedKey] = source[key];
