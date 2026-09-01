@@ -41,3 +41,7 @@
 ## 2025-06-19 - Smooth Streaming in Terminal UIs
 **Learning:** Logging streaming chunks via `console.log` produces choppy, line-by-line output that degrades terminal UX. Using `process.stdout.write` when `process.stdout.isTTY` is true enables real-time smooth stream alignment while preserving non-TTY fallbacks.
 **Action:** Stream interactive model responses with `process.stdout.write` and append a single trailing newline (`\n`) once the streaming generator completes.
+
+## 2025-06-20 - Explicit Confirmation Labels in CLI Prompts
+**Learning:** Adding explicit `active` (e.g. 'Yes, overwrite') and `inactive` (e.g. 'No, cancel') option labels to `@clack/prompts` `confirm` dialogs for potentially destructive actions gives users clear intent and prevents accidental folder overwrites.
+**Action:** Always provide explicit action labels for `confirm` prompts handling destructive operations rather than relying on default generic yes/no choices.
