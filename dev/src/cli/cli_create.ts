@@ -126,6 +126,11 @@ async function getGcpProject(): Promise<string> {
   }
 }
 
+/**
+ * Retrieves the configured Google Cloud region.
+ *
+ * @returns The Google Cloud region, or an empty string when no region is configured.
+ */
 async function getGcpRegion(): Promise<string> {
   if (process.env.GOOGLE_CLOUD_LOCATION) {
     return process.env.GOOGLE_CLOUD_LOCATION;
@@ -141,6 +146,13 @@ async function getGcpRegion(): Promise<string> {
   }
 }
 
+/**
+ * Ensures the agent directory is available for file generation.
+ *
+ * @param agentDir - The directory to create or replace
+ * @param forceYes - Whether to overwrite an existing directory without prompting
+ * @returns `true` if the directory is ready, `false` if overwrite is canceled or declined
+ */
 async function generateAgentFolder(
   agentDir: string,
   forceYes: boolean,
@@ -154,6 +166,8 @@ async function generateAgentFolder(
     ? true
     : await confirm({
         message: `Folder ${agentDir} already exists. Would you like to overwrite existing folder?`,
+        active: 'Yes, overwrite',
+        inactive: 'No, cancel',
       });
 
   if (handleCancellation(overwriteFolderResponse)) {
