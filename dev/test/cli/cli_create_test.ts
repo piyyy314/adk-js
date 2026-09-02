@@ -286,14 +286,35 @@ describe('createAgent', () => {
 
       await createAgent(getFreshOptions());
 
-      expect(confirm).toHaveBeenCalledWith(
-        expect.objectContaining({
-          message: expect.stringContaining('already exists'),
-          active: 'Yes, overwrite',
-          inactive: 'No, cancel',
-        }),
-      );
+      expect(confirm).toHaveBeenCalledTimes(1);
+      expect(confirm).toHaveBeenCalledWith({
+        message: expect.stringContaining('already exists'),
+        active: 'Yes, overwrite',
+        inactive: 'No, cancel',
+      });
       expect(removeFolder).toHaveBeenCalled();
+    });
+
+    it('should skip the overwrite prompt when forceYes is true', async () => {
+      (isFolderExists as Mock).mockResolvedValue(true);
+
+      await createAgent({...getFreshOptions(), forceYes: true});
+
+      expect(confirm).not.toHaveBeenCalled();
+      expect(removeFolder).toHaveBeenCalledTimes(1);
+      expect(createFolder).toHaveBeenCalledTimes(1);
+      expect(saveToFile).toHaveBeenCalled();
+    });
+
+    it('should not show overwrite labels when creating a new folder', async () => {
+      (isFolderExists as Mock).mockResolvedValue(false);
+
+      await createAgent({...getFreshOptions(), forceYes: true});
+
+      expect(confirm).not.toHaveBeenCalled();
+      expect(removeFolder).not.toHaveBeenCalled();
+      expect(createFolder).toHaveBeenCalledTimes(1);
+      expect(saveToFile).toHaveBeenCalled();
     });
 
     it('should return without modifying files and call outro when user declines overwrite', async () => {
