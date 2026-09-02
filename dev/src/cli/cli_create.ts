@@ -126,6 +126,11 @@ async function getGcpProject(): Promise<string> {
   }
 }
 
+/**
+ * Retrieves the configured Google Cloud region.
+ *
+ * @returns The Google Cloud region, or an empty string when no region is configured.
+ */
 async function getGcpRegion(): Promise<string> {
   if (process.env.GOOGLE_CLOUD_LOCATION) {
     return process.env.GOOGLE_CLOUD_LOCATION;
