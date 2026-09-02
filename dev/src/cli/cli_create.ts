@@ -141,6 +141,13 @@ async function getGcpRegion(): Promise<string> {
   }
 }
 
+/**
+ * Ensures the agent directory is available for file generation.
+ *
+ * @param agentDir - The directory to create or replace
+ * @param forceYes - Whether to overwrite an existing directory without prompting
+ * @returns `true` if the directory is ready, `false` if overwrite is canceled or declined
+ */
 async function generateAgentFolder(
   agentDir: string,
   forceYes: boolean,
