@@ -198,6 +198,7 @@ describe('cli_run', () => {
   it('should handle missing input file', async () => {
     (loadFileData as Mock).mockResolvedValue(null);
     const mockSessionService = createMockSessionService();
+    const {log} = await import('@clack/prompts');
 
     await runAgent({
       agentPath: 'agent.ts',
@@ -205,6 +206,26 @@ describe('cli_run', () => {
       sessionService: mockSessionService,
     });
     expect(loadFileData).toHaveBeenCalled();
+    expect(log.error).toHaveBeenCalledWith(
+      'Could not load input file: input.json',
+    );
+  });
+
+  it('should handle missing saved session file', async () => {
+    (loadFileData as Mock).mockResolvedValue(null);
+    const mockSessionService = createMockSessionService();
+    const {log} = await import('@clack/prompts');
+
+    await runAgent({
+      agentPath: 'agent.ts',
+      savedSessionFile: 'session.json',
+      sessionService: mockSessionService,
+    });
+
+    expect(loadFileData).toHaveBeenCalledWith('session.json');
+    expect(log.warn).toHaveBeenCalledWith(
+      'Could not load session from session.json. Starting a new session.',
+    );
   });
 
   it('should run from saved session', async () => {
