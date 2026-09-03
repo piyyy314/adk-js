@@ -46,6 +46,7 @@ async function runFromInputFile(
     path.join(dirname, options.filePath),
   );
   if (!fileContent) {
+    log.error(`Could not load input file: ${options.filePath}`);
     return;
   }
 
@@ -287,6 +288,10 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
               }
             }
           }
+        } else {
+          log.warn(
+            `Could not load session from ${options.savedSessionFile}. Starting a new session.`,
+          );
         }
       }
 
