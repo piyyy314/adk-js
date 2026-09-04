@@ -75,12 +75,16 @@ export class InMemorySessionService extends BaseSessionService {
 
     this.sessions[appName][userId][session.id] = session;
 
-    const copiedSession = cloneDeep(session);
-    copiedSession.state = mergeStates(
-      this.appState[appName],
-      this.userState[appName]?.[userId],
-      copiedSession.state,
-    );
+    // Merge application and user state into a new session state object, avoiding unnecessary initial deep clone.
+    const copiedSession: Session = {
+      ...session,
+      state: mergeStates(
+        this.appState[appName],
+        this.userState[appName]?.[userId],
+        session.state,
+      ),
+      events: session.events ? cloneDeep(session.events) : [],
+    };
 
     return copiedSession;
   }
@@ -100,33 +104,37 @@ export class InMemorySessionService extends BaseSessionService {
     }
 
     const session: Session = this.sessions[appName][userId][sessionId];
-    const copiedSession = cloneDeep(session);
 
+    // Filter/slice events before cloning to avoid deep cloning unneeded event history.
+    let selectedEvents = session.events;
     if (config) {
       if (config.numRecentEvents) {
-        copiedSession.events = copiedSession.events.slice(
-          -config.numRecentEvents,
-        );
+        selectedEvents = selectedEvents.slice(-config.numRecentEvents);
       }
       if (config.afterTimestamp) {
-        let i = copiedSession.events.length - 1;
+        let i = selectedEvents.length - 1;
         while (i >= 0) {
-          if (copiedSession.events[i].timestamp < config.afterTimestamp) {
+          if (selectedEvents[i].timestamp < config.afterTimestamp) {
             break;
           }
           i--;
         }
         if (i >= 0) {
-          copiedSession.events = copiedSession.events.slice(i + 1);
+          selectedEvents = selectedEvents.slice(i + 1);
         }
       }
     }
 
-    copiedSession.state = mergeStates(
-      this.appState[appName],
-      this.userState[appName]?.[userId],
-      copiedSession.state,
-    );
+    // Clone state and only the selected subset of events instead of the entire event history upfront.
+    const copiedSession: Session = {
+      ...session,
+      state: mergeStates(
+        this.appState[appName],
+        this.userState[appName]?.[userId],
+        session.state,
+      ),
+      events: cloneDeep(selectedEvents),
+    };
 
     return copiedSession;
   }
