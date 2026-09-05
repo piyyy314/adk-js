@@ -6,6 +6,7 @@
 
 import {intro, isCancel, outro, spinner, text} from '@clack/prompts';
 import {BaseAgent, BaseSessionService, Runner} from '@google/adk';
+import * as path from 'node:path';
 import {createInterface} from 'node:readline';
 import {afterEach, beforeEach, describe, expect, it, Mock, vi} from 'vitest';
 import {runAgent} from '../../src/cli/cli_run.js';
@@ -232,18 +233,24 @@ describe('cli_run', () => {
     expect(outro).toHaveBeenCalledWith('Happy Agent Building!');
   });
 
-  it('should save session when requested', async () => {
+  it('should save session when requested to parent directory of agent path', async () => {
     const mockSessionService = createMockSessionService();
     // Run interactively then exit
     await runAgent({
-      agentPath: 'agent.ts',
+      agentPath: 'subfolder/agent.ts',
       saveSession: true,
       sessionId: 'my-session',
       sessionService: mockSessionService,
     });
 
-    expect(saveToFile).toHaveBeenCalledWith(
-      expect.stringContaining('my-session.session.json'),
+    const expectedPath = path.join(
+      process.cwd(),
+      'subfolder',
+      'my-session.session.json',
+    );
+    expect(saveToFile).toHaveBeenCalledWith(expectedPath, expect.anything());
+    expect(saveToFile).not.toHaveBeenCalledWith(
+      expect.stringContaining('agent.ts'),
       expect.anything(),
     );
   });
