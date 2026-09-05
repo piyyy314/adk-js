@@ -243,7 +243,11 @@ describe('cli_run', () => {
       sessionService: mockSessionService,
     });
 
-    const expectedPath = path.join(process.cwd(), 'subfolder', 'my-session.session.json');
+    const expectedPath = path.join(
+      process.cwd(),
+      'subfolder',
+      'my-session.session.json',
+    );
     expect(saveToFile).toHaveBeenCalledWith(expectedPath, expect.anything());
     expect(saveToFile).not.toHaveBeenCalledWith(
       expect.stringContaining('agent.ts'),

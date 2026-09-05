@@ -322,10 +322,7 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
       }
 
       const agentDir = path.dirname(options.agentPath);
-      const sessionPath = path.join(
-        agentDir,
-        `${sessionId}.session.json`,
-      );
+      const sessionPath = path.join(agentDir, `${sessionId}.session.json`);
       const sessionToStore = await sessionService.getSession({
         appName: session.appName,
         userId: session.userId,
