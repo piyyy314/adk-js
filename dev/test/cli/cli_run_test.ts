@@ -6,6 +6,7 @@
 
 import {intro, isCancel, outro, spinner, text} from '@clack/prompts';
 import {BaseAgent, BaseSessionService, Runner} from '@google/adk';
+import * as path from 'node:path';
 import {createInterface} from 'node:readline';
 import {afterEach, beforeEach, describe, expect, it, Mock, vi} from 'vitest';
 import {runAgent} from '../../src/cli/cli_run.js';
@@ -244,6 +245,23 @@ describe('cli_run', () => {
 
     expect(saveToFile).toHaveBeenCalledWith(
       expect.stringContaining('my-session.session.json'),
+      expect.anything(),
+    );
+  });
+
+  it('should save session in agent parent directory when agentPath includes subfolder', async () => {
+    const mockSessionService = createMockSessionService();
+    await runAgent({
+      agentPath: 'subfolder/agent.ts',
+      saveSession: true,
+      sessionId: 'my-session',
+      sessionService: mockSessionService,
+    });
+
+    expect(saveToFile).toHaveBeenCalledWith(
+      expect.stringContaining(
+        path.join('subfolder', 'my-session.session.json'),
+      ),
       expect.anything(),
     );
   });
