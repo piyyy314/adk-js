@@ -1,0 +1,3 @@
+## 2026-09-08 - Object Notation Conversion Key Fast-Paths and Set Lookups
+**Learning:** Object notation conversions (`toCamelCase` / `toSnakeCase`) run on every event and payload in ADK. Passing `preserveKeys` as an array resulted in repeated O(K) `Array.includes()` checks and wasteful `fullPath` string concatenation for every key even when `preserveKeys` was empty. Adding string fast-path checks (`key.includes('_')`, `key === key.toLowerCase()`) avoids regex overhead for plain keys.
+**Action:** Always convert key preservation lists to `Set` at top-level entry points and skip string concatenation/path tracking when `preserveKeys` is empty.
