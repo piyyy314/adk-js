@@ -62,7 +62,7 @@ export class AdkTsApiServer extends BaseTestServer {
     const args = [
       cliPath,
       'api_server',
-      params.agentsDir,
+      path.resolve(params.agentsDir),
       '--port',
       this.port.toString(),
       '--allow_origins',
