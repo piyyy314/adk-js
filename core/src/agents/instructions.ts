@@ -88,16 +88,35 @@ export async function injectSessionState(
 
     throw new Error(`Context variable not found: \`${key}\`.`);
   }
-  // TODO - b/425992518: enable concurrent repalcement with key deduplication.
+  // Optimization: Collect all matches first, deduplicate async evaluations for identical keys,
+  // and evaluate replacements concurrently using Promise.all to avoid sequential async I/O bottlenecks.
   const pattern = /\{+[^{}]*}+/g;
+  const matches = Array.from(template.matchAll(pattern));
+  if (matches.length === 0) {
+    return template;
+  }
+
+  const uniqueMatchesMap = new Map<string, Promise<string>>();
+  for (const match of matches) {
+    const rawKey = match[0];
+    if (!uniqueMatchesMap.has(rawKey)) {
+      uniqueMatchesMap.set(rawKey, replaceMatchedKeyWithItsValue(match));
+    }
+  }
+
+  // Await all unique replacement evaluations in parallel.
+  const resolvedReplacements = new Map<string, string>();
+  const keys = Array.from(uniqueMatchesMap.keys());
+  const values = await Promise.all(uniqueMatchesMap.values());
+  for (let i = 0; i < keys.length; i++) {
+    resolvedReplacements.set(keys[i], values[i]);
+  }
+
   const result: string[] = [];
   let lastEnd = 0;
-  const matches = template.matchAll(pattern);
-
   for (const match of matches) {
     result.push(template.slice(lastEnd, match.index));
-    const replacement = await replaceMatchedKeyWithItsValue(match);
-    result.push(replacement);
+    result.push(resolvedReplacements.get(match[0])!);
     lastEnd = match.index! + match[0].length;
   }
   result.push(template.slice(lastEnd));
