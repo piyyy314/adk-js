@@ -94,12 +94,7 @@ function toNotation(
     } else {
       for (const key of Object.keys(source)) {
         const convertedKey = converter(key);
-        result[convertedKey] = toNotation(
-          source[key],
-          converter,
-          '',
-          null,
-        );
+        result[convertedKey] = toNotation(source[key], converter, '', null);
       }
     }
 
