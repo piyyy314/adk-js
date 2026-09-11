@@ -54,9 +54,7 @@ const toCamelCaseKey = (key: string) =>
 
 // Fast-path: avoid regex replacement overhead if key contains no uppercase letters
 const toSnakeCaseKey = (key: string) =>
-  /[A-Z]/.test(key)
-    ? key.replace(/[A-Z]/g, (g) => '_' + g.toLowerCase())
-    : key;
+  /[A-Z]/.test(key) ? key.replace(/[A-Z]/g, (g) => '_' + g.toLowerCase()) : key;
 
 function toNotation(
   obj: unknown,
@@ -100,12 +98,7 @@ function toNotation(
       const keys = Object.keys(source);
       for (let i = 0; i < keys.length; i++) {
         const key = keys[i];
-        result[converter(key)] = toNotation(
-          source[key],
-          converter,
-          '',
-          null,
-        );
+        result[converter(key)] = toNotation(source[key], converter, '', null);
       }
     }
 
