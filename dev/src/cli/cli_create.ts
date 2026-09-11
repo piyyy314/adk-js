@@ -154,6 +154,8 @@ async function generateAgentFolder(
     ? true
     : await confirm({
         message: `Folder ${agentDir} already exists. Would you like to overwrite existing folder?`,
+        active: 'Yes, overwrite',
+        inactive: 'No, cancel',
       });
 
   if (handleCancellation(overwriteFolderResponse)) {
