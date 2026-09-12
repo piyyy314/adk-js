@@ -243,6 +243,25 @@ describe('FunctionTool', () => {
     });
   });
 
+  describe('declaration caching', () => {
+    it('caches parameter schema on subsequent calls while returning fresh declaration objects', () => {
+      const tool = new FunctionTool({
+        name: 'testTool',
+        description: 'Test description',
+        parameters: z4.object({
+          x: z4.string(),
+        }),
+        execute: async () => {},
+      });
+
+      const decl1 = tool._getDeclaration();
+      const decl2 = tool._getDeclaration();
+
+      expect(decl1.parameters).toBe(decl2.parameters);
+      expect(decl1).not.toBe(decl2);
+    });
+  });
+
   describe('zod v4', () => {
     it('computes the correct declaration', async () => {
       const addTool = new FunctionTool({
