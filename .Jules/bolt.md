@@ -1,0 +1,3 @@
+## 2026-09-12 - Cache Converted Parameter Schemas Rather Than Declaration Wrappers
+**Learning:** Caching the converted parameter schema (`Schema`) in `FunctionTool` eliminates redundant Zod-to-JSON-schema conversions on every LLM call (~4000x faster). Caching the parameter schema while returning a fresh declaration object wrapper `{ name, description, parameters: cachedSchema }` prevents shared object mutation bugs when subclasses or callers modify declaration fields like `description`.
+**Action:** When caching objects that downstream consumers or subclasses may mutate (like declaration wrappers), cache the heavy immutable sub-data (e.g. parameter schema) and construct a light wrapper object on demand.

@@ -102,6 +102,8 @@ export class FunctionTool<
   private readonly execute: ToolExecuteFunction<TParameters>;
   // Typed input parameters.
   private readonly parameters?: TParameters;
+  // Cached parameter Schema to avoid re-converting Zod parameters on every LLM call.
+  private parametersSchema?: Schema;
 
   /**
    * The constructor acts as the user-friendly factory.
@@ -127,10 +129,13 @@ export class FunctionTool<
    * Provide a schema for the function.
    */
   override _getDeclaration(): FunctionDeclaration {
+    if (!this.parametersSchema) {
+      this.parametersSchema = toSchema(this.parameters);
+    }
     return {
       name: this.name,
       description: this.description,
-      parameters: toSchema(this.parameters),
+      parameters: this.parametersSchema,
     };
   }
 
