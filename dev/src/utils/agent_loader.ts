@@ -394,11 +394,44 @@ function isJsFile(fileExt?: string): boolean {
   return !!fileExt && JS_FILES_EXTENSIONS.includes(fileExt);
 }
 
+/**
+ * Reads a directory using `{ withFileTypes: true }` to avoid issuing an additional
+ * `stat` syscall per file entry.
+ */
 async function getDirFiles(dir: string): Promise<FileMetadata[]> {
-  const files = await fsPromises.readdir(dir);
+  const entries = await fsPromises.readdir(dir, {withFileTypes: true});
 
   return await Promise.all(
-    files.map((filePath) => getFileMetadata(path.join(dir, filePath))),
+    entries.map(async (entry) => {
+      const filePath = path.join(dir, entry.name);
+      let isFile = entry.isFile();
+      let isDirectory = entry.isDirectory();
+
+      // For symlinks, fall back to stat to safely determine the target type.
+      if (entry.isSymbolicLink()) {
+        try {
+          const fileStats = await fsPromises.stat(filePath);
+          isFile = fileStats.isFile();
+          isDirectory = fileStats.isDirectory();
+        } catch {
+          // If symlink target is missing/broken, leave both as false.
+        }
+      }
+
+      const ext = isFile ? path.extname(entry.name) : undefined;
+      const name =
+        isFile && ext
+          ? entry.name.slice(0, entry.name.length - ext.length)
+          : entry.name;
+
+      return {
+        path: filePath,
+        name,
+        ext,
+        isFile,
+        isDirectory,
+      };
+    }),
   );
 }
 
