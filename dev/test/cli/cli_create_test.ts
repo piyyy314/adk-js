@@ -95,6 +95,50 @@ describe('createAgent', () => {
     vi.restoreAllMocks();
   });
 
+  describe('Agent Name Validation', () => {
+    it('should log an error and call outro when agent name contains invalid characters in interactive mode', async () => {
+      const originalIsTTY = process.stdout.isTTY;
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: true,
+        configurable: true,
+      });
+
+      try {
+        const {log, outro} = await import('@clack/prompts');
+        await createAgent({
+          ...getFreshOptions(),
+          agentName: 'invalid agent name!',
+        });
+
+        expect(log.error).toHaveBeenCalledWith(
+          expect.stringContaining('Invalid agent name'),
+        );
+        expect(outro).toHaveBeenCalledWith('Agent creation failed');
+        expect(isFolderExists).not.toHaveBeenCalled();
+      } finally {
+        Object.defineProperty(process.stdout, 'isTTY', {
+          value: originalIsTTY,
+          configurable: true,
+        });
+      }
+    });
+
+    it('should log an error and return without calling outro when agent name is invalid and forceYes is true', async () => {
+      const {log, outro} = await import('@clack/prompts');
+      await createAgent({
+        ...getFreshOptions(),
+        agentName: 'invalid/agent/path',
+        forceYes: true,
+      });
+
+      expect(log.error).toHaveBeenCalledWith(
+        expect.stringContaining('Invalid agent name'),
+      );
+      expect(outro).not.toHaveBeenCalled();
+      expect(isFolderExists).not.toHaveBeenCalled();
+    });
+  });
+
   describe('Non-interactive Mode (forceYes: true)', () => {
     it('should create agent with default values when minimal args provided', async () => {
       const {intro, note, outro, spinner, log} = await import('@clack/prompts');
