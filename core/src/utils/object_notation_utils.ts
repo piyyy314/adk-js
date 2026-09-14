@@ -15,7 +15,9 @@ export function toCamelCase(
   obj: unknown,
   preserveKeys: string[] = [],
 ): unknown {
-  return toNotation(obj, toCamelCaseKey, '', preserveKeys);
+  // Convert preserveKeys array to a Set for O(1) lookups during recursion.
+  const preserveSet = preserveKeys.length > 0 ? new Set(preserveKeys) : null;
+  return toNotation(obj, toCamelCaseKey, '', preserveSet);
 }
 
 /**
@@ -29,7 +31,9 @@ export function toSnakeCase(
   obj: unknown,
   preserveKeys: string[] = [],
 ): unknown {
-  return toNotation(obj, toSnakeCaseKey, '', preserveKeys);
+  // Convert preserveKeys array to a Set for O(1) lookups during recursion.
+  const preserveSet = preserveKeys.length > 0 ? new Set(preserveKeys) : null;
+  return toNotation(obj, toSnakeCaseKey, '', preserveSet);
 }
 
 const toCamelCaseKey = (key: string) =>
@@ -44,11 +48,11 @@ function toNotation(
   obj: unknown,
   converter: (key: string) => string,
   parentKey: string = '',
-  preserveKeys: string[] = [],
+  preserveSet: Set<string> | null = null,
 ): unknown {
   if (Array.isArray(obj)) {
     return obj.map((item) =>
-      toNotation(item, converter, parentKey, preserveKeys),
+      toNotation(item, converter, parentKey, preserveSet),
     );
   }
 
@@ -58,17 +62,23 @@ function toNotation(
 
     for (const key of Object.keys(source)) {
       const convertedKey = converter(key);
-      const fullPath = parentKey !== '' ? parentKey + '.' + key : key;
 
-      if (preserveKeys.includes(fullPath)) {
-        result[convertedKey] = source[key];
-      } else {
+      // Performance Optimization: If preserveSet is null/empty, avoid O(N) Array.includes
+      // and string path concatenations altogether. Otherwise use O(1) Set lookup.
+      if (preserveSet !== null) {
+        const fullPath = parentKey !== '' ? parentKey + '.' + key : key;
+        if (preserveSet.has(fullPath)) {
+          result[convertedKey] = source[key];
+          continue;
+        }
         result[convertedKey] = toNotation(
           source[key],
           converter,
           fullPath,
-          preserveKeys,
+          preserveSet,
         );
+      } else {
+        result[convertedKey] = toNotation(source[key], converter, '', null);
       }
     }
 
