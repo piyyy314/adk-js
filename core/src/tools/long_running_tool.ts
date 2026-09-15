@@ -28,6 +28,9 @@ NOTE: This is a long-running operation. Do not call this tool again if it has al
 export class LongRunningFunctionTool<
   TParameters extends ToolInputParameters = undefined,
 > extends FunctionTool<TParameters> {
+  // Performance optimization: memoize declaration with long running instruction
+  private cachedLongRunningDeclaration?: FunctionDeclaration;
+
   /**
    * The constructor acts as the user-friendly factory.
    * @param options The configuration for the tool.
@@ -38,14 +41,19 @@ export class LongRunningFunctionTool<
 
   /**
    * Provide a schema for the function.
+   * Caches the resulting declaration so long-running instructions and
+   * parameter schemas are not repeatedly modified/generated on every turn.
    */
   override _getDeclaration(): FunctionDeclaration {
-    const declaration = super._getDeclaration();
-    if (declaration.description) {
-      declaration.description += LONG_RUNNING_INSTRUCTION;
-    } else {
-      declaration.description = LONG_RUNNING_INSTRUCTION.trimStart();
+    if (!this.cachedLongRunningDeclaration) {
+      const declaration = {...super._getDeclaration()};
+      if (declaration.description) {
+        declaration.description += LONG_RUNNING_INSTRUCTION;
+      } else {
+        declaration.description = LONG_RUNNING_INSTRUCTION.trimStart();
+      }
+      this.cachedLongRunningDeclaration = declaration;
     }
-    return declaration;
+    return this.cachedLongRunningDeclaration;
   }
 }
