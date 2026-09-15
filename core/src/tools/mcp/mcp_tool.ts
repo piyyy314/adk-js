@@ -33,6 +33,8 @@ import {MCPSessionManager} from './mcp_session_manager.js';
 export class MCPTool extends BaseTool {
   private readonly mcpTool: Tool;
   private readonly mcpSessionManager: MCPSessionManager;
+  // Performance optimization: memoize converted Gemini schema declaration
+  private cachedDeclaration?: FunctionDeclaration;
 
   constructor(mcpTool: Tool, mcpSessionManager: MCPSessionManager) {
     super({name: mcpTool.name, description: mcpTool.description || ''});
@@ -40,15 +42,23 @@ export class MCPTool extends BaseTool {
     this.mcpSessionManager = mcpSessionManager;
   }
 
+  /**
+   * Provide a schema for the function.
+   * Caches the resulting declaration to avoid re-converting MCP schemas
+   * to Gemini schemas on every LLM turn.
+   */
   override _getDeclaration(): FunctionDeclaration {
-    return {
-      name: this.mcpTool.name,
-      description: this.mcpTool.description,
-      parameters: toGeminiSchema(this.mcpTool.inputSchema),
-      // TODO: need revisit, refer to this
-      // https://modelcontextprotocol.io/specification/2025-06-18/server/tools#tool-result
-      response: toGeminiSchema(this.mcpTool.outputSchema),
-    };
+    if (!this.cachedDeclaration) {
+      this.cachedDeclaration = {
+        name: this.mcpTool.name,
+        description: this.mcpTool.description,
+        parameters: toGeminiSchema(this.mcpTool.inputSchema),
+        // TODO: need revisit, refer to this
+        // https://modelcontextprotocol.io/specification/2025-06-18/server/tools#tool-result
+        response: toGeminiSchema(this.mcpTool.outputSchema),
+      };
+    }
+    return this.cachedDeclaration;
   }
 
   override async runAsync(request: RunAsyncToolRequest): Promise<unknown> {

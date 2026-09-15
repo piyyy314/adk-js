@@ -102,6 +102,9 @@ export class FunctionTool<
   private readonly execute: ToolExecuteFunction<TParameters>;
   // Typed input parameters.
   private readonly parameters?: TParameters;
+  // Performance optimizations: memoize cached declaration and Zod check
+  private cachedDeclaration?: FunctionDeclaration;
+  private readonly isParametersZodObject: boolean;
 
   /**
    * The constructor acts as the user-friendly factory.
@@ -121,17 +124,23 @@ export class FunctionTool<
     });
     this.execute = options.execute;
     this.parameters = options.parameters;
+    this.isParametersZodObject = isZodObject(options.parameters);
   }
 
   /**
    * Provide a schema for the function.
+   * Caches the resulting declaration to avoid re-converting Zod schemas
+   * and generating OpenAPI parameter definitions on every LLM turn.
    */
   override _getDeclaration(): FunctionDeclaration {
-    return {
-      name: this.name,
-      description: this.description,
-      parameters: toSchema(this.parameters),
-    };
+    if (!this.cachedDeclaration) {
+      this.cachedDeclaration = {
+        name: this.name,
+        description: this.description,
+        parameters: toSchema(this.parameters),
+      };
+    }
+    return this.cachedDeclaration;
   }
 
   /**
@@ -140,8 +149,12 @@ export class FunctionTool<
   override async runAsync(req: RunAsyncToolRequest): Promise<unknown> {
     try {
       let validatedArgs: unknown = req.args;
-      if (isZodObject(this.parameters)) {
-        validatedArgs = this.parameters.parse(req.args);
+      if (this.isParametersZodObject && this.parameters) {
+        validatedArgs = (
+          this.parameters as
+            | z3.ZodObject<z3.ZodRawShape>
+            | z4.ZodObject<z4.ZodRawShape>
+        ).parse(req.args);
       }
       return await this.execute(
         validatedArgs as ToolExecuteArgument<TParameters>,
