@@ -30,6 +30,11 @@ describe('toCamelCase', () => {
       snakeCase: {another_snake_case: 'value'},
       anotherKey: 'another_value',
     });
+
+    expect(toCamelCase(obj, new Set(['snake_case']))).toEqual({
+      snakeCase: {another_snake_case: 'value'},
+      anotherKey: 'another_value',
+    });
   });
 
   it('handles nested objects', () => {
@@ -97,6 +102,13 @@ describe('toSnakeCase', () => {
     };
 
     expect(toSnakeCase(obj, ['camelCase'])).toEqual({
+      camel_case: {
+        anotherCamelCase: 'anotherCamelCase',
+      },
+      another_key: 'another_value',
+    });
+
+    expect(toSnakeCase(obj, new Set(['camelCase']))).toEqual({
       camel_case: {
         anotherCamelCase: 'anotherCamelCase',
       },
