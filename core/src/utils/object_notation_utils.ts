@@ -42,9 +42,7 @@ const toCamelCaseKey = (key: string) =>
     : key;
 
 const toSnakeCaseKey = (key: string) =>
-  /[A-Z]/.test(key)
-    ? key.replace(/[A-Z]/g, (g) => '_' + g.toLowerCase())
-    : key;
+  /[A-Z]/.test(key) ? key.replace(/[A-Z]/g, (g) => '_' + g.toLowerCase()) : key;
 
 /**
  * Traverses an object tree and transforms its keys using the provided converter function.
