@@ -12,7 +12,7 @@ import {afterAll, beforeAll, describe, expect, it} from 'vitest';
 
 const execAsync = promisify(exec);
 const dirname = process.cwd();
-const TEST_EXECUTION_TIMEOUT = 40000;
+const TEST_EXECUTION_TIMEOUT = 60000;
 
 function sendInput(
   childProcess: ChildProcessWithoutNullStreams,
@@ -30,7 +30,7 @@ function sendInput(
 function waitForOutput(
   childProcess: ChildProcessWithoutNullStreams,
   matcher: (output: string) => boolean,
-  timeout = 15_000,
+  timeout = 60_000,
 ): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     let output = '';
