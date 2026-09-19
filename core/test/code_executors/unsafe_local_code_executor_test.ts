@@ -34,7 +34,7 @@ function createMockInvocationContext(): InvocationContext {
   });
 }
 
-describe('UnsafeLocalCodeExecutor', { timeout: 30000 }, () => {
+describe('UnsafeLocalCodeExecutor', {timeout: 30000}, () => {
   let executor: UnsafeLocalCodeExecutor;
   const invocationContext = createMockInvocationContext();
 
