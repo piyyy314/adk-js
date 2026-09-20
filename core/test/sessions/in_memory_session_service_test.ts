@@ -318,5 +318,23 @@ describe('InMemorySessionService', () => {
       const returnedEvent = await service.appendEvent({session, event});
       expect(returnedEvent).toBe(event);
     });
+
+    it('does not duplicate events when appending to the stored session instance', async () => {
+      const createdSession = await service.createSession({
+        appName: 'app',
+        userId: 'user',
+      });
+      const storedSession = (
+        service as unknown as {
+          sessions: Record<string, Record<string, Record<string, Session>>>;
+        }
+      ).sessions['app']['user'][createdSession.id];
+      const event = createEvent({timestamp: Date.now()});
+
+      await service.appendEvent({session: storedSession, event});
+
+      expect(storedSession.events).toHaveLength(1);
+      expect(storedSession.events[0]).toEqual(event);
+    });
   });
 });
