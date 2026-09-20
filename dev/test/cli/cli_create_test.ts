@@ -273,8 +273,37 @@ describe('createAgent', () => {
     });
   });
 
+  describe('Agent Name Validation', () => {
+    it('should log an error and return early if agentName contains invalid characters', async () => {
+      const {log, outro} = await import('@clack/prompts');
+      const originalIsTTY = process.stdout.isTTY;
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: true,
+        configurable: true,
+      });
+
+      try {
+        await createAgent({
+          ...getFreshOptions(),
+          agentName: 'invalid agent name!',
+        });
+
+        expect(log.error).toHaveBeenCalledWith(
+          expect.stringContaining('Invalid agent name "invalid agent name!"'),
+        );
+        expect(outro).toHaveBeenCalledWith('Agent creation failed');
+        expect(isFolderExists).not.toHaveBeenCalled();
+      } finally {
+        Object.defineProperty(process.stdout, 'isTTY', {
+          value: originalIsTTY,
+          configurable: true,
+        });
+      }
+    });
+  });
+
   describe('Folder Handling', () => {
-    it('should ask to overwrite if folder exists', async () => {
+    it('should ask to overwrite if folder exists with explicit active and inactive options', async () => {
       (isFolderExists as Mock).mockResolvedValue(true);
       (confirm as unknown as Mock).mockResolvedValueOnce(true); // Overwrite = Yes
 
@@ -289,6 +318,8 @@ describe('createAgent', () => {
       expect(confirm).toHaveBeenCalledWith(
         expect.objectContaining({
           message: expect.stringContaining('already exists'),
+          active: 'Yes, overwrite',
+          inactive: 'No, cancel',
         }),
       );
       expect(removeFolder).toHaveBeenCalled();
