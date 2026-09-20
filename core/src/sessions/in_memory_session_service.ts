@@ -219,9 +219,13 @@ export class InMemorySessionService extends BaseSessionService {
     }
 
     const storageSession: Session = this.sessions[appName][userId][sessionId];
-    await super.appendEvent({session: storageSession, event});
-
-    storageSession.lastUpdateTime = event.timestamp;
+    // Only append to storageSession if it is a different object instance
+    // than the passed session to prevent duplicate event pushes and redundant
+    // state mutations.
+    if (storageSession !== session) {
+      await super.appendEvent({session: storageSession, event});
+      storageSession.lastUpdateTime = event.timestamp;
+    }
 
     return event;
   }
