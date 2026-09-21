@@ -1,0 +1,2 @@
+overrides:
+  '@google/adk': link:../core
