@@ -12,6 +12,8 @@ import {runTestCase} from '../../test_case_utils.js';
 import turn1ExpectedEvents from './events_turn_1.json' with {type: 'json'};
 import turn2ExpectedEvents from './events_turn_2.json' with {type: 'json'};
 
+const TEST_TIMEOUT = 60000;
+
 describe('A2A: Remote Agent Basic', () => {
   let server: AdkTsApiServer;
 
@@ -19,9 +21,10 @@ describe('A2A: Remote Agent Basic', () => {
     server = new AdkTsApiServer({
       agentsDir: path.join(__dirname, 'remote_a2a/'),
       a2a: true,
+      startFailureTimeout: TEST_TIMEOUT,
     });
     await server.start();
-  });
+  }, TEST_TIMEOUT);
 
   afterAll(async () => {
     await server.stop();
