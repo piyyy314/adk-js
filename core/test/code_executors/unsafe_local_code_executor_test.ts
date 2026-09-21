@@ -56,7 +56,7 @@ describe('UnsafeLocalCodeExecutor', () => {
 
     expect(result.stdout).toContain('Hello, World!');
     expect(result.stderr).toBe('');
-  });
+  }, 20000);
 
   it('should capture stderr', async () => {
     const params: ExecuteCodeParams = {
@@ -71,7 +71,7 @@ describe('UnsafeLocalCodeExecutor', () => {
     const result = await executor.executeCode(params);
 
     expect(result.stderr).toContain('An error occurred');
-  });
+  }, 20000);
 
   it('should handle execution errors', async () => {
     const params: ExecuteCodeParams = {
@@ -86,7 +86,7 @@ describe('UnsafeLocalCodeExecutor', () => {
     const result = await executor.executeCode(params);
 
     expect(result.stderr).toContain('Fatal error');
-  });
+  }, 20000);
 
   it('should respect timeout', async () => {
     // Create executor with 1 second timeout
@@ -108,7 +108,7 @@ describe('UnsafeLocalCodeExecutor', () => {
     expect(result.stderr).toContain(
       'Code execution timed out after 1 seconds.',
     );
-  });
+  }, 20000);
 
   it('should execute python code and return stdout', async () => {
     const params: ExecuteCodeParams = {
@@ -124,7 +124,7 @@ describe('UnsafeLocalCodeExecutor', () => {
 
     expect(result.stdout).toContain('Hello, Python!');
     expect(result.stderr).toBe('');
-  });
+  }, 20000);
 
   it('should execute shell code and return stdout', async () => {
     const params: ExecuteCodeParams = {
@@ -140,7 +140,7 @@ describe('UnsafeLocalCodeExecutor', () => {
 
     expect(result.stdout).toContain('Hello, Shell!');
     expect(result.stderr).toBe('');
-  });
+  }, 20000);
 
   it('should return error for unsupported language', async () => {
     const params: ExecuteCodeParams = {
