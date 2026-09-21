@@ -384,8 +384,9 @@ export class Runner {
     // TODO - b/425992518: Optimize this, not going to work for long sessions.
     // TODO - b/425992518: The behavior is dynamic, needs better documentation.
     for (let i = session.events.length - 1; i >= 0; i--) {
-      logger.info('event:', JSON.stringify(session.events[i]));
       const event = session.events[i];
+      // Log event at debug level without expensive JSON stringification in loop
+      logger.debug('event:', event.id);
       if (event.author === 'user' || !event.author) {
         continue;
       }
