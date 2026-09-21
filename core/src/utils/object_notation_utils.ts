@@ -15,7 +15,8 @@ export function toCamelCase(
   obj: unknown,
   preserveKeys: string[] = [],
 ): unknown {
-  return toNotation(obj, toCamelCaseKey, '', preserveKeys);
+  const preservedSet = preserveKeys.length > 0 ? new Set(preserveKeys) : null;
+  return toNotation(obj, toCamelCaseKey, '', preservedSet);
 }
 
 /**
@@ -29,7 +30,8 @@ export function toSnakeCase(
   obj: unknown,
   preserveKeys: string[] = [],
 ): unknown {
-  return toNotation(obj, toSnakeCaseKey, '', preserveKeys);
+  const preservedSet = preserveKeys.length > 0 ? new Set(preserveKeys) : null;
+  return toNotation(obj, toSnakeCaseKey, '', preservedSet);
 }
 
 const toCamelCaseKey = (key: string) =>
@@ -44,11 +46,11 @@ function toNotation(
   obj: unknown,
   converter: (key: string) => string,
   parentKey: string = '',
-  preserveKeys: string[] = [],
+  preservedSet: Set<string> | null = null,
 ): unknown {
   if (Array.isArray(obj)) {
     return obj.map((item) =>
-      toNotation(item, converter, parentKey, preserveKeys),
+      toNotation(item, converter, parentKey, preservedSet),
     );
   }
 
@@ -58,17 +60,22 @@ function toNotation(
 
     for (const key of Object.keys(source)) {
       const convertedKey = converter(key);
-      const fullPath = parentKey !== '' ? parentKey + '.' + key : key;
-
-      if (preserveKeys.includes(fullPath)) {
-        result[convertedKey] = source[key];
-      } else {
+      // Performance optimization: Avoid string path concatenation and set lookups
+      // when no keys are preserved. If preservedSet is present, use O(1) Set.has().
+      if (preservedSet !== null) {
+        const fullPath = parentKey !== '' ? parentKey + '.' + key : key;
+        if (preservedSet.has(fullPath)) {
+          result[convertedKey] = source[key];
+          continue;
+        }
         result[convertedKey] = toNotation(
           source[key],
           converter,
           fullPath,
-          preserveKeys,
+          preservedSet,
         );
+      } else {
+        result[convertedKey] = toNotation(source[key], converter, '', null);
       }
     }
 
