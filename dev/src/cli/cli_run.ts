@@ -116,7 +116,7 @@ async function* getQueries(): AsyncGenerator<string | symbol, void, unknown> {
     while (true) {
       const input = await text({
         message: 'Message',
-        placeholder: 'Type your message here (or "exit" to quit)...',
+        placeholder: 'Type your message here (or "exit" / "quit" to quit)...',
       });
       yield input;
     }

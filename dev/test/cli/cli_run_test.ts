@@ -451,6 +451,30 @@ describe('cli_run', () => {
     expect(outro).toHaveBeenCalledWith('Run failed');
   });
 
+  it('should exit when user types "quit" or uppercase exit/quit commands', async () => {
+    for (const exitCommand of ['quit', 'Quit', 'EXIT', '  exit  ']) {
+      vi.clearAllMocks();
+      (text as Mock).mockResolvedValueOnce(exitCommand);
+      (isCancel as unknown as Mock).mockReturnValue(false);
+      const mockSessionService = createMockSessionService();
+
+      const mockRunAsync = vi.fn().mockImplementation(async function* () {
+        yield* [];
+      });
+      (Runner as unknown as Mock).mockImplementation(() => ({
+        runAsync: mockRunAsync,
+      }));
+
+      await runAgent({
+        agentPath: 'agent.ts',
+        sessionService: mockSessionService,
+      });
+
+      expect(mockRunAsync).not.toHaveBeenCalled();
+      expect(outro).toHaveBeenCalledWith('Happy Agent Building!');
+    }
+  });
+
   it('should process user query before exiting', async () => {
     (text as Mock)
       .mockResolvedValueOnce('Hello agent') // First query
