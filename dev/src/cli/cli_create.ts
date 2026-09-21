@@ -4,17 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-  confirm,
-  intro,
-  log,
-  note,
-  outro,
-  password,
-  select,
-  spinner,
-  text,
-} from '@clack/prompts';
+import {isCancel, note, outro, select, text} from '@clack/prompts';
 import {exec, execSync} from 'node:child_process';
 import * as path from 'node:path';
 import {promisify} from 'node:util';
@@ -391,15 +381,19 @@ export async function createAgent(options: AgentCreationOptions) {
 
   if (!options.forceYes) {
     note(
-      `Created the following files in ${agentDir}:\n` +
-        files.map((file) => `  - ${file}`).join('\n') +
-        `\n\nTo get started, run:\n` +
-        `  cd ${options.agentName}\n` +
-        `  npm run web  # Start the agent in a web interface\n` +
-        `  npm run cli  # Interact with the agent in the terminal`,
-      'Agent Created Successfully',
+      files.map((file) => `  - ${file}`).join('\n'),
+      `Created the following files in ${agentDir}:`,
     );
-
-    if (process.stdout.isTTY) outro('Happy Agent Building!');
+    outro(
+      `Run 'cd ${options.agentName} && npm run web' to start the agent in a web interface`,
+    );
+  } else {
+    console.log(`\nCreated the following files in ${agentDir}:`);
+    files.forEach((file) => {
+      console.log(`  - ${file}`);
+    });
+    console.log(
+      `Run 'cd ${options.agentName} && npm run web' to start the agent in a web interface`,
+    );
   }
 }
