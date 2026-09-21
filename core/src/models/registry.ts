@@ -61,6 +61,11 @@ export class LLMRegistry {
    * Value is the class that implements the model.
    */
   private static llmRegistryDict: Map<string | RegExp, BaseLlmType> = new Map();
+  /**
+   * Cache of pre-compiled anchored RegExp patterns.
+   * Key is the original regex/string from `supportedModels`, value is the anchored `RegExp` pattern.
+   */
+  private static compiledPatterns: Map<string | RegExp, RegExp> = new Map();
   private static resolveCache = new LRUCache<string, BaseLlmType>(32);
 
   /**
@@ -82,6 +87,13 @@ export class LLMRegistry {
       );
     }
     LLMRegistry.llmRegistryDict.set(modelNameRegex, llmCls);
+
+    // Pre-compile and cache the anchored regex pattern to avoid slow dynamic RegExp creation during resolve.
+    const pattern = new RegExp(
+      `^${modelNameRegex instanceof RegExp ? modelNameRegex.source : modelNameRegex}$`,
+      modelNameRegex instanceof RegExp ? modelNameRegex.flags : undefined,
+    );
+    LLMRegistry.compiledPatterns.set(modelNameRegex, pattern);
   }
 
   /**
@@ -111,16 +123,15 @@ export class LLMRegistry {
     }
 
     for (const [regex, llmClass] of LLMRegistry.llmRegistryDict.entries()) {
-      // Replicates Python's `re.fullmatch` by anchoring the regex
-      // to the start (^) and end ($) of the string.
-      // TODO - b/425992518: validate it works well.
-      const pattern = new RegExp(
-        `^${regex instanceof RegExp ? regex.source : regex}$`,
-        regex instanceof RegExp ? regex.flags : undefined,
-      );
-      if (pattern.test(model)) {
-        LLMRegistry.resolveCache.set(model, llmClass);
-        return llmClass;
+      const pattern = LLMRegistry.compiledPatterns.get(regex);
+      if (pattern) {
+        // Reset lastIndex to safeguard against potential stateful flags (like /g or /y)
+        // on cached RegExp objects.
+        pattern.lastIndex = 0;
+        if (pattern.test(model)) {
+          LLMRegistry.resolveCache.set(model, llmClass);
+          return llmClass;
+        }
       }
     }
 
