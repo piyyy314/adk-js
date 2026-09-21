@@ -3,13 +3,14 @@
  * Copyright 2025 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
-import {intro, log, outro, spinner} from '@clack/prompts';
+import {intro, log, outro, spinner, text} from '@clack/prompts';
 import {exec, spawn, SpawnOptions} from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import {promisify} from 'node:util';
 
 import {AgentFileOptions, AgentLoader} from '../utils/agent_loader.js';
+import {handleCancellation} from '../utils/cli_utils.js';
 import {
   isFolderExists,
   loadFileData,
@@ -268,33 +269,63 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
   if (process.stdout.isTTY) intro('Agent Deployment');
 
   try {
-    const project =
-      options.project || (await resolveDefaultFromGcloudConfig('project'));
-    if (!project || project === '(unset)') {
-      throw new Error(
-        'Project is not specified and default value for "project" is not set in gcloud config. Please specify project with --project option or set default value running "gcloud config set project YOUR_PROJECT_ID"',
-      );
+    let project = options.project;
+    if (!project) {
+      const gcloudProject = await resolveDefaultFromGcloudConfig('project');
+      if (gcloudProject && gcloudProject !== '(unset)') {
+        project = gcloudProject;
+        log.info(
+          `--project option is not provided, using default project from gcloud config: ${project}`,
+        );
+      } else if (process.stdout.isTTY) {
+        const projectResponse = await text({
+          message: 'Enter the Google Cloud Project ID',
+          placeholder: 'my-project-id',
+          validate: (value) => {
+            if (!value) return 'Project ID is required';
+            return;
+          },
+        });
+        if (handleCancellation(projectResponse)) {
+          return;
+        }
+        project = projectResponse;
+      } else {
+        throw new Error(
+          'Project is not specified and default value for "project" is not set in gcloud config. Please specify project with --project option or set default value running "gcloud config set project YOUR_PROJECT_ID"',
+        );
+      }
     }
-    if (!options.project) {
-      options.project = project;
-      log.info(
-        `--project option is not provided, using default project from gcloud config: ${project}`,
-      );
-    }
+    options.project = project;
 
-    const region =
-      options.region || (await resolveDefaultFromGcloudConfig('run/region'));
+    let region = options.region;
     if (!region) {
-      throw new Error(
-        'Region is not specified and default value for "run/region" is not set in gcloud config. Please specify region with --region option or set default value running "gcloud config set run/region YOUR_REGION_NAME"',
-      );
+      const gcloudRegion = await resolveDefaultFromGcloudConfig('run/region');
+      if (gcloudRegion) {
+        region = gcloudRegion;
+        log.info(
+          `--region option is not provided, using default region from gcloud config: ${region}`,
+        );
+      } else if (process.stdout.isTTY) {
+        const regionResponse = await text({
+          message: 'Enter the Google Cloud Region',
+          placeholder: 'us-central1',
+          validate: (value) => {
+            if (!value) return 'Region is required';
+            return;
+          },
+        });
+        if (handleCancellation(regionResponse)) {
+          return;
+        }
+        region = regionResponse;
+      } else {
+        throw new Error(
+          'Region is not specified and default value for "run/region" is not set in gcloud config. Please specify region with --region option or set default value running "gcloud config set run/region YOUR_REGION_NAME"',
+        );
+      }
     }
-    if (!options.region) {
-      options.region = region;
-      log.info(
-        `--region option is not provided, using default region from gcloud config: ${region}`,
-      );
-    }
+    options.region = region;
   } catch (e: unknown) {
     if (process.stdout.isTTY) {
       outro('Deployment failed');
