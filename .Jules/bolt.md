@@ -1,0 +1,4 @@
+## 2026-08-25 - Object Key Case Notation Conversion Fast-Path & Lookup
+
+**Learning:** Object notation conversions (`toCamelCase` and `toSnakeCase`) run repeatedly across events and context handling in ADK JS. Converting key preservation arrays to `Set` instances turns O(K) array lookups into O(1) checks and allows skipping string concatenations for key path construction when no key preservation is needed. Additionally, checking for target character presence (`includes('_')` or `/[A-Z]/.test()`) before executing regex replacements avoids regex execution overhead for keys already in the target casing.
+**Action:** When working on data transformation utilities, prefer fast-path checks for unchanged data, avoid string construction when guard sets are empty, and use `Set` for key lookup collections.

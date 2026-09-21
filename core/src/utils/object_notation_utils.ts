@@ -15,7 +15,8 @@ export function toCamelCase(
   obj: unknown,
   preserveKeys: string[] = [],
 ): unknown {
-  return toNotation(obj, toCamelCaseKey, '', preserveKeys);
+  const preserveSet = preserveKeys.length > 0 ? new Set(preserveKeys) : null;
+  return toNotation(obj, toCamelCaseKey, '', preserveSet);
 }
 
 /**
@@ -29,26 +30,43 @@ export function toSnakeCase(
   obj: unknown,
   preserveKeys: string[] = [],
 ): unknown {
-  return toNotation(obj, toSnakeCaseKey, '', preserveKeys);
+  const preserveSet = preserveKeys.length > 0 ? new Set(preserveKeys) : null;
+  return toNotation(obj, toSnakeCaseKey, '', preserveSet);
 }
 
+/**
+ * Fast-path key converter: skips regex replacement when '_' is not present.
+ * Reduces overhead on keys that do not require conversion.
+ */
 const toCamelCaseKey = (key: string) =>
-  key.replace(/_([a-z])/g, (_match: string, letter: string) =>
-    letter.toUpperCase(),
-  );
+  key.includes('_')
+    ? key.replace(/_([a-z])/g, (_match: string, letter: string) =>
+        letter.toUpperCase(),
+      )
+    : key;
 
+/**
+ * Pre-compiled regex for testing presence of uppercase characters.
+ */
+const HAS_UPPERCASE_REGEX = /[A-Z]/;
+
+/**
+ * Fast-path key converter: skips regex replacement when uppercase letters are not present.
+ */
 const toSnakeCaseKey = (key: string) =>
-  key.replace(/[A-Z]/g, (g) => '_' + g.toLowerCase());
+  HAS_UPPERCASE_REGEX.test(key)
+    ? key.replace(/[A-Z]/g, (g) => '_' + g.toLowerCase())
+    : key;
 
 function toNotation(
   obj: unknown,
   converter: (key: string) => string,
   parentKey: string = '',
-  preserveKeys: string[] = [],
+  preserveSet: Set<string> | null = null,
 ): unknown {
   if (Array.isArray(obj)) {
     return obj.map((item) =>
-      toNotation(item, converter, parentKey, preserveKeys),
+      toNotation(item, converter, parentKey, preserveSet),
     );
   }
 
@@ -58,16 +76,23 @@ function toNotation(
 
     for (const key of Object.keys(source)) {
       const convertedKey = converter(key);
-      const fullPath = parentKey !== '' ? parentKey + '.' + key : key;
+      // Performance optimization: Avoid string concatenation for fullPath when preserveSet is empty.
+      // O(1) Set lookup replacing O(K) array searching.
+      const hasPreserveSet = preserveSet !== null;
+      const fullPath = hasPreserveSet
+        ? parentKey !== ''
+          ? parentKey + '.' + key
+          : key
+        : '';
 
-      if (preserveKeys.includes(fullPath)) {
+      if (hasPreserveSet && preserveSet.has(fullPath)) {
         result[convertedKey] = source[key];
       } else {
         result[convertedKey] = toNotation(
           source[key],
           converter,
           fullPath,
-          preserveKeys,
+          preserveSet,
         );
       }
     }
