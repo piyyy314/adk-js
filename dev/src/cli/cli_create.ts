@@ -16,6 +16,7 @@ import {
   text,
 } from '@clack/prompts';
 import {exec, execSync} from 'node:child_process';
+import {existsSync} from 'node:fs';
 import * as path from 'node:path';
 import {promisify} from 'node:util';
 import {handleCancellation} from '../utils/cli_utils.js';
@@ -29,6 +30,37 @@ import {
 
 const execPromise = promisify(exec);
 const dirname = process.cwd();
+
+function detectPackageManager(): string {
+  const userAgent = process.env.npm_config_user_agent || '';
+  if (userAgent.startsWith('pnpm')) return 'pnpm';
+  if (userAgent.startsWith('yarn')) return 'yarn';
+  if (userAgent.startsWith('bun')) return 'bun';
+
+  try {
+    if (existsSync(path.join(process.cwd(), 'pnpm-lock.yaml'))) return 'pnpm';
+    if (existsSync(path.join(process.cwd(), 'yarn.lock'))) return 'yarn';
+    if (existsSync(path.join(process.cwd(), 'bun.lockb'))) return 'bun';
+    if (existsSync(path.join(process.cwd(), 'package-lock.json'))) return 'npm';
+  } catch (_) {
+    // Ignored
+  }
+
+  return 'npm';
+}
+
+function getInstallCommands(pm: string): { dev: string; prod: string } {
+  if (pm === 'pnpm') {
+    return { dev: 'pnpm add -D', prod: 'pnpm add' };
+  }
+  if (pm === 'yarn') {
+    return { dev: 'yarn add -D', prod: 'yarn add' };
+  }
+  if (pm === 'bun') {
+    return { dev: 'bun add -d', prod: 'bun add' };
+  }
+  return { dev: 'npm install --save-dev', prod: 'npm install' };
+}
 
 const TS_CONFIG = `{
   "compilerOptions": {
@@ -365,14 +397,17 @@ export async function createAgent(options: AgentCreationOptions) {
   if (!options.forceYes) log.step('Generating files...');
   await generateFiles(options);
 
+  const pm = detectPackageManager();
+  const commands = getInstallCommands(pm);
+
   const s = !options.forceYes ? spinner() : null;
   s?.start('Installing dependencies...');
   try {
     if (options.language === 'ts') {
-      await execPromise(`npm install typescript --save-dev`, {cwd: agentDir});
+      await execPromise(`${commands.dev} typescript`, {cwd: agentDir});
     }
     await execPromise(
-      `npm install @google/adk @google/adk-devtools zod dotenv`,
+      `${commands.prod} @google/adk @google/adk-devtools zod dotenv`,
       {
         cwd: agentDir,
       },
@@ -390,13 +425,14 @@ export async function createAgent(options: AgentCreationOptions) {
   const files = await listFiles(agentDir);
 
   if (!options.forceYes) {
+    const runCmd = pm === 'npm' ? 'npm run' : `${pm} run`;
     note(
       `Created the following files in ${agentDir}:\n` +
         files.map((file) => `  - ${file}`).join('\n') +
         `\n\nTo get started, run:\n` +
         `  cd ${options.agentName}\n` +
-        `  npm run web  # Start the agent in a web interface\n` +
-        `  npm run cli  # Interact with the agent in the terminal`,
+        `  ${runCmd} web  # Start the agent in a web interface\n` +
+        `  ${runCmd} cli  # Interact with the agent in the terminal`,
       'Agent Created Successfully',
     );
 
