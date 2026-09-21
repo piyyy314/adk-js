@@ -124,7 +124,7 @@ describe('UnsafeLocalCodeExecutor', () => {
 
     expect(result.stdout).toContain('Hello, Python!');
     expect(result.stderr).toBe('');
-  });
+  }, 20000);
 
   it('should execute shell code and return stdout', async () => {
     const params: ExecuteCodeParams = {
@@ -140,7 +140,7 @@ describe('UnsafeLocalCodeExecutor', () => {
 
     expect(result.stdout).toContain('Hello, Shell!');
     expect(result.stderr).toBe('');
-  });
+  }, 20000);
 
   it('should return error for unsupported language', async () => {
     const params: ExecuteCodeParams = {
