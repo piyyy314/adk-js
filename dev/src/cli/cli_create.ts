@@ -30,6 +30,57 @@ import {
 const execPromise = promisify(exec);
 const dirname = process.cwd();
 
+function detectPackageManager(): string {
+  const userAgent = process.env.npm_config_user_agent || '';
+  if (userAgent.includes('pnpm')) return 'pnpm';
+  if (userAgent.includes('yarn')) return 'yarn';
+  if (userAgent.includes('bun')) return 'bun';
+  return 'npm';
+}
+
+function getInstallCommands(pm: string, language: string): string[] {
+  if (pm === 'pnpm') {
+    const cmds = [];
+    if (language === 'ts') {
+      cmds.push('pnpm add -D typescript');
+    }
+    cmds.push('pnpm add @google/adk @google/adk-devtools zod dotenv');
+    return cmds;
+  }
+  if (pm === 'yarn') {
+    const cmds = [];
+    if (language === 'ts') {
+      cmds.push('yarn add -D typescript');
+    }
+    cmds.push('yarn add @google/adk @google/adk-devtools zod dotenv');
+    return cmds;
+  }
+  if (pm === 'bun') {
+    const cmds = [];
+    if (language === 'ts') {
+      cmds.push('bun add -d typescript');
+    }
+    cmds.push('bun add @google/adk @google/adk-devtools zod dotenv');
+    return cmds;
+  }
+  const cmds = [];
+  if (language === 'ts') {
+    cmds.push('npm install typescript --save-dev');
+  }
+  cmds.push('npm install @google/adk @google/adk-devtools zod dotenv');
+  return cmds;
+}
+
+function getRunPrefix(pm: string): string {
+  if (pm === 'pnpm' || pm === 'yarn') {
+    return `${pm} `;
+  }
+  if (pm === 'bun') {
+    return 'bun run ';
+  }
+  return 'npm run ';
+}
+
 const TS_CONFIG = `{
   "compilerOptions": {
     "target": "esnext",
@@ -365,18 +416,15 @@ export async function createAgent(options: AgentCreationOptions) {
   if (!options.forceYes) log.step('Generating files...');
   await generateFiles(options);
 
+  const pm = detectPackageManager();
+  const installCmds = getInstallCommands(pm, options.language);
+
   const s = !options.forceYes ? spinner() : null;
-  s?.start('Installing dependencies...');
+  s?.start(`Installing dependencies using ${pm}...`);
   try {
-    if (options.language === 'ts') {
-      await execPromise(`npm install typescript --save-dev`, {cwd: agentDir});
+    for (const cmd of installCmds) {
+      await execPromise(cmd, {cwd: agentDir});
     }
-    await execPromise(
-      `npm install @google/adk @google/adk-devtools zod dotenv`,
-      {
-        cwd: agentDir,
-      },
-    );
     s?.stop('Dependencies installed successfully.');
   } catch (e) {
     s?.stop('Failed to install dependencies.', 1);
@@ -390,13 +438,14 @@ export async function createAgent(options: AgentCreationOptions) {
   const files = await listFiles(agentDir);
 
   if (!options.forceYes) {
+    const runPrefix = getRunPrefix(pm);
     note(
       `Created the following files in ${agentDir}:\n` +
         files.map((file) => `  - ${file}`).join('\n') +
         `\n\nTo get started, run:\n` +
         `  cd ${options.agentName}\n` +
-        `  npm run web  # Start the agent in a web interface\n` +
-        `  npm run cli  # Interact with the agent in the terminal`,
+        `  ${runPrefix}web  # Start the agent in a web interface\n` +
+        `  ${runPrefix}cli  # Interact with the agent in the terminal`,
       'Agent Created Successfully',
     );
 
