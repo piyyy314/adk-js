@@ -351,24 +351,22 @@ async function buildDescriptionFromInstructions(
   }
 }
 
+const PRONOUN_SUBSTITUTIONS = [
+  {pattern: /\byou were\b/gi, target: 'I was'},
+  {pattern: /\byou are\b/gi, target: 'I am'},
+  {pattern: /\byou're\b/gi, target: 'I am'},
+  {pattern: /\byou've\b/gi, target: 'I have'},
+  {pattern: /\byours\b/gi, target: 'mine'},
+  {pattern: /\byour\b/gi, target: 'my'},
+  {pattern: /\byou\b/gi, target: 'I'},
+];
+
 // Replaces pronouns and conjugate common verbs for agent description.
 // Examples: "You are" -> "I am", "your" -> "my"
 function replacePronouns(instruction: string): string {
-  const substitutions = [
-    {original: 'you were', target: 'I was'},
-    {original: 'you are', target: 'I am'},
-    {original: "you're", target: 'I am'},
-    {original: "you've", target: 'I have'},
-    {original: 'yours', target: 'mine'},
-    {original: 'your', target: 'my'},
-    {original: 'you', target: 'I'},
-  ];
-
   let result = instruction;
-  for (const sub of substitutions) {
-    // Only replace whole words, case insensitive
-    const pattern = new RegExp(`\\b${sub.original}\\b`, 'gi');
-    result = result.replace(pattern, sub.target);
+  for (const sub of PRONOUN_SUBSTITUTIONS) {
+    result = result.replace(sub.pattern, sub.target);
   }
   return result;
 }
