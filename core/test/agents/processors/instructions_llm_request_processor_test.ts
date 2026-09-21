@@ -14,6 +14,7 @@ import {
   createSession,
 } from '@google/adk';
 import {describe, expect, it} from 'vitest';
+import {injectSessionState} from '../../../src/agents/instructions.js';
 import {INSTRUCTIONS_LLM_REQUEST_PROCESSOR} from '../../../src/agents/processors/instructions_llm_request_processor.js';
 
 class MockRootAgent extends BaseAgent {
@@ -157,6 +158,41 @@ describe('InstructionsLlmRequestProcessor', () => {
     expect(llmRequest.config?.systemInstruction).toContain('Local instruction');
     expect(llmRequest.config?.systemInstruction).toBe(
       'Global instruction\n\nLocal instruction',
+    );
+  });
+
+  it('should handle duplicate placeholders and concurrent injection in instructions correctly', async () => {
+    const dynamicInstruction = async (context: ReadonlyContext) => {
+      return await injectSessionState(
+        'Hello {user_name}, welcome {user_name}!',
+        context,
+      );
+    };
+
+    const agent = new LlmAgent({
+      name: 'test_agent',
+      model: 'gemini-2.5-flash',
+      instruction: dynamicInstruction,
+    });
+
+    const invocationContext = createMockInvocationContext(agent);
+    invocationContext.session.state['user_name'] = 'Alice';
+
+    const llmRequest: LlmRequest = {
+      contents: [],
+      toolsDict: {},
+      liveConnectConfig: {},
+    };
+
+    for await (const _ of INSTRUCTIONS_LLM_REQUEST_PROCESSOR.runAsync(
+      invocationContext,
+      llmRequest,
+    )) {
+      // intentionally empty
+    }
+
+    expect(llmRequest.config?.systemInstruction).toBe(
+      'Hello Alice, welcome Alice!',
     );
   });
 });
