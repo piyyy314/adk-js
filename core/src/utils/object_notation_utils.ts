@@ -13,9 +13,11 @@
  */
 export function toCamelCase(
   obj: unknown,
-  preserveKeys: string[] = [],
+  preserveKeys: string[] | Set<string> = [],
 ): unknown {
-  return toNotation(obj, toCamelCaseKey, '', preserveKeys);
+  const preserveSet =
+    preserveKeys instanceof Set ? preserveKeys : new Set(preserveKeys);
+  return toNotation(obj, toCamelCaseKey, '', preserveSet);
 }
 
 /**
@@ -27,24 +29,26 @@ export function toCamelCase(
  */
 export function toSnakeCase(
   obj: unknown,
-  preserveKeys: string[] = [],
+  preserveKeys: string[] | Set<string> = [],
 ): unknown {
-  return toNotation(obj, toSnakeCaseKey, '', preserveKeys);
+  const preserveSet =
+    preserveKeys instanceof Set ? preserveKeys : new Set(preserveKeys);
+  return toNotation(obj, toSnakeCaseKey, '', preserveSet);
 }
 
-const toCamelCaseKey = (key: string) =>
+const toCamelCaseKey = (key: string): string =>
   key.replace(/_([a-z])/g, (_match: string, letter: string) =>
     letter.toUpperCase(),
   );
 
-const toSnakeCaseKey = (key: string) =>
+const toSnakeCaseKey = (key: string): string =>
   key.replace(/[A-Z]/g, (g) => '_' + g.toLowerCase());
 
 function toNotation(
   obj: unknown,
   converter: (key: string) => string,
-  parentKey: string = '',
-  preserveKeys: string[] = [],
+  parentKey = '',
+  preserveKeys: Set<string> = new Set(),
 ): unknown {
   if (Array.isArray(obj)) {
     return obj.map((item) =>
@@ -60,7 +64,7 @@ function toNotation(
       const convertedKey = converter(key);
       const fullPath = parentKey !== '' ? parentKey + '.' + key : key;
 
-      if (preserveKeys.includes(fullPath)) {
+      if (preserveKeys.has(fullPath)) {
         result[convertedKey] = source[key];
       } else {
         result[convertedKey] = toNotation(
