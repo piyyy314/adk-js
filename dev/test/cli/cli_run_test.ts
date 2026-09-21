@@ -80,12 +80,18 @@ vi.mock('node:readline', () => ({
 describe('cli_run', () => {
   let mockAgentFile: AgentFile;
   let mockRootAgent: BaseAgent;
+  const originalIsTTY = process.stdout.isTTY;
 
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(console, 'log').mockImplementation(() => {});
     // Force TTY path so unit tests use the mocked `text()` from @clack/prompts.
     (process.stdin as unknown as {isTTY: boolean}).isTTY = true;
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: true,
+      configurable: true,
+    });
+
     Object.defineProperty(process.stdout, 'isTTY', {
       value: true,
       configurable: true,
@@ -120,6 +126,10 @@ describe('cli_run', () => {
     (process.stdin as unknown as {isTTY: boolean | undefined}).isTTY =
       undefined;
     vi.restoreAllMocks();
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: originalIsTTY,
+      configurable: true,
+    });
   });
 
   it('should run interactively by default', async () => {

@@ -62,8 +62,8 @@ const PACKAGE_JSON = (agentName: string, language: string) =>
   "description": "",
   "main": "agent.${language}",
   "scripts": {
-    "web": "npx @google/adk-devtools web",
-    "cli": "npx @google/adk-devtools run agent.${language}"
+    "web": "pnpm dlx @google/adk-devtools web",
+    "cli": "pnpm dlx @google/adk-devtools run agent.${language}"
   },
   "keywords": [],
   "author": "",
@@ -369,7 +369,7 @@ export async function createAgent(options: AgentCreationOptions) {
   s?.start('Installing dependencies...');
   try {
     if (options.language === 'ts') {
-      await execPromise(`npm install typescript --save-dev`, {cwd: agentDir});
+      await execPromise(`pnpm add typescript --save-dev`, {cwd: agentDir});
     }
     await execPromise(
       `npm install @google/adk @google/adk-devtools zod dotenv`,
