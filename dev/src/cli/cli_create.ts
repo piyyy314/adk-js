@@ -21,6 +21,7 @@ import {promisify} from 'node:util';
 import {handleCancellation} from '../utils/cli_utils.js';
 import {
   createFolder,
+  isFileExists,
   isFolderExists,
   listFiles,
   removeFolder,
@@ -28,6 +29,24 @@ import {
 } from '../utils/file_utils.js';
 
 const execPromise = promisify(exec);
+
+async function detectPackageManager(): Promise<
+  'npm' | 'pnpm' | 'yarn' | 'bun'
+> {
+  const ua = process.env.npm_config_user_agent || '';
+  if (ua.startsWith('pnpm')) return 'pnpm';
+  if (ua.startsWith('yarn')) return 'yarn';
+  if (ua.startsWith('bun')) return 'bun';
+  if (ua.startsWith('npm')) return 'npm';
+  if (await isFileExists(path.join(dirname, 'pnpm-lock.yaml'))) return 'pnpm';
+  if (await isFileExists(path.join(dirname, 'yarn.lock'))) return 'yarn';
+  if (
+    (await isFileExists(path.join(dirname, 'bun.lockb'))) ||
+    (await isFileExists(path.join(dirname, 'bun.lock')))
+  )
+    return 'bun';
+  return 'npm';
+}
 const dirname = process.cwd();
 
 const TS_CONFIG = `{
@@ -365,18 +384,22 @@ export async function createAgent(options: AgentCreationOptions) {
   if (!options.forceYes) log.step('Generating files...');
   await generateFiles(options);
 
+  const pm = await detectPackageManager();
   const s = !options.forceYes ? spinner() : null;
   s?.start('Installing dependencies...');
   try {
     if (options.language === 'ts') {
-      await execPromise(`npm install typescript --save-dev`, {cwd: agentDir});
+      const tsCmd =
+        pm === 'pnpm' || pm === 'yarn' || pm === 'bun'
+          ? `${pm} add -D typescript`
+          : `npm install typescript --save-dev`;
+      await execPromise(tsCmd, {cwd: agentDir});
     }
-    await execPromise(
-      `npm install @google/adk @google/adk-devtools zod dotenv`,
-      {
-        cwd: agentDir,
-      },
-    );
+    const depsCmd =
+      pm === 'pnpm' || pm === 'yarn' || pm === 'bun'
+        ? `${pm} add @google/adk @google/adk-devtools zod dotenv`
+        : `npm install @google/adk @google/adk-devtools zod dotenv`;
+    await execPromise(depsCmd, {cwd: agentDir});
     s?.stop('Dependencies installed successfully.');
   } catch (e) {
     s?.stop('Failed to install dependencies.', 1);
@@ -390,13 +413,14 @@ export async function createAgent(options: AgentCreationOptions) {
   const files = await listFiles(agentDir);
 
   if (!options.forceYes) {
+    const runCmd = pm === 'pnpm' || pm === 'bun' ? `${pm}` : `${pm} run`;
     note(
       `Created the following files in ${agentDir}:\n` +
         files.map((file) => `  - ${file}`).join('\n') +
         `\n\nTo get started, run:\n` +
         `  cd ${options.agentName}\n` +
-        `  npm run web  # Start the agent in a web interface\n` +
-        `  npm run cli  # Interact with the agent in the terminal`,
+        `  ${runCmd} web  # Start the agent in a web interface\n` +
+        `  ${runCmd} cli  # Interact with the agent in the terminal`,
       'Agent Created Successfully',
     );
 
