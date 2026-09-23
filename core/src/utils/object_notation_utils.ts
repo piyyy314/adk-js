@@ -15,7 +15,9 @@ export function toCamelCase(
   obj: unknown,
   preserveKeys: string[] = [],
 ): unknown {
-  return toNotation(obj, toCamelCaseKey, '', preserveKeys);
+  const preserveSet =
+    preserveKeys.length > 0 ? new Set(preserveKeys) : undefined;
+  return toNotation(obj, toCamelCaseKey, '', preserveSet);
 }
 
 /**
@@ -29,7 +31,9 @@ export function toSnakeCase(
   obj: unknown,
   preserveKeys: string[] = [],
 ): unknown {
-  return toNotation(obj, toSnakeCaseKey, '', preserveKeys);
+  const preserveSet =
+    preserveKeys.length > 0 ? new Set(preserveKeys) : undefined;
+  return toNotation(obj, toSnakeCaseKey, '', preserveSet);
 }
 
 const toCamelCaseKey = (key: string) =>
@@ -44,7 +48,7 @@ function toNotation(
   obj: unknown,
   converter: (key: string) => string,
   parentKey: string = '',
-  preserveKeys: string[] = [],
+  preserveKeys?: Set<string>,
 ): unknown {
   if (Array.isArray(obj)) {
     return obj.map((item) =>
@@ -58,15 +62,26 @@ function toNotation(
 
     for (const key of Object.keys(source)) {
       const convertedKey = converter(key);
-      const fullPath = parentKey !== '' ? parentKey + '.' + key : key;
 
-      if (preserveKeys.includes(fullPath)) {
-        result[convertedKey] = source[key];
-      } else {
+      if (preserveKeys !== undefined) {
+        // Compute fullPath only when preserveKeys is set, saving string allocations on empty preserveKeys.
+        const fullPath = parentKey !== '' ? parentKey + '.' + key : key;
+        if (preserveKeys.has(fullPath)) {
+          result[convertedKey] = source[key];
+          continue;
+        }
         result[convertedKey] = toNotation(
           source[key],
           converter,
           fullPath,
+          preserveKeys,
+        );
+      } else {
+        // Fast path: O(1) recursion with no path string concatenation when preserveKeys is empty.
+        result[convertedKey] = toNotation(
+          source[key],
+          converter,
+          '',
           preserveKeys,
         );
       }
