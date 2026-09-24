@@ -210,6 +210,17 @@ async function generateFiles(options: AgentCreationOptions) {
 
 export async function createAgent(options: AgentCreationOptions) {
   if (!options.forceYes && process.stdout.isTTY) intro('Agent Creation');
+
+  if (/[^a-zA-Z0-9_-]/.test(options.agentName)) {
+    log.error(
+      `Invalid agent name '${options.agentName}'. Agent name must only contain alphanumeric characters, underscores, or hyphens.`,
+    );
+    if (!options.forceYes && process.stdout.isTTY) {
+      outro('Agent creation failed');
+    }
+    return;
+  }
+
   const agentDir = path.join(dirname, options.agentName);
   const folderReady = await generateAgentFolder(agentDir, options.forceYes);
   if (!folderReady) {
