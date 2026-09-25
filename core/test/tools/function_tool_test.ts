@@ -17,7 +17,7 @@ describe('FunctionTool', () => {
   });
 
   describe('zod v3', () => {
-    it('computes the correct declaration', async () => {
+    it('computes the correct declaration and caches parameter schema', async () => {
       const addTool = new FunctionTool({
         name: 'add',
         description: 'Adds two numbers.',
@@ -30,10 +30,10 @@ describe('FunctionTool', () => {
         },
       });
 
-      const declaration = addTool._getDeclaration();
-      expect(declaration.name).toEqual('add');
-      expect(declaration.description).toEqual('Adds two numbers.');
-      expect(declaration.parameters).toEqual({
+      const declaration1 = addTool._getDeclaration();
+      expect(declaration1.name).toEqual('add');
+      expect(declaration1.description).toEqual('Adds two numbers.');
+      expect(declaration1.parameters).toEqual({
         type: Type.OBJECT,
         properties: {
           a: {type: Type.NUMBER},
@@ -41,6 +41,9 @@ describe('FunctionTool', () => {
         },
         required: ['a', 'b'],
       });
+
+      const declaration2 = addTool._getDeclaration();
+      expect(declaration2.parameters).toBe(declaration1.parameters);
     });
 
     it('works with named functions', async () => {
