@@ -289,6 +289,8 @@ describe('createAgent', () => {
       expect(confirm).toHaveBeenCalledWith(
         expect.objectContaining({
           message: expect.stringContaining('already exists'),
+          active: 'Yes, overwrite',
+          inactive: 'No, cancel',
         }),
       );
       expect(removeFolder).toHaveBeenCalled();
