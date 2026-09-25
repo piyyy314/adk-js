@@ -33,6 +33,9 @@ import {MCPSessionManager} from './mcp_session_manager.js';
 export class MCPTool extends BaseTool {
   private readonly mcpTool: Tool;
   private readonly mcpSessionManager: MCPSessionManager;
+  // Performance optimization: Cache converted FunctionDeclaration representation to avoid re-converting
+  // MCP schemas on every _getDeclaration() call.
+  private cachedDeclaration?: FunctionDeclaration;
 
   constructor(mcpTool: Tool, mcpSessionManager: MCPSessionManager) {
     super({name: mcpTool.name, description: mcpTool.description || ''});
@@ -41,14 +44,18 @@ export class MCPTool extends BaseTool {
   }
 
   override _getDeclaration(): FunctionDeclaration {
-    return {
-      name: this.mcpTool.name,
-      description: this.mcpTool.description,
-      parameters: toGeminiSchema(this.mcpTool.inputSchema),
-      // TODO: need revisit, refer to this
-      // https://modelcontextprotocol.io/specification/2025-06-18/server/tools#tool-result
-      response: toGeminiSchema(this.mcpTool.outputSchema),
-    };
+    if (!this.cachedDeclaration) {
+      this.cachedDeclaration = {
+        name: this.mcpTool.name,
+        description: this.mcpTool.description,
+        parameters: toGeminiSchema(this.mcpTool.inputSchema),
+        // TODO: need revisit, refer to this
+        // https://modelcontextprotocol.io/specification/2025-06-18/server/tools#tool-result
+        response: toGeminiSchema(this.mcpTool.outputSchema),
+      };
+    }
+
+    return this.cachedDeclaration;
   }
 
   override async runAsync(request: RunAsyncToolRequest): Promise<unknown> {
