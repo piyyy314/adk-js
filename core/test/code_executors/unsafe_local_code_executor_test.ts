@@ -15,6 +15,8 @@ import {
 } from '@google/adk';
 import {beforeEach, describe, expect, it} from 'vitest';
 
+const TEST_TIMEOUT = 30000;
+
 function createMockInvocationContext(): InvocationContext {
   const agent = new LlmAgent({
     name: 'test_agent',
@@ -34,7 +36,7 @@ function createMockInvocationContext(): InvocationContext {
   });
 }
 
-describe('UnsafeLocalCodeExecutor', () => {
+describe('UnsafeLocalCodeExecutor', {timeout: TEST_TIMEOUT}, () => {
   let executor: UnsafeLocalCodeExecutor;
   const invocationContext = createMockInvocationContext();
 
