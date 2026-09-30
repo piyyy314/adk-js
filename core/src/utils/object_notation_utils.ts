@@ -15,7 +15,9 @@ export function toCamelCase(
   obj: unknown,
   preserveKeys: string[] = [],
 ): unknown {
-  return toNotation(obj, toCamelCaseKey, '', preserveKeys);
+  const preserveKeysSet =
+    preserveKeys.length > 0 ? new Set(preserveKeys) : null;
+  return toNotation(obj, toCamelCaseKey, '', preserveKeysSet);
 }
 
 /**
@@ -29,26 +31,40 @@ export function toSnakeCase(
   obj: unknown,
   preserveKeys: string[] = [],
 ): unknown {
-  return toNotation(obj, toSnakeCaseKey, '', preserveKeys);
+  const preserveKeysSet =
+    preserveKeys.length > 0 ? new Set(preserveKeys) : null;
+  return toNotation(obj, toSnakeCaseKey, '', preserveKeysSet);
 }
 
-const toCamelCaseKey = (key: string) =>
-  key.replace(/_([a-z])/g, (_match: string, letter: string) =>
+// Fast-path checking: if string contains no '_', return key directly
+// to avoid RegExp replace allocation and callback execution overhead.
+const toCamelCaseKey = (key: string) => {
+  if (key.indexOf('_') === -1) {
+    return key;
+  }
+  return key.replace(/_([a-z])/g, (_match: string, letter: string) =>
     letter.toUpperCase(),
   );
+};
 
-const toSnakeCaseKey = (key: string) =>
-  key.replace(/[A-Z]/g, (g) => '_' + g.toLowerCase());
+// Fast-path checking: if string contains no uppercase letter, return key directly
+// to avoid RegExp replace allocation and callback execution overhead.
+const toSnakeCaseKey = (key: string) => {
+  if (!/[A-Z]/.test(key)) {
+    return key;
+  }
+  return key.replace(/[A-Z]/g, (g) => '_' + g.toLowerCase());
+};
 
 function toNotation(
   obj: unknown,
   converter: (key: string) => string,
   parentKey: string = '',
-  preserveKeys: string[] = [],
+  preserveKeysSet: Set<string> | null = null,
 ): unknown {
   if (Array.isArray(obj)) {
     return obj.map((item) =>
-      toNotation(item, converter, parentKey, preserveKeys),
+      toNotation(item, converter, parentKey, preserveKeysSet),
     );
   }
 
@@ -56,19 +72,28 @@ function toNotation(
     const source = obj as Record<string, unknown>;
     const result: Record<string, unknown> = {};
 
-    for (const key of Object.keys(source)) {
-      const convertedKey = converter(key);
-      const fullPath = parentKey !== '' ? parentKey + '.' + key : key;
+    // Performance optimization: when no keys are preserved (common case),
+    // bypass fullPath string concatenation and Set lookups completely.
+    if (preserveKeysSet !== null) {
+      for (const key of Object.keys(source)) {
+        const convertedKey = converter(key);
+        const fullPath = parentKey !== '' ? parentKey + '.' + key : key;
 
-      if (preserveKeys.includes(fullPath)) {
-        result[convertedKey] = source[key];
-      } else {
-        result[convertedKey] = toNotation(
-          source[key],
-          converter,
-          fullPath,
-          preserveKeys,
-        );
+        if (preserveKeysSet.has(fullPath)) {
+          result[convertedKey] = source[key];
+        } else {
+          result[convertedKey] = toNotation(
+            source[key],
+            converter,
+            fullPath,
+            preserveKeysSet,
+          );
+        }
+      }
+    } else {
+      for (const key of Object.keys(source)) {
+        const convertedKey = converter(key);
+        result[convertedKey] = toNotation(source[key], converter, '', null);
       }
     }
 
