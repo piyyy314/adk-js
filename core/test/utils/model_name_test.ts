@@ -4,8 +4,69 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {isGemini2OrAbove} from '@google/adk';
 import {describe, expect, it} from 'vitest';
+import {
+  extractModelName,
+  isGemini1Model,
+  isGemini2OrAbove,
+  isGeminiModel,
+} from '../../src/utils/model_name.js';
+
+describe('extractModelName', () => {
+  it('should return simple model name as-is', () => {
+    expect(extractModelName('gemini-2.5-pro')).toBe('gemini-2.5-pro');
+    expect(extractModelName('gemini-1.5-flash')).toBe('gemini-1.5-flash');
+    expect(extractModelName('custom-model')).toBe('custom-model');
+  });
+
+  it('should extract model name from vertex resource path', () => {
+    expect(
+      extractModelName(
+        'projects/my-project/locations/us-central1/publishers/google/models/gemini-2.0-flash-001',
+      ),
+    ).toBe('gemini-2.0-flash-001');
+  });
+
+  it('should handle empty string or falsy input', () => {
+    expect(extractModelName('')).toBe('');
+  });
+});
+
+describe('isGeminiModel', () => {
+  it('should return true for Gemini models', () => {
+    expect(isGeminiModel('gemini-1.5-pro')).toBe(true);
+    expect(isGeminiModel('gemini-2.0-flash')).toBe(true);
+    expect(
+      isGeminiModel(
+        'projects/p/locations/l/publishers/google/models/gemini-2.5-pro',
+      ),
+    ).toBe(true);
+  });
+
+  it('should return false for non-Gemini models', () => {
+    expect(isGeminiModel('gpt-4')).toBe(false);
+    expect(isGeminiModel('claude-3-5-sonnet')).toBe(false);
+    expect(isGeminiModel('')).toBe(false);
+  });
+});
+
+describe('isGemini1Model', () => {
+  it('should return true for Gemini 1.x models', () => {
+    expect(isGemini1Model('gemini-1.5-pro')).toBe(true);
+    expect(isGemini1Model('gemini-1.0-ultra')).toBe(true);
+    expect(
+      isGemini1Model(
+        'projects/p/locations/l/publishers/google/models/gemini-1.5-flash',
+      ),
+    ).toBe(true);
+  });
+
+  it('should return false for Gemini 2+ or non-Gemini models', () => {
+    expect(isGemini1Model('gemini-2.0-flash')).toBe(false);
+    expect(isGemini1Model('gpt-4')).toBe(false);
+    expect(isGemini1Model('')).toBe(false);
+  });
+});
 
 describe('isGemini2OrAbove', () => {
   describe('valid models', () => {
