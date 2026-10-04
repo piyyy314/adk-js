@@ -154,6 +154,8 @@ async function generateAgentFolder(
     ? true
     : await confirm({
         message: `Folder ${agentDir} already exists. Would you like to overwrite existing folder?`,
+        active: 'Yes, overwrite',
+        inactive: 'No, cancel',
       });
 
   if (handleCancellation(overwriteFolderResponse)) {
@@ -209,6 +211,16 @@ async function generateFiles(options: AgentCreationOptions) {
 }
 
 export async function createAgent(options: AgentCreationOptions) {
+  if (/[^a-zA-Z0-9_-]/.test(options.agentName)) {
+    log.error(
+      'Agent name must contain only letters, numbers, underscores, and hyphens.',
+    );
+    if (process.stdout.isTTY && !options.forceYes) {
+      outro('Agent creation failed');
+    }
+    return;
+  }
+
   if (!options.forceYes && process.stdout.isTTY) intro('Agent Creation');
   const agentDir = path.join(dirname, options.agentName);
   const folderReady = await generateAgentFolder(agentDir, options.forceYes);
