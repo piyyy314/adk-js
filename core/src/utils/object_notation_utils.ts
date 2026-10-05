@@ -13,9 +13,11 @@
  */
 export function toCamelCase(
   obj: unknown,
-  preserveKeys: string[] = [],
+  preserveKeys: string[] | Set<string> = [],
 ): unknown {
-  return toNotation(obj, toCamelCaseKey, '', preserveKeys);
+  const preserveKeysSet =
+    preserveKeys instanceof Set ? preserveKeys : new Set(preserveKeys);
+  return toNotation(obj, toCamelCaseKey, '', preserveKeysSet);
 }
 
 /**
@@ -27,24 +29,32 @@ export function toCamelCase(
  */
 export function toSnakeCase(
   obj: unknown,
-  preserveKeys: string[] = [],
+  preserveKeys: string[] | Set<string> = [],
 ): unknown {
-  return toNotation(obj, toSnakeCaseKey, '', preserveKeys);
+  const preserveKeysSet =
+    preserveKeys instanceof Set ? preserveKeys : new Set(preserveKeys);
+  return toNotation(obj, toSnakeCaseKey, '', preserveKeysSet);
 }
 
+// Fast path: skip regex replacement if the key doesn't contain underscores.
 const toCamelCaseKey = (key: string) =>
-  key.replace(/_([a-z])/g, (_match: string, letter: string) =>
-    letter.toUpperCase(),
-  );
+  key.includes('_')
+    ? key.replace(/_([a-z])/g, (_match: string, letter: string) =>
+        letter.toUpperCase(),
+      )
+    : key;
 
+// Fast path: skip regex replacement if the key doesn't contain uppercase letters.
 const toSnakeCaseKey = (key: string) =>
-  key.replace(/[A-Z]/g, (g) => '_' + g.toLowerCase());
+  key.toLowerCase() !== key
+    ? key.replace(/[A-Z]/g, (g) => '_' + g.toLowerCase())
+    : key;
 
 function toNotation(
   obj: unknown,
   converter: (key: string) => string,
   parentKey: string = '',
-  preserveKeys: string[] = [],
+  preserveKeys: Set<string> = new Set(),
 ): unknown {
   if (Array.isArray(obj)) {
     return obj.map((item) =>
@@ -60,7 +70,8 @@ function toNotation(
       const convertedKey = converter(key);
       const fullPath = parentKey !== '' ? parentKey + '.' + key : key;
 
-      if (preserveKeys.includes(fullPath)) {
+      // O(1) Set lookup replacing O(K) linear array scan
+      if (preserveKeys.has(fullPath)) {
         result[convertedKey] = source[key];
       } else {
         result[convertedKey] = toNotation(
