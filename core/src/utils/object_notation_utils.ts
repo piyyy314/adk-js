@@ -55,18 +55,30 @@ function toNotation(
   if (typeof obj === 'object' && obj !== null) {
     const source = obj as Record<string, unknown>;
     const result: Record<string, unknown> = {};
+    const hasPreserveKeys = preserveKeys.length > 0;
 
     for (const key of Object.keys(source)) {
       const convertedKey = converter(key);
-      const fullPath = parentKey !== '' ? parentKey + '.' + key : key;
 
-      if (preserveKeys.includes(fullPath)) {
-        result[convertedKey] = source[key];
-      } else {
+      // Performance optimization: Only build dot-notated parentKey paths when preserveKeys is non-empty.
+      // This avoids unnecessary string allocations and concatenation for the common case where preserveKeys is empty.
+      if (hasPreserveKeys) {
+        const fullPath = parentKey !== '' ? parentKey + '.' + key : key;
+        if (preserveKeys.includes(fullPath)) {
+          result[convertedKey] = source[key];
+          continue;
+        }
         result[convertedKey] = toNotation(
           source[key],
           converter,
           fullPath,
+          preserveKeys,
+        );
+      } else {
+        result[convertedKey] = toNotation(
+          source[key],
+          converter,
+          '',
           preserveKeys,
         );
       }
