@@ -13,9 +13,15 @@
  */
 export function toCamelCase(
   obj: unknown,
-  preserveKeys: string[] = [],
+  preserveKeys: string[] | Set<string> = [],
 ): unknown {
-  return toNotation(obj, toCamelCaseKey, '', preserveKeys);
+  const preserveKeySet =
+    preserveKeys instanceof Set
+      ? preserveKeys
+      : preserveKeys.length > 0
+        ? new Set(preserveKeys)
+        : null;
+  return toNotation(obj, toCamelCaseKey, '', preserveKeySet);
 }
 
 /**
@@ -27,28 +33,46 @@ export function toCamelCase(
  */
 export function toSnakeCase(
   obj: unknown,
-  preserveKeys: string[] = [],
+  preserveKeys: string[] | Set<string> = [],
 ): unknown {
-  return toNotation(obj, toSnakeCaseKey, '', preserveKeys);
+  const preserveKeySet =
+    preserveKeys instanceof Set
+      ? preserveKeys
+      : preserveKeys.length > 0
+        ? new Set(preserveKeys)
+        : null;
+  return toNotation(obj, toSnakeCaseKey, '', preserveKeySet);
 }
 
-const toCamelCaseKey = (key: string) =>
-  key.replace(/_([a-z])/g, (_match: string, letter: string) =>
+// Fast-path: Skip regex replacement if the key does not contain '_'
+const toCamelCaseKey = (key: string) => {
+  if (!key.includes('_')) {
+    return key;
+  }
+  return key.replace(/_([a-z])/g, (_match: string, letter: string) =>
     letter.toUpperCase(),
   );
+};
 
-const toSnakeCaseKey = (key: string) =>
-  key.replace(/[A-Z]/g, (g) => '_' + g.toLowerCase());
+const HAS_UPPERCASE = /[A-Z]/;
+
+// Fast-path: Skip regex replacement if the key does not contain uppercase letters
+const toSnakeCaseKey = (key: string) => {
+  if (!HAS_UPPERCASE.test(key)) {
+    return key;
+  }
+  return key.replace(/[A-Z]/g, (g) => '_' + g.toLowerCase());
+};
 
 function toNotation(
   obj: unknown,
   converter: (key: string) => string,
   parentKey: string = '',
-  preserveKeys: string[] = [],
+  preserveKeySet: Set<string> | null = null,
 ): unknown {
   if (Array.isArray(obj)) {
     return obj.map((item) =>
-      toNotation(item, converter, parentKey, preserveKeys),
+      toNotation(item, converter, parentKey, preserveKeySet),
     );
   }
 
@@ -60,14 +84,15 @@ function toNotation(
       const convertedKey = converter(key);
       const fullPath = parentKey !== '' ? parentKey + '.' + key : key;
 
-      if (preserveKeys.includes(fullPath)) {
+      // O(1) set lookup instead of O(N) linear array scan
+      if (preserveKeySet !== null && preserveKeySet.has(fullPath)) {
         result[convertedKey] = source[key];
       } else {
         result[convertedKey] = toNotation(
           source[key],
           converter,
           fullPath,
-          preserveKeys,
+          preserveKeySet,
         );
       }
     }

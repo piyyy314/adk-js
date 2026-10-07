@@ -20,13 +20,18 @@ describe('toCamelCase', () => {
     });
   });
 
-  it('preserves keys when specified', () => {
+  it('preserves keys when specified as array or set', () => {
     const obj = {
       snake_case: {another_snake_case: 'value'},
       another_key: 'another_value',
     };
 
     expect(toCamelCase(obj, ['snake_case'])).toEqual({
+      snakeCase: {another_snake_case: 'value'},
+      anotherKey: 'another_value',
+    });
+
+    expect(toCamelCase(obj, new Set(['snake_case']))).toEqual({
       snakeCase: {another_snake_case: 'value'},
       anotherKey: 'another_value',
     });
@@ -88,7 +93,7 @@ describe('toSnakeCase', () => {
     });
   });
 
-  it('preserves keys when specified', () => {
+  it('preserves keys when specified as array or set', () => {
     const obj = {
       camelCase: {
         anotherCamelCase: 'anotherCamelCase',
@@ -97,6 +102,13 @@ describe('toSnakeCase', () => {
     };
 
     expect(toSnakeCase(obj, ['camelCase'])).toEqual({
+      camel_case: {
+        anotherCamelCase: 'anotherCamelCase',
+      },
+      another_key: 'another_value',
+    });
+
+    expect(toSnakeCase(obj, new Set(['camelCase']))).toEqual({
       camel_case: {
         anotherCamelCase: 'anotherCamelCase',
       },
