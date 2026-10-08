@@ -60,6 +60,7 @@ vi.mock('@clack/prompts', () => ({
     info: vi.fn(),
     step: vi.fn(),
     warn: vi.fn(),
+    success: vi.fn(),
   },
   text: vi.fn(),
   isCancel: vi.fn(),
@@ -234,6 +235,7 @@ describe('cli_run', () => {
 
   it('should save session when requested', async () => {
     const mockSessionService = createMockSessionService();
+    const {log} = await import('@clack/prompts');
     // Run interactively then exit
     await runAgent({
       agentPath: 'agent.ts',
@@ -245,6 +247,12 @@ describe('cli_run', () => {
     expect(saveToFile).toHaveBeenCalledWith(
       expect.stringContaining('my-session.session.json'),
       expect.anything(),
+    );
+    expect(log.success).toHaveBeenCalledWith(
+      expect.stringContaining('Session saved to'),
+    );
+    expect(log.info).toHaveBeenCalledWith(
+      expect.stringContaining('To resume, run:'),
     );
   });
 

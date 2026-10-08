@@ -308,7 +308,6 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
           message: 'Session ID to save (will be used as filename)',
           initialValue: defaultSessionId,
           placeholder: 'e.g. my-session',
-          hint: 'Saved as a JSON file for session resumption',
           validate: (value) => {
             if (!value) return 'Session ID is required';
             if (/[^-a-zA-Z0-9_]/.test(value)) {
