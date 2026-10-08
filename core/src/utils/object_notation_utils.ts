@@ -45,9 +45,7 @@ const toCamelCaseKey = (key: string) =>
     : key;
 
 const toSnakeCaseKey = (key: string) =>
-  /[A-Z]/.test(key)
-    ? key.replace(/[A-Z]/g, (g) => '_' + g.toLowerCase())
-    : key;
+  /[A-Z]/.test(key) ? key.replace(/[A-Z]/g, (g) => '_' + g.toLowerCase()) : key;
 
 function toNotation(
   obj: unknown,
