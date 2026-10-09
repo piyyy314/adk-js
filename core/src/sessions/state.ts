@@ -62,7 +62,12 @@ export class State {
    * Whether the state has pending delta.
    */
   hasDelta(): boolean {
-    return Object.keys(this.delta).length > 0;
+    // Optimized: use a for...in loop to short-circuit on the first property without
+    // allocating an array via Object.keys().
+    for (const _ in this.delta) {
+      return true;
+    }
+    return false;
   }
 
   /**

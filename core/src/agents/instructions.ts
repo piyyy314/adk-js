@@ -70,7 +70,7 @@ export async function injectSessionState(
       if (!artifact) {
         throw new Error(`Artifact ${fileName} not found.`);
       }
-      return String(artifact);
+      return String(artifact.text ?? artifact);
     }
 
     // Step 3: Handle state variable injection.
@@ -89,10 +89,9 @@ export async function injectSessionState(
     throw new Error(`Context variable not found: \`${key}\`.`);
   }
   // TODO - b/425992518: enable concurrent repalcement with key deduplication.
-  const pattern = /\{+[^{}]*}+/g;
   const result: string[] = [];
   let lastEnd = 0;
-  const matches = template.matchAll(pattern);
+  const matches = template.matchAll(INSTRUCTION_PLACEHOLDER_PATTERN);
 
   for (const match of matches) {
     result.push(template.slice(lastEnd, match.index));
@@ -124,7 +123,15 @@ function isIdentifier(s: string): boolean {
   return isIdentifierPattern.test(s);
 }
 
-const VALID_PREFIXES = [State.APP_PREFIX, State.USER_PREFIX, State.TEMP_PREFIX];
+// Hoist compiled instruction placeholder pattern to module scope to avoid re-creation per call.
+const INSTRUCTION_PLACEHOLDER_PATTERN = /\{+[^{}]*}+/g;
+
+const VALID_PREFIX_SET = new Set([
+  State.APP_PREFIX,
+  State.USER_PREFIX,
+  State.TEMP_PREFIX,
+]);
+
 /**
  * Checks if a variable name is a valid state name.
  * A valid state name is either:
@@ -135,15 +142,18 @@ const VALID_PREFIXES = [State.APP_PREFIX, State.USER_PREFIX, State.TEMP_PREFIX];
  * @returns True if the variable name is valid, False otherwise.
  */
 function isValidStateName(variableName: string): boolean {
-  const parts = variableName.split(':');
-  if (parts.length === 0 || parts.length > 2) {
-    return false;
-  }
-  if (parts.length === 1) {
+  // Optimized: Use indexOf and Set lookup to avoid array allocations from split(':')
+  // and string concatenation during state name validation.
+  const colonIndex = variableName.indexOf(':');
+  if (colonIndex === -1) {
     return isIdentifier(variableName);
   }
-  if (VALID_PREFIXES.includes(parts[0] + ':')) {
-    return isIdentifier(parts[1]);
+  if (variableName.indexOf(':', colonIndex + 1) !== -1) {
+    return false;
+  }
+  const prefix = variableName.slice(0, colonIndex + 1);
+  if (VALID_PREFIX_SET.has(prefix)) {
+    return isIdentifier(variableName.slice(colonIndex + 1));
   }
   return false;
 }
