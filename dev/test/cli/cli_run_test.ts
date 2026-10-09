@@ -220,6 +220,7 @@ describe('cli_run', () => {
     };
     (loadFileData as Mock).mockResolvedValue(sessionContent);
     const mockSessionService = createMockSessionService();
+    const {log} = await import('@clack/prompts');
 
     await runAgent({
       agentPath: 'agent.ts',
@@ -229,8 +230,28 @@ describe('cli_run', () => {
 
     expect(loadFileData).toHaveBeenCalledWith('session.json');
     expect(intro).toHaveBeenCalledWith('Resuming session: test-agent');
+    expect(log.info).toHaveBeenCalledWith(
+      expect.stringContaining('Replaying session history from session.json'),
+    );
     expect(text).toHaveBeenCalled();
     expect(outro).toHaveBeenCalledWith('Happy Agent Building!');
+  });
+
+  it('should log warning when saved session file cannot be loaded', async () => {
+    (loadFileData as Mock).mockResolvedValue(null);
+    const mockSessionService = createMockSessionService();
+    const {log} = await import('@clack/prompts');
+
+    await runAgent({
+      agentPath: 'agent.ts',
+      savedSessionFile: 'nonexistent.json',
+      sessionService: mockSessionService,
+    });
+
+    expect(loadFileData).toHaveBeenCalledWith('nonexistent.json');
+    expect(log.warn).toHaveBeenCalledWith(
+      expect.stringContaining('Could not load saved session from nonexistent.json'),
+    );
   });
 
   it('should save session when requested', async () => {
