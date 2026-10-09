@@ -153,11 +153,21 @@ export function hasTrailingCodeExecutionResult(event: Event): boolean {
  * @returns A single string with the combined text.
  */
 export function stringifyContent(event: Event): string {
-  if (!event.content?.parts) {
+  const parts = event.content?.parts;
+  if (!parts) {
     return '';
   }
 
-  return event.content.parts.map((part) => part.text ?? '').join('');
+  // Optimize string concatenation using a single-pass loop instead of
+  // intermediate array allocation via `.map()` and `.join()`.
+  let result = '';
+  for (let i = 0; i < parts.length; i++) {
+    if (parts[i].text) {
+      result += parts[i].text;
+    }
+  }
+
+  return result;
 }
 
 const ASCII_LETTERS_AND_NUMBERS =
