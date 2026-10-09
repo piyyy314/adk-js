@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/piyyy314/adk-js/compare/adk-v0.3.0...adk-v0.4.0) (2026-10-09)
+
+
+### Performance Improvements
+
+* **core:** optimize object notation conversion utilities ([5a81234](https://github.com/piyyy314/adk-js/commit/5a81234ec634167d214361aa7bff4be6e158b57f))
+
 ## [0.3.0](https://github.com/piyyy314/adk-js/compare/adk-v0.2.8...adk-v0.3.0) (2026-08-10)
 
 
