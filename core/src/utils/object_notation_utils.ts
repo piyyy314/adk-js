@@ -36,16 +36,23 @@ export function toSnakeCase(
   return toNotation(obj, toSnakeCaseKey, '', preserveSet);
 }
 
+// Pre-compiled regular expressions to avoid re-compilation allocation overhead during key conversions.
+const SNAKE_CASE_REGEX = /_([a-z])/g;
+const HAS_UPPERCASE_REGEX = /[A-Z]/;
+const UPPERCASE_REGEX = /[A-Z]/g;
+
 // Fast check to skip expensive regex replacement when keys have no underscores or uppercase letters.
 const toCamelCaseKey = (key: string) =>
   key.includes('_')
-    ? key.replace(/_([a-z])/g, (_match: string, letter: string) =>
+    ? key.replace(SNAKE_CASE_REGEX, (_match: string, letter: string) =>
         letter.toUpperCase(),
       )
     : key;
 
 const toSnakeCaseKey = (key: string) =>
-  /[A-Z]/.test(key) ? key.replace(/[A-Z]/g, (g) => '_' + g.toLowerCase()) : key;
+  HAS_UPPERCASE_REGEX.test(key)
+    ? key.replace(UPPERCASE_REGEX, (g) => '_' + g.toLowerCase())
+    : key;
 
 function toNotation(
   obj: unknown,
