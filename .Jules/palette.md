@@ -41,3 +41,7 @@
 ## 2025-06-19 - Smooth Streaming in Terminal UIs
 **Learning:** Logging streaming chunks via `console.log` produces choppy, line-by-line output that degrades terminal UX. Using `process.stdout.write` when `process.stdout.isTTY` is true enables real-time smooth stream alignment while preserving non-TTY fallbacks.
 **Action:** Stream interactive model responses with `process.stdout.write` and append a single trailing newline (`\n`) once the streaming generator completes.
+
+## 2025-06-20 - Interactive Configuration Fallbacks over Hard Errors
+**Learning:** When required CLI arguments (such as GCP project or region during deployment) are omitted and cannot be resolved from gcloud config, throwing a raw error in interactive TTY mode creates an abrupt user experience. Prompting the user interactively allows them to supply missing parameters without aborting their workflow. Also note that gcloud outputs `(unset)` when unconfigured.
+**Action:** In interactive TTY environments, fallback to `@clack/prompts` `text` prompts for missing required parameters before throwing configuration errors.
