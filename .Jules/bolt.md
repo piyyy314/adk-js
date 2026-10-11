@@ -1,0 +1,3 @@
+## 2026-10-11 - Fast-path recursion for key notation transformations
+**Learning:** Generic recursive object traversals like `toCamelCase` and `toSnakeCase` suffer performance penalties from inner-loop property path concatenations (`parentKey + '.' + key`), condition checks, and repeated `Set` allocations when default/empty `preserveKeys` arguments are passed. Module-level `Set` constants and branching at entry to a fast recursive function (`toNotationFast`) avoids string path allocations and Set lookups during object traversal.
+**Action:** When creating object transformation or traversal utilities, split empty/default option handling at the entry point so hot recursive loops don't carry unneeded condition checks or path string concatenations.
