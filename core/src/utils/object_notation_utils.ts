@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+const EMPTY_SET: ReadonlySet<string> = new Set();
+
 /**
  * Converts an object with snake_case keys to camelCase keys.
  *
@@ -13,11 +15,20 @@
  */
 export function toCamelCase(
   obj: unknown,
-  preserveKeys: ReadonlyArray<string> | ReadonlySet<string> = [],
+  preserveKeys: ReadonlyArray<string> | ReadonlySet<string> = EMPTY_SET,
 ): unknown {
   const preserveSet =
-    preserveKeys instanceof Set ? preserveKeys : new Set(preserveKeys);
-  return toNotation(obj, toCamelCaseKey, '', preserveSet);
+    preserveKeys instanceof Set
+      ? preserveKeys
+      : Array.isArray(preserveKeys) && preserveKeys.length > 0
+        ? new Set(preserveKeys)
+        : EMPTY_SET;
+
+  // Performance optimization: Route through fast-path when preserveSet is empty.
+  // Avoids inner-loop property path creation and condition checks during recursion.
+  return preserveSet.size > 0
+    ? toNotationWithPreserve(obj, toCamelCaseKey, '', preserveSet)
+    : toNotationFast(obj, toCamelCaseKey);
 }
 
 /**
@@ -29,11 +40,20 @@ export function toCamelCase(
  */
 export function toSnakeCase(
   obj: unknown,
-  preserveKeys: ReadonlyArray<string> | ReadonlySet<string> = [],
+  preserveKeys: ReadonlyArray<string> | ReadonlySet<string> = EMPTY_SET,
 ): unknown {
   const preserveSet =
-    preserveKeys instanceof Set ? preserveKeys : new Set(preserveKeys);
-  return toNotation(obj, toSnakeCaseKey, '', preserveSet);
+    preserveKeys instanceof Set
+      ? preserveKeys
+      : Array.isArray(preserveKeys) && preserveKeys.length > 0
+        ? new Set(preserveKeys)
+        : EMPTY_SET;
+
+  // Performance optimization: Route through fast-path when preserveSet is empty.
+  // Avoids inner-loop property path creation and condition checks during recursion.
+  return preserveSet.size > 0
+    ? toNotationWithPreserve(obj, toSnakeCaseKey, '', preserveSet)
+    : toNotationFast(obj, toSnakeCaseKey);
 }
 
 // Fast check to skip expensive regex replacement when keys have no underscores or uppercase letters.
@@ -47,7 +67,36 @@ const toCamelCaseKey = (key: string) =>
 const toSnakeCaseKey = (key: string) =>
   /[A-Z]/.test(key) ? key.replace(/[A-Z]/g, (g) => '_' + g.toLowerCase()) : key;
 
-function toNotation(
+/**
+ * Fast-path recursive notation transformation when no keys need to be preserved.
+ * Eliminates path string concatenations, Set lookups, and extra recursion arguments.
+ */
+function toNotationFast(
+  obj: unknown,
+  converter: (key: string) => string,
+): unknown {
+  if (Array.isArray(obj)) {
+    return obj.map((item) => toNotationFast(item, converter));
+  }
+
+  if (typeof obj === 'object' && obj !== null) {
+    const source = obj as Record<string, unknown>;
+    const result: Record<string, unknown> = {};
+
+    for (const key of Object.keys(source)) {
+      result[converter(key)] = toNotationFast(source[key], converter);
+    }
+
+    return result;
+  }
+
+  return obj;
+}
+
+/**
+ * Preserve-path recursive notation transformation when specific key paths are preserved.
+ */
+function toNotationWithPreserve(
   obj: unknown,
   converter: (key: string) => string,
   parentKey: string,
@@ -55,7 +104,7 @@ function toNotation(
 ): unknown {
   if (Array.isArray(obj)) {
     return obj.map((item) =>
-      toNotation(item, converter, parentKey, preserveSet),
+      toNotationWithPreserve(item, converter, parentKey, preserveSet),
     );
   }
 
@@ -65,17 +114,12 @@ function toNotation(
 
     for (const key of Object.keys(source)) {
       const convertedKey = converter(key);
-      const hasPreserveKeys = preserveSet.size > 0;
-      const fullPath = hasPreserveKeys
-        ? parentKey !== ''
-          ? parentKey + '.' + key
-          : key
-        : '';
+      const fullPath = parentKey !== '' ? parentKey + '.' + key : key;
 
-      if (hasPreserveKeys && preserveSet.has(fullPath)) {
+      if (preserveSet.has(fullPath)) {
         result[convertedKey] = source[key];
       } else {
-        result[convertedKey] = toNotation(
+        result[convertedKey] = toNotationWithPreserve(
           source[key],
           converter,
           fullPath,
