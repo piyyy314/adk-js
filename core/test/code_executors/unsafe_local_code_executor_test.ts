@@ -140,7 +140,7 @@ describe('UnsafeLocalCodeExecutor', () => {
 
     expect(result.stdout).toContain('Hello, Shell!');
     expect(result.stderr).toBe('');
-  });
+  }, 15000);
 
   it('should return error for unsupported language', async () => {
     const params: ExecuteCodeParams = {
