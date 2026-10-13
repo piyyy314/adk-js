@@ -292,6 +292,27 @@ describe('deployToCloudRun', () => {
     }
   });
 
+  it('should throw error if region resolution returns (unset)', async () => {
+    const optionsWithoutRegion = {
+      ...defaultOptions,
+      region: '',
+    };
+
+    execMock.mockImplementation((cmd: string, callback: Callback) => {
+      if (cmd.includes('config get-value project')) {
+        callback(null, {stdout: 'gcloud-project\n'});
+      } else if (cmd.includes('config get-value run/region')) {
+        callback(null, {stdout: '(unset)\n'});
+      } else {
+        callback(null, {stdout: ''});
+      }
+    });
+
+    await expect(deployToCloudRun(optionsWithoutRegion)).rejects.toThrow(
+      /Region is not specified/,
+    );
+  });
+
   it('should not call outro when project resolution fails and isTTY is false', async () => {
     const originalIsTTY = process.stdout.isTTY;
     Object.defineProperty(process.stdout, 'isTTY', {

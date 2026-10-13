@@ -284,7 +284,7 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
 
     const region =
       options.region || (await resolveDefaultFromGcloudConfig('run/region'));
-    if (!region) {
+    if (!region || region === '(unset)') {
       throw new Error(
         'Region is not specified and default value for "run/region" is not set in gcloud config. Please specify region with --region option or set default value running "gcloud config set run/region YOUR_REGION_NAME"',
       );
