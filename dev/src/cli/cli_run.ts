@@ -275,7 +275,9 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
           options.savedSessionFile,
         );
         if (loadedSession) {
-          log.info(`Replaying session history from ${options.savedSessionFile}...`);
+          log.info(
+            `Replaying session history from ${options.savedSessionFile}...`,
+          );
           for (const event of loadedSession.events) {
             await sessionService.appendEvent({session, event});
             const content = event.content;
@@ -289,7 +291,9 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
             }
           }
         } else {
-          log.warn(`Could not load saved session from ${options.savedSessionFile}`);
+          log.warn(
+            `Could not load saved session from ${options.savedSessionFile}`,
+          );
         }
       }
 

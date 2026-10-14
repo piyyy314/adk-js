@@ -250,7 +250,9 @@ describe('cli_run', () => {
     });
 
     expect(log.warn).toHaveBeenCalledWith(
-      expect.stringContaining('Could not load saved session from non-existent.json'),
+      expect.stringContaining(
+        'Could not load saved session from non-existent.json',
+      ),
     );
   });
 
@@ -266,7 +268,9 @@ describe('cli_run', () => {
     });
 
     expect(saveToFile).toHaveBeenCalledWith(
-      expect.stringContaining(path.join('nested', 'dir', 'my-session.session.json')),
+      expect.stringContaining(
+        path.join('nested', 'dir', 'my-session.session.json'),
+      ),
       expect.anything(),
     );
     expect(log.success).toHaveBeenCalledWith(
