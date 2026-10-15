@@ -62,10 +62,12 @@ function toNotation(
   if (typeof obj === 'object' && obj !== null) {
     const source = obj as Record<string, unknown>;
     const result: Record<string, unknown> = {};
+    // Performance optimization: evaluate preserveSet.size check once per object
+    // level instead of repeating the property lookup for every object key.
+    const hasPreserveKeys = preserveSet.size > 0;
 
     for (const key of Object.keys(source)) {
       const convertedKey = converter(key);
-      const hasPreserveKeys = preserveSet.size > 0;
       const fullPath = hasPreserveKeys
         ? parentKey !== ''
           ? parentKey + '.' + key
