@@ -75,7 +75,15 @@ export class InMemorySessionService extends BaseSessionService {
 
     this.sessions[appName][userId][session.id] = session;
 
-    const copiedSession = cloneDeep(session);
+    // Safely copy events (avoid cloneDeep when events array is empty)
+    const copiedSession: Session = {
+      id: session.id,
+      appName: session.appName,
+      userId: session.userId,
+      state: cloneDeep(session.state),
+      events: session.events.length === 0 ? [] : cloneDeep(session.events),
+      lastUpdateTime: session.lastUpdateTime,
+    };
     copiedSession.state = mergeStates(
       this.appState[appName],
       this.userState[appName]?.[userId],
@@ -100,27 +108,37 @@ export class InMemorySessionService extends BaseSessionService {
     }
 
     const session: Session = this.sessions[appName][userId][sessionId];
-    const copiedSession = cloneDeep(session);
+
+    // Filter/slice events FIRST before cloneDeep to avoid expensive deep copying
+    // of thousands of historical session events that will be discarded anyway.
+    let events = session.events;
 
     if (config) {
       if (config.numRecentEvents) {
-        copiedSession.events = copiedSession.events.slice(
-          -config.numRecentEvents,
-        );
+        events = events.slice(-config.numRecentEvents);
       }
       if (config.afterTimestamp) {
-        let i = copiedSession.events.length - 1;
+        let i = events.length - 1;
         while (i >= 0) {
-          if (copiedSession.events[i].timestamp < config.afterTimestamp) {
+          if (events[i].timestamp < config.afterTimestamp) {
             break;
           }
           i--;
         }
         if (i >= 0) {
-          copiedSession.events = copiedSession.events.slice(i + 1);
+          events = events.slice(i + 1);
         }
       }
     }
+
+    const copiedSession: Session = {
+      id: session.id,
+      appName: session.appName,
+      userId: session.userId,
+      state: cloneDeep(session.state),
+      events: cloneDeep(events),
+      lastUpdateTime: session.lastUpdateTime,
+    };
 
     copiedSession.state = mergeStates(
       this.appState[appName],
