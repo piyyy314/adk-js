@@ -13,11 +13,11 @@
  */
 export function toCamelCase(
   obj: unknown,
-  preserveKeys: string[] | Set<string> = [],
+  preserveKeys: ReadonlyArray<string> | ReadonlySet<string> = [],
 ): unknown {
-  const preserveKeysSet =
+  const preserveSet =
     preserveKeys instanceof Set ? preserveKeys : new Set(preserveKeys);
-  return toNotation(obj, toCamelCaseKey, '', preserveKeysSet);
+  return toNotation(obj, toCamelCaseKey, '', preserveSet);
 }
 
 /**
@@ -29,11 +29,11 @@ export function toCamelCase(
  */
 export function toSnakeCase(
   obj: unknown,
-  preserveKeys: string[] | Set<string> = [],
+  preserveKeys: ReadonlyArray<string> | ReadonlySet<string> = [],
 ): unknown {
-  const preserveKeysSet =
+  const preserveSet =
     preserveKeys instanceof Set ? preserveKeys : new Set(preserveKeys);
-  return toNotation(obj, toSnakeCaseKey, '', preserveKeysSet);
+  return toNotation(obj, toSnakeCaseKey, '', preserveSet);
 }
 
 // Fast path: skip regex replacement if the key doesn't contain underscores.
@@ -54,7 +54,7 @@ function toNotation(
   obj: unknown,
   converter: (key: string) => string,
   parentKey: string = '',
-  preserveKeys: Set<string> = new Set(),
+  preserveSet: ReadonlySet<string> = new Set(),
 ): unknown {
   if (Array.isArray(obj)) {
     return obj.map((item) =>
@@ -76,7 +76,7 @@ function toNotation(
         : '';
 
       // O(1) Set lookup replacing O(K) linear array scan
-      if (preserveKeys.has(fullPath)) {
+      if (hasPreserveKeys && preserveSet.has(fullPath)) {
         result[convertedKey] = source[key];
       } else {
         result[convertedKey] = toNotation(
