@@ -332,8 +332,9 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
       });
       await saveToFile(path.join(dirname, sessionPath), sessionToStore);
 
+      log.success(`Session saved to ${sessionPath}`);
       log.info(
-        `Session saved to ${sessionPath}. To resume, run: adk run ${options.agentPath} --resume ${sessionPath}`,
+        `To resume, run: adk run ${options.agentPath} --resume ${sessionPath}`,
       );
     }
 

@@ -58,7 +58,7 @@ function toNotation(
 ): unknown {
   if (Array.isArray(obj)) {
     return obj.map((item) =>
-      toNotation(item, converter, parentKey, preserveKeys),
+      toNotation(item, converter, parentKey, preserveSet),
     );
   }
 
@@ -68,7 +68,12 @@ function toNotation(
 
     for (const key of Object.keys(source)) {
       const convertedKey = converter(key);
-      const fullPath = parentKey !== '' ? parentKey + '.' + key : key;
+      const hasPreserveKeys = preserveSet.size > 0;
+      const fullPath = hasPreserveKeys
+        ? parentKey !== ''
+          ? parentKey + '.' + key
+          : key
+        : '';
 
       // O(1) Set lookup replacing O(K) linear array scan
       if (preserveKeys.has(fullPath)) {
@@ -78,7 +83,7 @@ function toNotation(
           source[key],
           converter,
           fullPath,
-          preserveKeys,
+          preserveSet,
         );
       }
     }
