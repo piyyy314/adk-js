@@ -36,7 +36,7 @@ export function toSnakeCase(
   return toNotation(obj, toSnakeCaseKey, '', preserveSet);
 }
 
-// Fast check to skip expensive regex replacement when keys have no underscores or uppercase letters.
+// Fast path: skip regex replacement if the key doesn't contain underscores.
 const toCamelCaseKey = (key: string) =>
   key.includes('_')
     ? key.replace(/_([a-z])/g, (_match: string, letter: string) =>
@@ -44,14 +44,17 @@ const toCamelCaseKey = (key: string) =>
       )
     : key;
 
+// Fast path: skip regex replacement if the key doesn't contain uppercase letters.
 const toSnakeCaseKey = (key: string) =>
-  /[A-Z]/.test(key) ? key.replace(/[A-Z]/g, (g) => '_' + g.toLowerCase()) : key;
+  key.toLowerCase() !== key
+    ? key.replace(/[A-Z]/g, (g) => '_' + g.toLowerCase())
+    : key;
 
 function toNotation(
   obj: unknown,
   converter: (key: string) => string,
-  parentKey: string,
-  preserveSet: ReadonlySet<string>,
+  parentKey: string = '',
+  preserveSet: ReadonlySet<string> = new Set(),
 ): unknown {
   if (Array.isArray(obj)) {
     return obj.map((item) =>
@@ -72,6 +75,7 @@ function toNotation(
           : key
         : '';
 
+      // O(1) Set lookup replacing O(K) linear array scan
       if (hasPreserveKeys && preserveSet.has(fullPath)) {
         result[convertedKey] = source[key];
       } else {
