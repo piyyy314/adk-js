@@ -305,13 +305,13 @@ export async function runAgent(options: RunAgentOptions): Promise<void> {
       const sessionId =
         options.sessionId ||
         (await text({
-          message: 'Session ID to save (will be used as filename)',
+          message: 'Enter session ID to save (press Enter to accept default)',
           initialValue: defaultSessionId,
           placeholder: 'e.g. my-session',
           validate: (value) => {
             if (!value) return 'Session ID is required';
             if (/[^-a-zA-Z0-9_]/.test(value)) {
-              return 'Session ID contains invalid characters';
+              return 'Session ID can only contain letters, numbers, hyphens, and underscores';
             }
             return;
           },

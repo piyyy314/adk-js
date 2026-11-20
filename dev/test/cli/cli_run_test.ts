@@ -588,11 +588,38 @@ describe('cli_run', () => {
 
     expect(text).toHaveBeenCalledWith(
       expect.objectContaining({
-        message: 'Session ID to save (will be used as filename)',
+        message: 'Enter session ID to save (press Enter to accept default)',
         initialValue: expect.any(String),
         placeholder: 'e.g. my-session',
       }),
     );
+  });
+
+  it('should validate session ID format with clear error message', async () => {
+    (text as Mock)
+      .mockResolvedValueOnce('exit')
+      .mockResolvedValueOnce('my-session-id');
+    (isCancel as unknown as Mock).mockReturnValue(false);
+    const mockSessionService = createMockSessionService();
+
+    await runAgent({
+      agentPath: 'agent.ts',
+      saveSession: true,
+      sessionService: mockSessionService,
+    });
+
+    const callArgs = (text as Mock).mock.calls.find(
+      (call) =>
+        call[0]?.message ===
+        'Enter session ID to save (press Enter to accept default)',
+    );
+    expect(callArgs).toBeDefined();
+    const validate = callArgs[0].validate;
+    expect(validate('')).toBe('Session ID is required');
+    expect(validate('invalid session id!')).toBe(
+      'Session ID can only contain letters, numbers, hyphens, and underscores',
+    );
+    expect(validate('valid-session_123')).toBeUndefined();
   });
 
   describe('spinner behavior in interactive mode', () => {
