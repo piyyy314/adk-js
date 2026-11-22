@@ -198,6 +198,10 @@ export class UnsafeLocalCodeExecutor extends BaseCodeExecutor {
           cwd: tempDir,
         });
 
+        if (child.stdin) {
+          child.stdin.end();
+        }
+
         let stdout = '';
         let stderr = '';
 
