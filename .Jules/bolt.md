@@ -1,0 +1,4 @@
+## 2026-08-13 - Avoid Dynamic RegExp Compilation inside Lookup Loops and Reset lastIndex for Cached RegExps
+
+**Learning:** Recompiling Regular Expressions on demand within a frequently called search or resolution loop introduces significant performance and garbage collection overhead. In addition, when caching compiled RegExp objects in JavaScript/TypeScript, any potential stateful flags (such as `/g` or `/y`) will carry over state via the `lastIndex` property, leading to unpredictable matching failures on subsequent tests.
+**Action:** Always pre-compile and cache regexes in a map during class registration or initialization instead of compiling them dynamically in iteration loops. Always reset `pattern.lastIndex = 0` defensively when using cached, shared RegExp objects to guarantee correct matching behavior.
