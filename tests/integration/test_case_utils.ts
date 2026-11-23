@@ -284,6 +284,7 @@ export abstract class BaseTestServer {
 
     await new Promise<void>((resolve, reject) => {
       let started = false;
+      let stderrOutput = '';
       this.serverProcess!.stdout.on('data', (data) => {
         const message = data.toString();
         if (message.includes(startMessage)) {
@@ -294,7 +295,9 @@ export abstract class BaseTestServer {
       });
 
       this.serverProcess!.stderr.on('data', (data) => {
-        console.error(`${serverName} Stderr: ${data.toString()}`);
+        const str = data.toString();
+        stderrOutput += str;
+        console.error(`${serverName} Stderr: ${str}`);
       });
 
       this.serverProcess!.on('error', (error) => {
@@ -311,17 +314,19 @@ export abstract class BaseTestServer {
         console.error(`${serverName} exited with code ${code}`);
 
         if (!started) {
+          const detail = stderrOutput.trim() ? `: ${stderrOutput.trim()}` : '';
           reject(
-            new Error(`${serverName} exited prematurely with code ${code}`),
+            new Error(`${serverName} exited prematurely with code ${code}${detail}`),
           );
         }
       });
 
       setTimeout(() => {
         if (!started) {
+          const detail = stderrOutput.trim() ? `: ${stderrOutput.trim()}` : '';
           reject(
             new Error(
-              `Timeout waiting for ${serverName.toLowerCase()} to start.`,
+              `Timeout waiting for ${serverName.toLowerCase()} to start.${detail}`,
             ),
           );
         }
