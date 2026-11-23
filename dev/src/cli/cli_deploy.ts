@@ -309,7 +309,7 @@ export async function deployToCloudRun(options: DeployToCloudRunOptions) {
     }
     if (!region || region === '(unset)') {
       throw new Error(
-        'Region is not specified and default value for "region" is not set in gcloud config. Please specify region with --region option or set default value running "gcloud config set run/region YOUR_REGION_NAME"',
+        'Region is not specified and default value for "run/region" is not set in gcloud config. Please specify region with --region option or set default value running "gcloud config set run/region YOUR_REGION_NAME"',
       );
     }
     if (!options.region) {
