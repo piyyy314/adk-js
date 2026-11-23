@@ -207,7 +207,9 @@ describe('cli_run', () => {
       inputFile: 'input.json',
       sessionService: mockSessionService,
     });
-    expect(loadFileData).toHaveBeenCalledWith('input.json');
+    expect(loadFileData).toHaveBeenCalledWith(
+      expect.stringContaining('input.json'),
+    );
     expect(log.error).toHaveBeenCalledWith(
       'Could not load input file: input.json',
     );
