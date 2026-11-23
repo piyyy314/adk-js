@@ -362,7 +362,7 @@ export async function createAgent(options: AgentCreationOptions) {
         : await password({
             message: 'Enter the Google API Key',
             validate: (value) => {
-              if (!value) return 'API Key is required';
+              if (!value || !value.trim()) return 'API Key is required';
               return;
             },
           });
