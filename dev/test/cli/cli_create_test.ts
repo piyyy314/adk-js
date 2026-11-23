@@ -189,6 +189,20 @@ describe('createAgent', () => {
       );
     });
 
+    it('should reject whitespace-only API keys', async () => {
+      (select as Mock).mockResolvedValueOnce('gemini-2.5-pro');
+      (select as Mock).mockResolvedValueOnce('ts');
+      (select as Mock).mockResolvedValueOnce('googleai');
+      (password as Mock).mockResolvedValueOnce('test-key');
+
+      await createAgent(getFreshOptions());
+
+      expect(password).toHaveBeenCalled();
+      const passwordOptions = (password as Mock).mock.calls[0][0];
+      expect(passwordOptions.validate('   ')).toBe('API Key is required');
+      expect(passwordOptions.validate('test-key')).toBeUndefined();
+    });
+
     it('should pass correct initial values to select prompts', async () => {
       (select as Mock).mockResolvedValue('gemini-2.5-flash');
       (password as Mock).mockResolvedValue('test-key');
