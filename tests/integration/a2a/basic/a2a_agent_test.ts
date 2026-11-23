@@ -17,7 +17,7 @@ describe('A2A: Remote Agent Basic', () => {
 
   beforeAll(async () => {
     server = new AdkTsApiServer({
-      agentsDir: path.join(__dirname, 'remote_a2a/'),
+      agentsDir: path.join(__dirname, 'remote_a2a'),
       a2a: true,
     });
     await server.start();
