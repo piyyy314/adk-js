@@ -316,7 +316,9 @@ export abstract class BaseTestServer {
         if (!started) {
           const detail = stderrOutput.trim() ? `: ${stderrOutput.trim()}` : '';
           reject(
-            new Error(`${serverName} exited prematurely with code ${code}${detail}`),
+            new Error(
+              `${serverName} exited prematurely with code ${code}${detail}`,
+            ),
           );
         }
       });
