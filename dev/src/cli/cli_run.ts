@@ -46,6 +46,7 @@ async function runFromInputFile(
     path.join(dirname, options.filePath),
   );
   if (!fileContent) {
+    log.error(`Could not load input file: ${options.filePath}`);
     return;
   }
 

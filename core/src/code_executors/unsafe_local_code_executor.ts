@@ -166,6 +166,7 @@ export class UnsafeLocalCodeExecutor extends BaseCodeExecutor {
         command = this.shellCommandPath;
         if (this.shellCommandPath.toLowerCase().includes('powershell')) {
           args = [
+            '-NoProfile',
             '-NoLogo',
             '-NonInteractive',
             '-ExecutionPolicy',
@@ -179,6 +180,7 @@ export class UnsafeLocalCodeExecutor extends BaseCodeExecutor {
       } else if (language === CodeExecutionLanguage.POWERSHELL) {
         command = IS_WINDOWS ? 'powershell' : 'pwsh';
         args = [
+          '-NoProfile',
           '-NoLogo',
           '-NonInteractive',
           '-ExecutionPolicy',
