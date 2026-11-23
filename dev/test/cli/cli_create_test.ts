@@ -95,6 +95,63 @@ describe('createAgent', () => {
     vi.restoreAllMocks();
   });
 
+  describe('Agent Name Validation', () => {
+    it('should reject invalid agent names in interactive TTY mode', async () => {
+      const originalIsTTY = process.stdout.isTTY;
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: true,
+        configurable: true,
+      });
+
+      try {
+        const {log, outro} = await import('@clack/prompts');
+        await createAgent({
+          ...getFreshOptions(),
+          agentName: 'invalid agent name!',
+        });
+
+        expect(log.error).toHaveBeenCalledWith(
+          expect.stringContaining('Invalid agent name "invalid agent name!"'),
+        );
+        expect(outro).toHaveBeenCalledWith('Agent creation failed');
+        expect(createFolder).not.toHaveBeenCalled();
+      } finally {
+        Object.defineProperty(process.stdout, 'isTTY', {
+          value: originalIsTTY,
+          configurable: true,
+        });
+      }
+    });
+
+    it('should reject invalid agent names in non-interactive mode without calling outro', async () => {
+      const {log, outro} = await import('@clack/prompts');
+      await createAgent({
+        ...getFreshOptions(),
+        agentName: 'invalid/agent',
+        forceYes: true,
+      });
+
+      expect(log.error).toHaveBeenCalledWith(
+        expect.stringContaining('Invalid agent name "invalid/agent"'),
+      );
+      expect(outro).not.toHaveBeenCalled();
+      expect(createFolder).not.toHaveBeenCalled();
+    });
+    it('should reject an empty agent name', async () => {
+      const {log} = await import('@clack/prompts');
+      await createAgent({
+        ...getFreshOptions(),
+        agentName: '',
+        forceYes: true,
+      });
+
+      expect(log.error).toHaveBeenCalledWith(
+        expect.stringContaining('Invalid agent name ""'),
+      );
+      expect(createFolder).not.toHaveBeenCalled();
+    });
+  });
+
   describe('Non-interactive Mode (forceYes: true)', () => {
     it('should create agent with default values when minimal args provided', async () => {
       const {intro, note, outro, spinner, log} = await import('@clack/prompts');
