@@ -346,7 +346,7 @@ describe('createAgent', () => {
         });
 
         expect(log.error).toHaveBeenCalledWith(
-          'Agent name must contain only letters, numbers, underscores, and hyphens.',
+          'Invalid agent name "invalid agent/name!". Agent name can only contain letters, numbers, underscores, and hyphens.',
         );
         expect(outro).toHaveBeenCalledWith('Agent creation failed');
         expect(isFolderExists).not.toHaveBeenCalled();
