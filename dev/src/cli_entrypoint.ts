@@ -6,8 +6,9 @@
  */
 import {createProgram} from './cli/cli.js';
 
-try {
-  createProgram().parse(process.argv);
-} catch (e) {
-  console.error(e);
-}
+createProgram()
+  .parseAsync(process.argv)
+  .catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
