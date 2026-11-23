@@ -405,6 +405,37 @@ describe('deployToCloudRun', () => {
     }
   });
 
+  it('should reject the gcloud (unset) region in non-interactive mode', async () => {
+    const originalIsTTY = process.stdout.isTTY;
+    Object.defineProperty(process.stdout, 'isTTY', {
+      value: false,
+      configurable: true,
+    });
+
+    const optionsWithoutRegion = {...defaultOptions, region: ''};
+    execMock.mockImplementation((cmd: string, callback: Callback) => {
+      if (cmd.includes('config get-value project')) {
+        callback(null, {stdout: 'gcloud-project\\n'});
+      } else if (cmd.includes('config get-value run/region')) {
+        callback(null, {stdout: '(unset)\\n'});
+      } else {
+        callback(null, {stdout: ''});
+      }
+    });
+
+    try {
+      await expect(deployToCloudRun(optionsWithoutRegion)).rejects.toThrow(
+        /Region is not specified/,
+      );
+      expect(textMock).not.toHaveBeenCalled();
+    } finally {
+      Object.defineProperty(process.stdout, 'isTTY', {
+        value: originalIsTTY,
+        configurable: true,
+      });
+    }
+  });
+
   it('should throw error and call outro with "Deployment failed" when region resolution and prompt fail and isTTY is true', async () => {
     const originalIsTTY = process.stdout.isTTY;
     Object.defineProperty(process.stdout, 'isTTY', {
