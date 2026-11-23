@@ -6,6 +6,7 @@
 
 import {intro, isCancel, outro, spinner, text} from '@clack/prompts';
 import {BaseAgent, BaseSessionService, Runner} from '@google/adk';
+import * as path from 'node:path';
 import {createInterface} from 'node:readline';
 import {afterEach, beforeEach, describe, expect, it, Mock, vi} from 'vitest';
 import {runAgent} from '../../src/cli/cli_run.js';
@@ -220,6 +221,7 @@ describe('cli_run', () => {
     };
     (loadFileData as Mock).mockResolvedValue(sessionContent);
     const mockSessionService = createMockSessionService();
+    const {log} = await import('@clack/prompts');
 
     await runAgent({
       agentPath: 'agent.ts',
@@ -228,24 +230,47 @@ describe('cli_run', () => {
     });
 
     expect(loadFileData).toHaveBeenCalledWith('session.json');
+    expect(log.info).toHaveBeenCalledWith(
+      expect.stringContaining('Replaying session history from session.json'),
+    );
     expect(intro).toHaveBeenCalledWith('Resuming session: test-agent');
     expect(text).toHaveBeenCalled();
     expect(outro).toHaveBeenCalledWith('Happy Agent Building!');
   });
 
-  it('should save session when requested', async () => {
+  it('should log warning when saved session file cannot be loaded', async () => {
+    (loadFileData as Mock).mockResolvedValue(null);
+    const mockSessionService = createMockSessionService();
+    const {log} = await import('@clack/prompts');
+
+    await runAgent({
+      agentPath: 'agent.ts',
+      savedSessionFile: 'non-existent.json',
+      sessionService: mockSessionService,
+    });
+
+    expect(log.warn).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'Could not load saved session from non-existent.json',
+      ),
+    );
+  });
+
+  it('should save session in agent parent directory when requested', async () => {
     const mockSessionService = createMockSessionService();
     const {log} = await import('@clack/prompts');
     // Run interactively then exit
     await runAgent({
-      agentPath: 'agent.ts',
+      agentPath: 'nested/dir/agent.ts',
       saveSession: true,
       sessionId: 'my-session',
       sessionService: mockSessionService,
     });
 
     expect(saveToFile).toHaveBeenCalledWith(
-      expect.stringContaining('my-session.session.json'),
+      expect.stringContaining(
+        path.join('nested', 'dir', 'my-session.session.json'),
+      ),
       expect.anything(),
     );
     expect(log.success).toHaveBeenCalledWith(
