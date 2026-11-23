@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.4.0](https://github.com/piyyy314/adk-js/compare/adk-v0.3.0...adk-v0.4.0) (2026-11-23)
+
+
+### Bug Fixes
+
+* **cli:** prompt for missing GCP deploy settings safely ([#273](https://github.com/piyyy314/adk-js/issues/273)) ([1570751](https://github.com/piyyy314/adk-js/commit/15707515077a963304755cdd96b00f865e2bb4f7))
+
+
+### Performance Improvements
+
+* **core:** optimize object notation conversion hot paths ([#272](https://github.com/piyyy314/adk-js/issues/272)) ([c8f6629](https://github.com/piyyy314/adk-js/commit/c8f66292f78547857e3b37542293b09fa72e3fb0))
+* **core:** optimize object notation conversion utilities ([5a81234](https://github.com/piyyy314/adk-js/commit/5a81234ec634167d214361aa7bff4be6e158b57f))
+* optimize event key casing conversion and set allocations ([d652e0d](https://github.com/piyyy314/adk-js/commit/d652e0d63b2f25c6467ceba904242e04a6e1b2e6))
+
 ## [0.3.0](https://github.com/piyyy314/adk-js/compare/adk-v0.2.8...adk-v0.3.0) (2026-08-10)
 
 
