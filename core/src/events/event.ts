@@ -196,8 +196,11 @@ export function createNewEventId(): string {
  * will be converted to be `content.parts.function_call.args` but the object
  * inside of the `content.parts.function_call.args` will skip the conversion as it
  * can contain data in any notation.
+ *
+ * Performance optimization: Declared as a static Set to avoid creating a new
+ * Set instance on every transformToSnakeCaseEvent call.
  */
-const PRESERVE_KEYS_CAMEL_CASE = [
+const PRESERVE_KEYS_CAMEL_CASE = new Set([
   'actions.stateDelta',
   'actions.artifactDelta',
   'actions.requestedAuthConfigs',
@@ -205,7 +208,7 @@ const PRESERVE_KEYS_CAMEL_CASE = [
   'actions.customMetadata',
   'content.parts.functionCall.args',
   'content.parts.functionResponse.response',
-];
+]);
 
 /**
  * List of keys to preserve during camelCase to snake_case conversion.
@@ -214,8 +217,11 @@ const PRESERVE_KEYS_CAMEL_CASE = [
  * will be converted to be `content.parts.functionCall.args` but the object
  * inside of the `content.parts.functionCall.args` will skip the conversion as it
  * can contain data in any notation.
+ *
+ * Performance optimization: Declared as a static Set to avoid creating a new
+ * Set instance on every transformToCamelCaseEvent call.
  */
-const PRESERVE_KEYS_SNAKE_CASE = [
+const PRESERVE_KEYS_SNAKE_CASE = new Set([
   'actions.state_delta',
   'actions.artifact_delta',
   'actions.requested_auth_configs',
@@ -223,7 +229,7 @@ const PRESERVE_KEYS_SNAKE_CASE = [
   'actions.custom_metadata',
   'content.parts.function_call.args',
   'content.parts.function_response.response',
-];
+]);
 
 /**
  * Transforms a snake_cased event object to a camelCased Event object.
