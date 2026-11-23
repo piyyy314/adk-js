@@ -415,9 +415,9 @@ describe('deployToCloudRun', () => {
     const optionsWithoutRegion = {...defaultOptions, region: ''};
     execMock.mockImplementation((cmd: string, callback: Callback) => {
       if (cmd.includes('config get-value project')) {
-        callback(null, {stdout: 'gcloud-project\\n'});
+        callback(null, {stdout: 'gcloud-project\n'});
       } else if (cmd.includes('config get-value run/region')) {
-        callback(null, {stdout: '(unset)\\n'});
+        callback(null, {stdout: '(unset)\n'});
       } else {
         callback(null, {stdout: ''});
       }
